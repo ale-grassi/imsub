@@ -1,0 +1,37 @@
+app = "imsub"
+primary_region = "fra"
+
+[build]
+
+[metrics]
+  port = 8080
+  path = "/metrics"
+
+[env]
+  IMSUB_LISTEN_ADDR = ":8080"
+  IMSUB_TWITCH_WEBHOOK_PATH = "/webhooks/twitch"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 25
+    hard_limit = 50
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/healthz"
+
+  [[http_service.machine_checks]]
+    image = "curlimages/curl:8.5.0"
+    entrypoint = ["/bin/sh", "-c"]
+    command = ["curl -fsS http://[$FLY_TEST_MACHINE_IP]:8080/healthz | grep -q ok"]

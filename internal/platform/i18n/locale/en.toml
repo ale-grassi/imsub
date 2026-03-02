@@ -1,0 +1,164 @@
+[btn_back]
+other = "Back"
+
+[btn_cancel]
+other = "Cancel"
+
+[btn_join]
+other = "Join %s"
+
+[btn_link_twitch]
+other = "Connect Twitch"
+
+[btn_refresh]
+other = "Refresh"
+
+[btn_register_creator_open]
+other = "Connect Creator Account"
+
+[btn_reset]
+other = "Delete linked data"
+
+[btn_reset_all_data]
+other = "Delete all data"
+
+[btn_reset_confirm]
+other = "Delete"
+
+[btn_reset_creator_data]
+other = "Delete creator data"
+
+[btn_reset_viewer_data]
+other = "Delete viewer data"
+
+[btn_subscribe]
+other = "Subscribe on Twitch"
+
+[cb_refreshed]
+other = "Refreshed ✅"
+
+[cmd_help]
+other = "Use /start to connect your viewer account, /creator to set up a creator account, /registergroup in your Telegram group, and /reset to delete linked data."
+
+[cmd_help_both]
+other = "Your viewer account and creator setup are both active. Use /start for viewer access, /creator to manage creator setup, /registergroup in your group, or /reset to delete linked data."
+
+[cmd_help_creator]
+other = "Your creator setup is active. Use /creator to review status, /registergroup in your Telegram group, or /reset to delete linked data."
+
+[cmd_help_viewer]
+other = "Your viewer account is connected. Use /start to refresh your access or /reset to delete linked data."
+
+[creator_eventsub_active]
+other = "• Subscriber sync: ✅ <b>Active</b>"
+
+[creator_eventsub_fail]
+other = "Your creator account is connected, but subscriber sync is not active yet. Open /creator in DM and reconnect to retry setup."
+
+[creator_eventsub_inactive]
+other = "• Subscriber sync: ⚠️ <b>Action needed</b> — open /creator in DM to retry setup"
+
+[creator_eventsub_unknown]
+other = "• Subscriber sync: ⚠️ <b>Status unavailable right now</b> — check /creator again shortly"
+
+[creator_exchange_fail]
+other = "⚠️ <b>Creator setup did not finish</b>\nTwitch authorization was interrupted.\nReturn here and run <code>/creator</code> again."
+
+[creator_groups_none]
+other = "• No groups linked yet."
+
+[creator_register_info]
+other = "🎬 <b>Creator Setup</b>\n\nConnect your Twitch creator account so ImSub can verify subscribers and manage access to your Telegram group.\n\n<b>Setup steps</b>\n1. Tap <b>Connect Creator Account</b>\n2. Approve access on Twitch\n3. Run <code>/registergroup</code> in your Telegram group\n\n⚠️ You must be an <b>admin</b> in that group."
+
+[creator_registered_html]
+other = "✅ <b>Creator account connected</b>\n🎬 <b>Twitch:</b> %s\n\n<b>Setup status</b>\n%s\n• Current subscribers cached: %s\n\n👉 <b>Next step</b>\nIf your group is not linked yet, run <code>/registergroup</code> in the Telegram group you want to protect.\nYou must be an <b>admin</b> there.\n\n<b>Current group status</b>\n%s"
+
+[creator_registered_no_group_html]
+other = "✅ <b>Creator account connected</b>\n🎬 <b>Twitch:</b> %s\n\n👉 <b>Next step</b>\nRun <code>/registergroup</code> in the Telegram group you want to protect.\nYou must be an <b>admin</b> there.\n\n⏳ Subscriber syncing will start automatically after the group is linked.\n\n<b>Current group status</b>\n%s"
+
+[creator_scope_missing]
+other = "⚠️ <b>Missing Twitch permission</b>\nThe required creator access was not granted.\nRun <code>/creator</code> again and approve access."
+
+[creator_store_fail]
+other = "⚠️ <b>Could not save creator setup</b>\nTry <code>/creator</code> again."
+
+[creator_subscribers_pending]
+other = "<b>⏳ syncing...</b>"
+
+[creator_subscribers_ready]
+other = "<b>%d</b>"
+
+[creator_userinfo_fail]
+other = "⚠️ <b>Could not read Twitch account details</b>\nRun <code>/creator</code> again in a moment."
+
+[err_creator_link]
+other = "I couldn't create the creator connection link right now. Try /creator again."
+
+[err_load_status]
+other = "I couldn't load your account status right now. Tap Refresh in a moment or try the command again."
+
+[err_reset]
+other = "I couldn't delete your linked data right now. Try again."
+
+[group_not_admin]
+other = "Only group admins can register this group."
+
+[group_not_creator]
+other = "Set up your creator account first with /creator in DM."
+
+[group_not_group]
+other = "This command must be used in a group chat."
+
+[group_registered]
+other = "✅ <b>Group linked</b>\n\nThis group is now connected to <b>%s</b>.\n\n⏳ Subscriber access will start syncing shortly.\n📩 Open <code>/creator</code> in DM to check status."
+
+[link_prompt_html]
+other = "👋 <b>Welcome to ImSub, %s</b>\n\nImSub checks your <b>Twitch subscriptions</b> and unlocks the Telegram groups you can access.\n\n<b>What to do</b>\n1. Tap <b>Connect Twitch</b>\n2. Approve access on Twitch\n3. Come back here to see your group access\n\n⚠️ <b>Using the wrong Twitch account?</b>\nOpen the link in a private or incognito window.\n\n🔗 <b>If the button does not open Twitch</b>\nCopy this link:\n<code>%s</code>"
+
+[linked_status_no_subs_html]
+other = "✅ <b>Your Twitch account is connected.</b>\n👤 <b>Twitch:</b> %s\n\nℹ️ No active subscriptions are currently detected for this account.\nIf you just subscribed, wait a bit and tap <b>Refresh</b>.\n\nIf this is the wrong Twitch account, use /reset or tap <b>Delete linked data</b> below."
+
+[linked_status_with_subs_html]
+other = "✅ <b>Twitch connected</b>\n👤 <b>Account:</b> %s\n\n🎉 <b>Active subscriptions found</b>\n%s\n\n👉 Tap a button below to join the matching Telegram group."
+
+[linked_status_with_subs_no_groups_html]
+other = "✅ <b>Twitch connected</b>\n👤 <b>Account:</b> %s\n\n🎉 <b>Active subscriptions found</b>\n%s\n\n⏳ <b>No Telegram groups are available yet</b>\nThese creators have not linked a subscriber group to ImSub yet.\n\nTap <b>Refresh</b> and check again later."
+
+[oauth_exchange_fail]
+other = "⚠️ <b>Twitch authorization did not finish</b>\nReturn to Telegram and try again."
+
+[oauth_save_fail]
+other = "⚠️ <b>Could not save your Twitch link</b>\nIf the wrong Twitch account was used, run <code>/reset</code> and try again."
+
+[oauth_userinfo_fail]
+other = "⚠️ <b>Could not read Twitch account details</b>\nReturn to Telegram and try again in a moment."
+
+[reset_choose_scope_html]
+other = "⚠️ <b>Choose What to Delete</b>\n\nYou currently have both viewer and creator data linked to this Telegram account.\n\n👤 <b>Viewer account:</b> %s\n🎬 <b>Creator account:</b> %s\n\nSelect the data you want to remove below."
+
+[reset_confirm_both_html]
+other = "⚠️ <b>Delete All Linked Data</b>\n\n👤 <b>Viewer account:</b> %s\n🎬 <b>Creator account:</b> %s\n📦 <b>Creator records to delete:</b> %d\n🚪 <b>Groups that may remove access:</b> %d\n\nIf you continue:\n• both viewer and creator data will be deleted\n• you may lose access to linked Telegram groups\n\n🔄 To connect again later, use <code>/start</code> or <code>/creator</code>."
+
+[reset_confirm_creator_html]
+other = "⚠️ <b>Delete Creator Data</b>\n\n🎬 <b>Creator account:</b> %s\n📦 <b>Creator records to delete:</b> %d\n\nIf you continue:\n• your creator setup will be deleted\n• linked creator registrations will be removed\n\n🔄 To set it up again later, use <code>/creator</code>."
+
+[reset_confirm_viewer_html]
+other = "⚠️ <b>Delete Viewer Data</b>\n\n👤 <b>Twitch account:</b> %s\n🚪 <b>Groups that may remove access:</b> %d\n\nIf you continue:\n• your linked viewer account data will be deleted\n• you may lose access to those Telegram groups\n\n🔄 To connect again later, use <code>/start</code>."
+
+[reset_done_both_html]
+other = "✅ <b>Linked data deleted</b>\n\n👤 <b>Removed viewer account:</b> %s\n🚪 <b>Groups processed:</b> %d\n🎬 <b>Removed creator account:</b> %s\n📦 <b>Creator records deleted:</b> %d\n\nIf you want to set things up again:\n• use <code>/start</code> for viewer access\n• use <code>/creator</code> for creator setup"
+
+[reset_done_creator_html]
+other = "✅ <b>Creator data deleted</b>\n\n🎬 <b>Removed creator account:</b> %s\n📦 <b>Creator records deleted:</b> %d\n\n🔄 To set it up again, use <code>/creator</code>."
+
+[reset_done_viewer_html]
+other = "✅ <b>Viewer data deleted</b>\n\n👤 <b>Removed Twitch account:</b> %s\n🚪 <b>Groups processed:</b> %d\n\n🔄 To connect again, use <code>/start</code>."
+
+[reset_nothing_html]
+other = "✅ <b>Nothing to reset right now.</b>\n\nI couldn't find linked viewer or creator data for your account."
+
+[sub_end_partial]
+other = "⚠️ <b>Subscription ended</b>\n\nYour subscription to <b>%s</b> is no longer active, so your Telegram group access was removed.\n\n🔁 After you resubscribe on Twitch, come back here and use <code>/start</code> to get a new join link."
+
+[user_generic_name]
+other = "there"
