@@ -1,0 +1,41 @@
+{
+  "name": "Imsub Base",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspace",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+      "version": "latest",
+      "enableNonRootDocker": "true",
+      "moby": "false"
+    },
+    "ghcr.io/devcontainers/features/go:1": {
+      "version": "1.26",
+      "target": "/usr/local/go"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "go.toolsManagement.checkForUpdates": "local",
+        "go.useLanguageServer": true,
+        "go.gopath": "/go",
+        "editor.formatOnSave": true
+      },
+      "extensions": [
+        "golang.go",
+        "ms-azuretools.vscode-docker",
+        "editorconfig.editorconfig",
+        "tamasfe.even-better-toml",
+        "ms-vscode.makefile-tools",
+        "humao.rest-client"
+      ]
+    }
+  },
+  "postCreateCommand": "curl -L https://fly.io/install.sh | sh && sudo ln -sf /home/vscode/.fly/bin/flyctl /usr/local/bin/fly && sudo ln -sf /home/vscode/.fly/bin/flyctl /usr/local/bin/flyctl && go mod download",
+  "remoteUser": "vscode",
+  "forwardPorts": [
+    8080,
+    6379
+  ]
+}

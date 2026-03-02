@@ -1,0 +1,30 @@
+# Binaries
+/imsub
+/bin/
+/dist/
+
+# Build and test artifacts
+*.test
+*.out
+*.prof
+coverage.out
+
+# Dependency/vendor caches
+/vendor/
+
+# Environment files and secrets
+.env
+.env.local
+.env.*.local
+
+# Logs and temp files
+*.log
+tmp/
+
+# IDE/editor files
+.idea/
+.vscode/
+*.swp
+
+# OS files
+.DS_Store

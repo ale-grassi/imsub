@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Continue to Twitch</title>
+  <meta http-equiv="refresh" content="1; url={{.OAuthURL}}">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif;
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      background:
+        radial-gradient(circle at top, rgba(145, 71, 255, 0.18), transparent 35%),
+        linear-gradient(180deg, #131017 0%, #0e0d12 100%);
+      color: #e4e4e7;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 18px;
+      padding: 2rem 1.5rem 1.5rem;
+      text-align: center;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+      color: #fff;
+    }
+
+    .subtitle {
+      font-size: 0.875rem;
+      color: #d4d4d8;
+      margin-bottom: 1.75rem;
+      line-height: 1.5;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: none;
+      border-radius: 10px;
+      background: #9147ff;
+      color: #fff;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      text-decoration: none;
+      text-align: center;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:hover { background: #7c3aed; }
+    .btn:focus-visible, .copy-btn:focus-visible {
+      outline: 3px solid rgba(196, 181, 253, 0.95);
+      outline-offset: 3px;
+    }
+    .btn:active { transform: scale(0.98); }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 1.5rem 0;
+      font-size: 0.75rem;
+      color: #a1a1aa;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .divider::before, .divider::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .url-box {
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .url-text {
+      display: block;
+      padding: 0.625rem 0.75rem;
+      font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.75rem;
+      color: #d4d4d8;
+      word-break: break-all;
+      line-height: 1.5;
+      text-align: left;
+    }
+
+    .copy-btn {
+      display: block;
+      width: 100%;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      background: transparent;
+      color: #d4d4d8;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: color 0.15s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .copy-btn:hover { background: rgba(255, 255, 255, 0.06); color: #e4e4e7; }
+    .copy-btn.copied { color: #4ade80; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Opening Twitch securely</h1>
+    <p class="subtitle">You're being sent to Twitch to approve access for ImSub. If nothing happens, use the button below.</p>
+    <a class="btn" href="{{.OAuthURL}}">Continue to Twitch</a>
+    <div class="divider">or copy link</div>
+    <div class="url-box">
+      <span class="url-text" id="url">{{.OAuthURL}}</span>
+      <button class="copy-btn" onclick="copyUrl(this)" aria-describedby="copy-status">Copy link</button>
+    </div>
+    <p id="copy-status" class="subtitle" aria-live="polite" style="margin-top: 1rem; margin-bottom: 0;">Copy the link if Twitch does not open automatically.</p>
+  </div>
+  <script>
+    function copyUrl(btn) {
+      var status = document.getElementById('copy-status');
+      var text = document.getElementById('url').textContent.trim();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function() { showCopied(btn, status); });
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showCopied(btn, status);
+      }
+    }
+    function showCopied(btn, status) {
+      btn.textContent = 'Link copied';
+      btn.classList.add('copied');
+      status.textContent = 'Link copied. Return to this page if Twitch does not open.';
+      setTimeout(function() {
+        btn.textContent = 'Copy link';
+        btn.classList.remove('copied');
+        status.textContent = 'Copy the link if Twitch does not open automatically.';
+      }, 2000);
+    }
+  </script>
+</body>
+</html>
