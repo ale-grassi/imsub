@@ -3,7 +3,7 @@ module imsub
 go 1.26
 
 require (
-	github.com/BurntSushi/toml v1.5.0
+	github.com/BurntSushi/toml v1.6.0
 	github.com/alicebob/miniredis/v2 v2.37.0
 	github.com/mymmrac/telego v1.3.1
 	github.com/nicksnyder/go-i18n/v2 v2.6.0
