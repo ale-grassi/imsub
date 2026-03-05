@@ -63,6 +63,24 @@ func TestNewHandlerHealthzOK(t *testing.T) {
 	}
 }
 
+func TestNewHandlerRootRedirectsToRepoHomepage(t *testing.T) {
+	t.Parallel()
+
+	deps := testDeps(fakeHealthStore{})
+	handler := newHandler(deps, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusFound {
+		t.Errorf("newHandler(...).ServeHTTP(GET /).StatusCode = %d, want %d", rec.Code, http.StatusFound)
+	}
+	if got := rec.Header().Get("Location"); got != repoHomepageURL {
+		t.Errorf("newHandler(...).ServeHTTP(GET /).Header(%q) = %q, want %q", "Location", got, repoHomepageURL)
+	}
+}
+
 func TestNewHandlerHealthzStoreError(t *testing.T) {
 	t.Parallel()
 
@@ -94,8 +112,8 @@ func TestNewHandlerTelegramWebhookRouteGate(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, deps.Config.TelegramWebhookPath, nil)
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
-		if rec.Code != http.StatusNotFound {
-			t.Errorf("newHandler(...).ServeHTTP(POST %s).StatusCode = %d, want %d", deps.Config.TelegramWebhookPath, rec.Code, http.StatusNotFound)
+		if rec.Code != http.StatusMethodNotAllowed {
+			t.Errorf("newHandler(...).ServeHTTP(POST %s).StatusCode = %d, want %d", deps.Config.TelegramWebhookPath, rec.Code, http.StatusMethodNotAllowed)
 		}
 	})
 

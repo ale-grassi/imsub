@@ -16,6 +16,8 @@ type healthStore interface {
 	Ping(ctx context.Context) error
 }
 
+const repoHomepageURL = "https://github.com/ale-grassi/imsub"
+
 // Handlers groups route handlers consumed by the HTTP transport runtime.
 type Handlers struct {
 	OAuthStart      http.HandlerFunc
@@ -44,6 +46,9 @@ func newMux(deps Dependencies) *http.ServeMux {
 	mux := http.NewServeMux()
 	sensitiveLimiter := httphandlers.NewFixedWindowRateLimiter(120, 30, time.Minute)
 
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, repoHomepageURL, http.StatusFound)
+	})
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		checkCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()

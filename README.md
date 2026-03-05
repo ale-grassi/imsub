@@ -280,6 +280,7 @@ The bot is mostly state-driven. User actions from Telegram callbacks/commands re
 
 | Method | Path | Description |
 |--------|------|-------------|
+| `GET` | `/` | Redirects to the GitHub repository homepage |
 | `GET` | `/healthz` | Liveness/readiness check (includes Redis ping) |
 | `GET` | `/metrics` | Prometheus metrics (Fly/Grafana scraping) |
 | `GET` | `/auth/start/{state}` | Validates OAuth state, serves Twitch auth launch page |
