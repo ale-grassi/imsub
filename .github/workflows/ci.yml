@@ -14,6 +14,7 @@ permissions:
   contents: read
 
 jobs:
+
   go-checks:
     runs-on: ubuntu-latest
     steps:

@@ -14,6 +14,8 @@ const (
 	EventTypeChannelSubscribe = "channel.subscribe"
 	// EventTypeChannelSubEnd is the Twitch EventSub type for ended subscriptions.
 	EventTypeChannelSubEnd = "channel.subscription.end"
+	// EventTypeChannelSubGift is the Twitch EventSub type for gifted subscriptions.
+	EventTypeChannelSubGift = "channel.subscription.gift"
 )
 
 // TokenResponse represents a Twitch OAuth token exchange or refresh response.
