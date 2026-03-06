@@ -27,7 +27,7 @@ func (c *Controller) onUnknownMessage(ctx *tghandler.Context, message telego.Mes
 		var err error
 		key, err = c.helpMessageKey(ctx, message.From.ID)
 		if err != nil {
-			c.log().Warn("resolve help message key failed", "telegram_user_id", message.From.ID, "error", err)
+			c.log().Warn("Resolve help message key failed", "telegram_user_id", message.From.ID, "error", err)
 			key = msgCmdHelp
 		}
 	}
@@ -74,20 +74,20 @@ func (c *Controller) onChatJoinRequest(ctx *tghandler.Context, req telego.ChatJo
 	if err != nil || linkUserID != req.From.ID {
 		c.log().Info("join request denied", "link_user", parts[1], "requester_id", req.From.ID, "chat_id", req.Chat.ID)
 		if waitErr := c.tgLimiter.Wait(ctx, req.Chat.ID); waitErr != nil {
-			c.log().Warn("decline join request rate limit wait failed", "error", waitErr)
+			c.log().Warn("Decline join request rate limit wait failed", "error", waitErr)
 			return nil
 		}
 		if err := c.tg.DeclineChatJoinRequest(ctx, &telego.DeclineChatJoinRequestParams{
 			ChatID: telegoutil.ID(req.Chat.ID),
 			UserID: req.From.ID,
 		}); err != nil {
-			c.log().Warn("decline join request failed", "user_id", req.From.ID, "chat_id", req.Chat.ID, "error", err)
+			c.log().Warn("Decline join request failed", "user_id", req.From.ID, "chat_id", req.Chat.ID, "error", err)
 		}
 		return nil
 	}
 
 	if waitErr := c.tgLimiter.Wait(ctx, req.Chat.ID); waitErr != nil {
-		c.log().Warn("approve join request rate limit wait failed", "error", waitErr)
+		c.log().Warn("Approve join request rate limit wait failed", "error", waitErr)
 		return nil
 	}
 	err = c.tg.ApproveChatJoinRequest(ctx, &telego.ApproveChatJoinRequestParams{
@@ -95,7 +95,7 @@ func (c *Controller) onChatJoinRequest(ctx *tghandler.Context, req telego.ChatJo
 		UserID: req.From.ID,
 	})
 	if err != nil {
-		c.log().Warn("approve join request failed", "user_id", req.From.ID, "chat_id", req.Chat.ID, "error", err)
+		c.log().Warn("Approve join request failed", "user_id", req.From.ID, "chat_id", req.Chat.ID, "error", err)
 	}
 	return nil
 }
@@ -131,7 +131,7 @@ func (c *Controller) onRegisterGroup(ctx *tghandler.Context, msg telego.Message)
 	}
 
 	if waitErr := c.tgLimiter.Wait(ctx, msg.Chat.ID); waitErr != nil {
-		c.log().Warn("get chat member rate limit wait failed", "error", waitErr)
+		c.log().Warn("Get chat member rate limit wait failed", "error", waitErr)
 		c.sendMsg(ctx, msg.Chat.ID, i18n.Translate(lang, msgGroupNotAdmin), replyOpts)
 		return nil
 	}
@@ -139,14 +139,20 @@ func (c *Controller) onRegisterGroup(ctx *tghandler.Context, msg telego.Message)
 		ChatID: telegoutil.ID(msg.Chat.ID),
 		UserID: msg.From.ID,
 	})
-	if err != nil || !IsAdmin(member) {
-		c.sendMsg(ctx, msg.Chat.ID, i18n.Translate(lang, msgGroupNotAdmin), replyOpts)
-		return nil //nolint:nilerr // Ignore error to prevent telegram refetch
-	}
+	isAdmin := err == nil && IsAdmin(member)
 
 	matched, ok, err := c.store.OwnedCreatorForUser(ctx, msg.From.ID)
 	if err != nil {
-		c.log().Warn("onRegisterGroup getOwnedCreator failed", "error", err)
+		c.log().Warn("OnRegisterGroup getOwnedCreator failed", "error", err)
+		return nil
+	}
+
+	// Silently ignore users who are neither admin nor have a creator account.
+	if !isAdmin && !ok {
+		return nil
+	}
+	if !isAdmin {
+		c.sendMsg(ctx, msg.Chat.ID, i18n.Translate(lang, msgGroupNotAdmin), replyOpts)
 		return nil
 	}
 	if !ok {
@@ -154,50 +160,247 @@ func (c *Controller) onRegisterGroup(ctx *tghandler.Context, msg telego.Message)
 		return nil
 	}
 
-	groupName := msg.Chat.Title
-	firstGroupRegistration := matched.GroupChatID == 0
-	if err := c.store.UpdateCreatorGroup(ctx, matched.ID, msg.Chat.ID, groupName); err != nil {
-		c.log().Warn("updateCreatorGroup failed", "error", err)
+	// Check if another creator already owns this group.
+	otherName, taken := c.groupTakenByOtherCreator(ctx, msg.Chat.ID, matched.ID)
+	if taken {
+		takenText := fmt.Sprintf(i18n.Translate(lang, msgGroupTakenByOther), html.EscapeString(otherName))
+		c.sendMsg(ctx, msg.Chat.ID, takenText, &client.MessageOptions{
+			ReplyToMessageID: msg.MessageID,
+			ParseMode:        telego.ModeHTML,
+		})
 		return nil
 	}
-	if firstGroupRegistration {
-		matched.GroupChatID = msg.Chat.ID
-		matched.GroupName = groupName
-		// Activation runs asynchronously to keep the command response fast.
-		// The goroutine terminates when either:
-		//  - all operations complete, or
-		//  - the 3-minute timeout in activateCreatorOnFirstGroupRegistration fires.
-		// context.WithoutCancel is used so the work survives the parent
-		// request context being canceled.
-		go c.activateCreatorOnFirstGroupRegistration(ctx, matched, msg.Chat.ID, lang)
+
+	// Scenario 1: this group is already linked to this creator.
+	if matched.GroupChatID == msg.Chat.ID {
+		alreadyText := fmt.Sprintf(i18n.Translate(lang, msgGroupAlreadyLinked), html.EscapeString(matched.Name))
+		checking := i18n.Translate(lang, msgGroupCheckingSettings)
+		groupMsgID := c.sendMsg(ctx, msg.Chat.ID, alreadyText+"\n\n"+checking, &client.MessageOptions{
+			ReplyToMessageID: msg.MessageID,
+			ParseMode:        telego.ModeHTML,
+		})
+		go c.sendPostRegistrationSettingsCheck(context.WithoutCancel(ctx), msg.Chat.ID, groupMsgID, lang, alreadyText)
+		return nil
 	}
+
+	// Scenario 2: creator already has a different group linked.
+	if matched.GroupChatID != 0 {
+		differentText := fmt.Sprintf(
+			i18n.Translate(lang, msgGroupDifferentLinked),
+			html.EscapeString(matched.Name),
+			html.EscapeString(matched.GroupName),
+		)
+		c.sendMsg(ctx, msg.Chat.ID, differentText, &client.MessageOptions{
+			ReplyToMessageID: msg.MessageID,
+			ParseMode:        telego.ModeHTML,
+		})
+		return nil
+	}
+
+	// First-time registration.
+	groupName := msg.Chat.Title
+	if err := c.store.UpdateCreatorGroup(ctx, matched.ID, msg.Chat.ID, groupName); err != nil {
+		c.log().Warn("UpdateCreatorGroup failed", "error", err)
+		return nil
+	}
+	matched.GroupChatID = msg.Chat.ID
+	matched.GroupName = groupName
+	// Activation runs asynchronously to keep the command response fast.
+	// The goroutine terminates when either:
+	//  - all operations complete, or
+	//  - the 3-minute timeout in activateCreatorOnFirstGroupRegistration fires.
+	// context.WithoutCancel is used so the work survives the parent
+	// request context being canceled.
+	go c.activateCreatorOnFirstGroupRegistration(context.WithoutCancel(ctx), matched, msg.Chat.ID, lang)
+
 	successText := fmt.Sprintf(i18n.Translate(lang, msgGroupRegistered), html.EscapeString(matched.Name))
-	c.sendMsg(ctx, msg.Chat.ID, successText, &client.MessageOptions{
+	checking := i18n.Translate(lang, msgGroupCheckingSettings)
+	groupMsgID := c.sendMsg(ctx, msg.Chat.ID, successText+"\n\n"+checking, &client.MessageOptions{
 		ReplyToMessageID: msg.MessageID,
 		ParseMode:        telego.ModeHTML,
 	})
+
+	// Check group settings asynchronously, then edit the group message
+	// and send the creator DM with warnings appended.
+	go c.sendPostRegistrationMessages(context.WithoutCancel(ctx), postRegistrationMessageOptions{
+		groupChatID:   msg.Chat.ID,
+		groupMsgID:    groupMsgID,
+		ownerUserID:   msg.From.ID,
+		groupName:     groupName,
+		creatorName:   matched.Name,
+		lang:          lang,
+		groupBaseText: successText,
+	})
+
 	return nil
 }
 
 func (c *Controller) activateCreatorOnFirstGroupRegistration(parent context.Context, creator core.Creator, groupChatID int64, lang string) {
 	if parent == nil {
-		c.log().Warn("activate creator called with nil context", "creator_id", creator.ID)
+		c.log().Warn("Activate creator called with nil context", "creator_id", creator.ID)
 		return
 	}
 	baseCtx := context.WithoutCancel(parent)
 	ctx, cancel := context.WithTimeout(baseCtx, 3*time.Minute)
 	defer cancel()
 	if err := c.eventSubSvc.EnsureEventSubForCreators(ctx, []core.Creator{creator}); err != nil {
-		c.log().Warn("ensureEventSubForCreators failed after first group registration", "creator_id", creator.ID, "error", err)
+		c.log().Warn("EnsureEventSubForCreators failed after first group registration", "creator_id", creator.ID, "error", err)
 		c.sendMsg(baseCtx, groupChatID, i18n.Translate(lang, msgCreatorEventSubFail), nil)
 		return
 	}
 	count, err := c.eventSubSvc.DumpCurrentSubscribers(ctx, creator)
 	if err != nil {
-		c.log().Warn("dumpCurrentSubscribers failed after first group registration", "creator_id", creator.ID, "error", err)
+		c.log().Warn("DumpCurrentSubscribers failed after first group registration", "creator_id", creator.ID, "error", err)
 		return
 	}
 	c.log().Info("creator activated on first group registration", "creator_id", creator.ID, "group_chat_id", groupChatID, "subscriber_count", count)
+}
+
+// groupTakenByOtherCreator checks if any other creator already has this group linked.
+// Returns the other creator's name and true if taken, or empty and false otherwise.
+func (c *Controller) groupTakenByOtherCreator(ctx context.Context, groupChatID int64, currentCreatorID string) (string, bool) {
+	creators, err := c.store.ListActiveCreators(ctx)
+	if err != nil {
+		c.log().Warn("ListActiveCreators for group taken check failed", "error", err)
+		return "", false
+	}
+	for _, cr := range creators {
+		if cr.GroupChatID == groupChatID && cr.ID != currentCreatorID {
+			return cr.Name, true
+		}
+	}
+	return "", false
+}
+
+// sendPostRegistrationSettingsCheck runs group settings checks and edits the
+// group message to append warnings or an "all good" status. No DM is sent.
+func (c *Controller) sendPostRegistrationSettingsCheck(ctx context.Context, groupChatID int64, groupMsgID int, lang, groupBaseText string) {
+	warnings := c.checkGroupSettings(ctx, groupChatID, lang)
+	var settingsResult string
+	if len(warnings) > 0 {
+		settingsResult = formatGroupSettingWarnings(lang, warnings)
+	} else {
+		settingsResult = i18n.Translate(lang, msgGroupSettingsOK)
+	}
+	if groupMsgID != 0 {
+		c.reply(ctx, groupChatID, groupMsgID, groupBaseText+"\n\n"+settingsResult, &client.MessageOptions{ParseMode: telego.ModeHTML})
+	}
+}
+
+// sendPostRegistrationMessages streams a draft DM to the creator while
+// checking group settings, then finalises the DM and edits the group message.
+func (c *Controller) sendPostRegistrationMessages(ctx context.Context, opts postRegistrationMessageOptions) {
+	const draftID = 1
+
+	dmBase := fmt.Sprintf(
+		i18n.Translate(opts.lang, msgGroupRegisteredDM),
+		html.EscapeString(opts.groupName),
+		html.EscapeString(opts.creatorName),
+	)
+
+	// Stream partial DM with "checking..." status.
+	checking := i18n.Translate(opts.lang, msgGroupCheckingSettings)
+	c.sendDraft(ctx, opts.ownerUserID, draftID, dmBase+"\n\n"+checking, telego.ModeHTML)
+
+	warnings := c.checkGroupSettings(ctx, opts.groupChatID, opts.lang)
+
+	var settingsResult string
+	if len(warnings) > 0 {
+		settingsResult = formatGroupSettingWarnings(opts.lang, warnings)
+	} else {
+		settingsResult = i18n.Translate(opts.lang, msgGroupSettingsOK)
+	}
+
+	dmText := dmBase + "\n\n" + settingsResult
+	// Update the draft with the result before sending the final message.
+	c.sendDraft(ctx, opts.ownerUserID, draftID, dmText, telego.ModeHTML)
+
+	// Send the final message which replaces the draft.
+	c.sendMsg(ctx, opts.ownerUserID, dmText, &client.MessageOptions{ParseMode: telego.ModeHTML})
+
+	if opts.groupMsgID != 0 {
+		c.reply(ctx, opts.groupChatID, opts.groupMsgID, opts.groupBaseText+"\n\n"+settingsResult, &client.MessageOptions{ParseMode: telego.ModeHTML})
+	}
+}
+
+type postRegistrationMessageOptions struct {
+	groupChatID   int64
+	groupMsgID    int
+	ownerUserID   int64
+	groupName     string
+	creatorName   string
+	lang          string
+	groupBaseText string
+}
+
+// checkGroupSettings fetches full chat info and returns warnings for any
+// settings that would undermine subscription-gated access.
+func (c *Controller) checkGroupSettings(ctx context.Context, chatID int64, lang string) []string {
+	if waitErr := c.tgLimiter.Wait(ctx, chatID); waitErr != nil {
+		c.log().Warn("GetChat rate limit wait failed", "error", waitErr)
+		return nil
+	}
+	chat, err := c.tg.GetChat(ctx, &telego.GetChatParams{
+		ChatID: telegoutil.ID(chatID),
+	})
+	if err != nil {
+		c.log().Warn("GetChat for group settings check failed", "chat_id", chatID, "error", err)
+		return nil
+	}
+
+	var issues []string
+	if chat.Username != "" || len(chat.ActiveUsernames) > 0 {
+		issues = append(issues, i18n.Translate(lang, msgGroupWarnPublic))
+	}
+	if !chat.JoinByRequest {
+		issues = append(issues, i18n.Translate(lang, msgGroupWarnJoinByReq))
+	}
+	if untrackedCount := c.countUntrackedMembers(ctx, chatID); untrackedCount > 0 {
+		issues = append(issues, fmt.Sprintf(i18n.Translate(lang, msgGroupWarnUntrackedUsers), untrackedCount))
+	}
+	return issues
+}
+
+func formatGroupSettingWarnings(lang string, issues []string) string {
+	if len(issues) == 0 {
+		return ""
+	}
+	return i18n.Translate(lang, msgGroupWarnSettingsIntro) + "\n" + strings.Join(issues, "\n")
+}
+
+// countUntrackedMembers returns the number of group members that are neither
+// admins nor bots. These users joined before the bot started managing access
+// and are not tracked.
+func (c *Controller) countUntrackedMembers(ctx context.Context, chatID int64) int {
+	if waitErr := c.tgLimiter.Wait(ctx, chatID); waitErr != nil {
+		c.log().Warn("GetChatMemberCount rate limit wait failed", "error", waitErr)
+		return 0
+	}
+	total, err := c.tg.GetChatMemberCount(ctx, &telego.GetChatMemberCountParams{
+		ChatID: telegoutil.ID(chatID),
+	})
+	if err != nil || total == nil {
+		c.log().Warn("GetChatMemberCount failed", "chat_id", chatID, "error", err)
+		return 0
+	}
+	if waitErr := c.tgLimiter.Wait(ctx, chatID); waitErr != nil {
+		c.log().Warn("GetChatAdministrators rate limit wait failed", "error", waitErr)
+		return 0
+	}
+	admins, err := c.tg.GetChatAdministrators(ctx, &telego.GetChatAdministratorsParams{
+		ChatID: telegoutil.ID(chatID),
+	})
+	if err != nil {
+		c.log().Warn("GetChatAdministrators failed", "chat_id", chatID, "error", err)
+		return 0
+	}
+	// The admin list already includes creator/admin accounts and admin bots.
+	privileged := len(admins)
+	untracked := *total - privileged
+	if untracked < 0 {
+		return 0
+	}
+	return untracked
 }
 
 // IsAdmin reports whether member has Administrator or Creator status.

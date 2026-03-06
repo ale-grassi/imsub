@@ -66,13 +66,13 @@ func (c *Client) Send(ctx context.Context, chatID int64, text string, opts *Mess
 	}
 	if c.limiter != nil {
 		if err := c.limiter.Wait(ctx, chatID); err != nil {
-			c.logger.Warn("send message rate limit wait failed", "chat_id", chatID, "error", err)
+			c.logger.Warn("Send message rate limit wait failed", "chat_id", chatID, "error", err)
 			return 0
 		}
 	}
 	msg, err := c.bot.SendMessage(ctx, params)
 	if err != nil && !tgerr.IsForbidden(err) {
-		c.logger.Warn("send message failed", "chat_id", chatID, "error", err)
+		c.logger.Warn("Send message failed", "chat_id", chatID, "error", err)
 		return 0
 	}
 	if msg == nil {
@@ -100,13 +100,13 @@ func (c *Client) Edit(ctx context.Context, chatID int64, messageID int, text str
 	}
 	if c.limiter != nil {
 		if err := c.limiter.Wait(ctx, chatID); err != nil {
-			c.logger.Warn("edit message rate limit wait failed", "chat_id", chatID, "error", err)
+			c.logger.Warn("Edit message rate limit wait failed", "chat_id", chatID, "error", err)
 			return
 		}
 	}
 	_, err := c.bot.EditMessageText(ctx, params)
 	if err != nil && !tgerr.IsForbidden(err) {
-		c.logger.Warn("edit message failed", "message_id", messageID, "chat_id", chatID, "error", err)
+		c.logger.Warn("Edit message failed", "message_id", messageID, "chat_id", chatID, "error", err)
 	}
 }
 
@@ -134,7 +134,32 @@ func (c *Client) Delete(ctx context.Context, chatID int64, messageID int) {
 		MessageID: messageID,
 	})
 	if err != nil && !tgerr.IsBadRequest(err) && !tgerr.IsForbidden(err) {
-		c.logger.Warn("delete message failed", "chat_id", chatID, "message_id", messageID, "error", err)
+		c.logger.Warn("Delete message failed", "chat_id", chatID, "message_id", messageID, "error", err)
+	}
+}
+
+// SendDraft streams a partial message draft to a private chat.
+// The draft is shown as a typing indicator with text that updates in place.
+func (c *Client) SendDraft(ctx context.Context, chatID int64, draftID int, text string, parseMode string) {
+	if c == nil || c.bot == nil {
+		return
+	}
+	if c.limiter != nil {
+		if err := c.limiter.Wait(ctx, chatID); err != nil {
+			c.logger.Warn("Send draft rate limit wait failed", "chat_id", chatID, "error", err)
+			return
+		}
+	}
+	params := &telego.SendMessageDraftParams{
+		ChatID:  chatID,
+		DraftID: draftID,
+		Text:    text,
+	}
+	if parseMode != "" {
+		params.ParseMode = parseMode
+	}
+	if err := c.bot.SendMessageDraft(ctx, params); err != nil && !tgerr.IsForbidden(err) {
+		c.logger.Warn("Send draft failed", "chat_id", chatID, "draft_id", draftID, "error", err)
 	}
 }
 
@@ -145,7 +170,7 @@ func (c *Client) AnswerCallback(ctx context.Context, callbackID, text string, sh
 	}
 	if c.limiter != nil {
 		if err := c.limiter.Wait(ctx, 0); err != nil {
-			c.logger.Warn("answer callback rate limit wait failed", "error", err)
+			c.logger.Warn("Answer callback rate limit wait failed", "error", err)
 			return
 		}
 	}
@@ -158,6 +183,6 @@ func (c *Client) AnswerCallback(ctx context.Context, callbackID, text string, sh
 	}
 	err := c.bot.AnswerCallbackQuery(ctx, params)
 	if err != nil && !tgerr.IsForbidden(err) {
-		c.logger.Warn("answer callback failed", "error", err)
+		c.logger.Warn("Answer callback failed", "error", err)
 	}
 }

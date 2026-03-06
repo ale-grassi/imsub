@@ -50,7 +50,7 @@ other = "Il tuo account viewer e' collegato. Usa /start per aggiornare l'accesso
 other = "• Sincronizzazione subscriber: ✅ <b>Attiva</b>"
 
 [creator_eventsub_fail]
-other = "Il tuo account creator e' collegato, ma la sincronizzazione subscriber non e' ancora attiva. Apri /creator in DM e ricollega l'account per riprovare."
+other = "Il tuo account creator e' collegato, ma la sincronizzazione subscriber non e' ancora attiva. Apri <code>/creator</code> in DM e ricollega l'account per riprovare."
 
 [creator_eventsub_inactive]
 other = "• Sincronizzazione subscriber: ⚠️ <b>Azione richiesta</b> — apri /creator in DM per riprovare"
@@ -65,13 +65,13 @@ other = "⚠️ <b>Setup creator non completato</b>\nL'autorizzazione Twitch e' 
 other = "• Nessun gruppo collegato al momento."
 
 [creator_register_info]
-other = "🎬 <b>Setup Creator</b>\n\nCollega il tuo account creator Twitch cosi' ImSub puo' verificare i subscriber e gestire l'accesso al tuo gruppo Telegram.\n\n<b>Passaggi</b>\n1. Tocca <b>Collega account creator</b>\n2. Approva l'accesso su Twitch\n3. Esegui <code>/registergroup</code> nel tuo gruppo Telegram\n\n⚠️ Devi essere <b>admin</b> in quel gruppo."
+other = "🎬 <b>Setup Creator</b>\n\nCollega il tuo account creator Twitch cosi' ImSub puo' verificare i subscriber e gestire l'accesso al tuo gruppo Telegram.\n\n<b>Passaggi</b>\n1. Tocca <b>Collega account creator</b>\n2. Approva l'accesso su Twitch\n3. Esegui /registergroup nel tuo gruppo Telegram\n\n⚠️ Devi essere <b>admin</b> in quel gruppo."
 
 [creator_registered_html]
-other = "✅ <b>Account creator collegato</b>\n🎬 <b>Twitch:</b> %s\n\n<b>Stato setup</b>\n%s\n• Subscriber attuali in cache: %s\n\n👉 <b>Prossimo step</b>\nSe il gruppo non e' ancora collegato, esegui <code>/registergroup</code> nel gruppo Telegram che vuoi proteggere.\nDevi essere <b>admin</b> li'.\n\n<b>Stato gruppo attuale</b>\n%s"
+other = "✅ <b>Account creator collegato</b>\n🎬 <b>Twitch:</b> %s\n\n<b>Stato setup</b>\n%s\n• Subscriber attuali in cache: %s\n\n👉 <b>Prossimo step</b>\nSe il gruppo non e' ancora collegato, esegui /registergroup nel gruppo Telegram che vuoi proteggere.\nDevi essere <b>admin</b> li'.\n\n<b>Stato gruppo attuale</b>\n%s"
 
 [creator_registered_no_group_html]
-other = "✅ <b>Account creator collegato</b>\n🎬 <b>Twitch:</b> %s\n\n👉 <b>Prossimo step</b>\nEsegui <code>/registergroup</code> nel gruppo Telegram che vuoi proteggere.\nDevi essere <b>admin</b> li'.\n\n⏳ La sincronizzazione subscriber partira' automaticamente dopo il collegamento del gruppo.\n\n<b>Stato gruppo attuale</b>\n%s"
+other = "✅ <b>Account creator collegato</b>\n🎬 <b>Twitch:</b> %s\n\n👉 <b>Prossimo step</b>\nEsegui /registergroup nel gruppo Telegram che vuoi proteggere.\nDevi essere <b>admin</b> li'.\n\n⏳ La sincronizzazione subscriber partira' automaticamente dopo il collegamento del gruppo.\n\n<b>Stato gruppo attuale</b>\n%s"
 
 [creator_scope_missing]
 other = "⚠️ <b>Permesso Twitch mancante</b>\nNon hai concesso l'accesso richiesto per i creator.\nEsegui di nuovo /creator e approva l'accesso."
@@ -101,13 +101,43 @@ other = "Non sono riuscito a eliminare i dati collegati. Riprova."
 other = "Solo gli admin del gruppo possono registrare questo gruppo."
 
 [group_not_creator]
-other = "Configura prima il tuo account creator con /creator in DM."
+other = "Configura prima il tuo account creator con <code>/creator</code> in DM."
 
 [group_not_group]
 other = "Questo comando deve essere usato in una chat di gruppo."
 
 [group_registered]
 other = "✅ <b>Gruppo collegato</b>\n\nQuesto gruppo e' ora connesso a <b>%s</b>.\n\n⏳ L'accesso subscriber iniziera' a sincronizzarsi a breve.\n📩 Apri <code>/creator</code> in DM per controllare lo stato."
+
+[group_checking_settings]
+other = "⏳ Controllo impostazioni del gruppo..."
+
+[group_settings_ok]
+other = "✅ Le impostazioni del gruppo sono corrette."
+
+[group_warn_settings_intro]
+other = "⚠️ <b>Impostazioni del gruppo da correggere</b>"
+
+[group_warn_public]
+other = "• Il gruppo e' <b>pubblico</b> (ha un username). Chiunque puo' trovarlo e unirsi, aggirando il controllo abbonamento. Rendi il gruppo <b>privato</b> rimuovendo lo username nelle impostazioni del gruppo."
+
+[group_warn_untracked_users]
+other = "• Il gruppo ha <b>%d membro/i non admin</b> che non sono tracciati dal bot. Questi utenti sono entrati prima della configurazione di ImSub e il loro stato di abbonamento non e' verificato. Considera di rimuoverli e farli rientrare tramite ImSub."
+
+[group_warn_join_by_request]
+other = "• <b>Approva nuovi membri</b> non e' abilitato. Se un admin condivide un altro link di invito, gli utenti potrebbero entrare senza verifica dell'abbonamento. Abilita <b>Approva nuovi membri</b> nelle impostazioni del gruppo, cosi' tutti i tentativi di accesso richiederanno l'approvazione, non solo quelli dai link di ImSub."
+
+[group_already_linked]
+other = "ℹ️ Questo gruppo e' gia' collegato a <b>%s</b>.\n\nUsa <code>/unregister</code> per scollegarlo prima di apportare modifiche."
+
+[group_different_linked]
+other = "⚠️ Il tuo account creator <b>%s</b> e' gia' collegato al gruppo <b>%s</b>.\n\nUsa <code>/unregister</code> in quel gruppo prima di registrarne uno nuovo."
+
+[group_taken_by_other]
+other = "⚠️ Questo gruppo e' gia' collegato a un altro account creator (<b>%s</b>). Ogni gruppo puo' essere gestito da un solo creator. L'altro creator deve prima usare <code>/unregister</code>."
+
+[group_registered_dm]
+other = "📢 <b>Gruppo registrato</b>\n\nIl tuo gruppo <b>%s</b> e' ora collegato al tuo account creator <b>%s</b>.\n\n⏳ ImSub iniziera' a sincronizzare i tuoi subscriber Twitch a breve. Una volta attiva la sincronizzazione, solo gli utenti con un abbonamento attivo potranno entrare nel gruppo.\n\n📋 <b>Cosa succede adesso</b>\n• La sincronizzazione subscriber si attiva automaticamente\n• I subscriber attuali possono usare /start per ottenere un link di accesso\n• Quando un abbonamento termina, l'utente viene rimosso dal gruppo\n\nUsa /creator per controllare lo stato del tuo setup in qualsiasi momento."
 
 [link_prompt_html]
 other = "👋 <b>Benvenuto su ImSub, %s</b>\n\nImSub controlla i tuoi <b>abbonamenti Twitch</b> e sblocca i gruppi Telegram a cui puoi accedere.\n\n<b>Cosa fare</b>\n1. Tocca <b>Collega Twitch</b>\n2. Approva l'accesso su Twitch\n3. Torna qui per vedere l'accesso ai tuoi gruppi\n\n⚠️ <b>Hai aperto l'account Twitch sbagliato?</b>\nApri il link in una finestra privata o in incognito.\n\n🔗 <b>Se il pulsante non apre Twitch</b>\nCopia questo link:\n<code>%s</code>"

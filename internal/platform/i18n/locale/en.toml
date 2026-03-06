@@ -50,7 +50,7 @@ other = "Your viewer account is connected. Use /start to refresh your access or 
 other = "• Subscriber sync: ✅ <b>Active</b>"
 
 [creator_eventsub_fail]
-other = "Your creator account is connected, but subscriber sync is not active yet. Open /creator in DM and reconnect to retry setup."
+other = "Your creator account is connected, but subscriber sync is not active yet. Open <code>/creator</code> in DM and reconnect to retry setup."
 
 [creator_eventsub_inactive]
 other = "• Subscriber sync: ⚠️ <b>Action needed</b> — open /creator in DM to retry setup"
@@ -65,13 +65,13 @@ other = "⚠️ <b>Creator setup did not finish</b>\nTwitch authorization was in
 other = "• No groups linked yet."
 
 [creator_register_info]
-other = "🎬 <b>Creator Setup</b>\n\nConnect your Twitch creator account so ImSub can verify subscribers and manage access to your Telegram group.\n\n<b>Setup steps</b>\n1. Tap <b>Connect Creator Account</b>\n2. Approve access on Twitch\n3. Run <code>/registergroup</code> in your Telegram group\n\n⚠️ You must be an <b>admin</b> in that group."
+other = "🎬 <b>Creator Setup</b>\n\nConnect your Twitch creator account so ImSub can verify subscribers and manage access to your Telegram group.\n\n<b>Setup steps</b>\n1. Tap <b>Connect Creator Account</b>\n2. Approve access on Twitch\n3. Run /registergroup in your Telegram group\n\n⚠️ You must be an <b>admin</b> in that group."
 
 [creator_registered_html]
-other = "✅ <b>Creator account connected</b>\n🎬 <b>Twitch:</b> %s\n\n<b>Setup status</b>\n%s\n• Current subscribers cached: %s\n\n👉 <b>Next step</b>\nIf your group is not linked yet, run <code>/registergroup</code> in the Telegram group you want to protect.\nYou must be an <b>admin</b> there.\n\n<b>Current group status</b>\n%s"
+other = "✅ <b>Creator account connected</b>\n🎬 <b>Twitch:</b> %s\n\n<b>Setup status</b>\n%s\n• Current subscribers cached: %s\n\n👉 <b>Next step</b>\nIf your group is not linked yet, run /registergroup in the Telegram group you want to protect. You must be an <b>admin</b> there.\n\n<b>Current group status</b>\n%s"
 
 [creator_registered_no_group_html]
-other = "✅ <b>Creator account connected</b>\n🎬 <b>Twitch:</b> %s\n\n👉 <b>Next step</b>\nRun <code>/registergroup</code> in the Telegram group you want to protect.\nYou must be an <b>admin</b> there.\n\n⏳ Subscriber syncing will start automatically after the group is linked.\n\n<b>Current group status</b>\n%s"
+other = "✅ <b>Creator account connected</b>\n🎬 <b>Twitch:</b> %s\n\n👉 <b>Next step</b>\nRun /registergroup in the Telegram group you want to protect. You must be an <b>admin</b> there.\n\n⏳ Subscriber syncing will start automatically after the group is linked.\n\n<b>Current group status</b>\n%s"
 
 [creator_scope_missing]
 other = "⚠️ <b>Missing Twitch permission</b>\nThe required creator access was not granted.\nRun /creator again and approve access."
@@ -101,13 +101,43 @@ other = "I couldn't delete your linked data right now. Try again."
 other = "Only group admins can register this group."
 
 [group_not_creator]
-other = "Set up your creator account first with /creator in DM."
+other = "Set up your creator account first with <code>/creator</code> in DM."
 
 [group_not_group]
 other = "This command must be used in a group chat."
 
 [group_registered]
 other = "✅ <b>Group linked</b>\n\nThis group is now connected to <b>%s</b>.\n\n⏳ Subscriber access will start syncing shortly.\n📩 Open <code>/creator</code> in DM to check status."
+
+[group_checking_settings]
+other = "⏳ Checking group settings..."
+
+[group_settings_ok]
+other = "✅ Group settings look good."
+
+[group_warn_settings_intro]
+other = "⚠️ <b>Group settings need attention</b>"
+
+[group_warn_public]
+other = "• The group is <b>public</b> (has a username). Anyone can find and join it, bypassing subscription checks. Make the group <b>private</b> by removing its username in group settings."
+
+[group_warn_untracked_users]
+other = "• The group has <b>%d non-admin member(s)</b> who are not tracked by the bot. These users joined before ImSub was set up and their subscription status is not verified. Consider removing them and letting them rejoin through ImSub."
+
+[group_warn_join_by_request]
+other = "• <b>Approve new members</b> is not enabled. If an admin shares a different invite link, users could join without subscription verification. Enable <b>Approve new members</b> in the group settings so that all join attempts require admin approval, not just those from ImSub links."
+
+[group_already_linked]
+other = "ℹ️ This group is already linked to <b>%s</b>.\n\nUse <code>/unregister</code> to unlink it first if you want to make changes."
+
+[group_different_linked]
+other = "⚠️ Your creator account <b>%s</b> is already linked to group <b>%s</b>.\n\nUse <code>/unregister</code> in that group first before registering a new one."
+
+[group_taken_by_other]
+other = "⚠️ This group is already linked to another creator account (<b>%s</b>). Each group can only be managed by one creator. The other creator must use <code>/unregister</code> first."
+
+[group_registered_dm]
+other = "📢 <b>Group registered</b>\n\nYour group <b>%s</b> is now linked to your creator account <b>%s</b>.\n\n⏳ ImSub will start syncing your Twitch subscribers shortly. Once syncing is active, only users with an active subscription will be able to join the group.\n\n📋 <b>What happens next</b>\n• Subscriber sync activates automatically\n• Current subscribers can use /start to get a join link\n• When a subscription ends, the user is removed from the group\n\nUse /creator to check your setup status at any time."
 
 [link_prompt_html]
 other = "👋 <b>Welcome to ImSub, %s</b>\n\nImSub checks your <b>Twitch subscriptions</b> and unlocks the Telegram groups you can access.\n\n<b>What to do</b>\n1. Tap <b>Connect Twitch</b>\n2. Approve access on Twitch\n3. Come back here to see your group access\n\n⚠️ <b>Using the wrong Twitch account?</b>\nOpen the link in a private or incognito window.\n\n🔗 <b>If the button does not open Twitch</b>\nCopy this link:\n<code>%s</code>"

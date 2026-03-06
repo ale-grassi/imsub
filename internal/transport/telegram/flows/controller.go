@@ -32,10 +32,20 @@ const (
 	msgCmdHelpViewer  = "cmd_help_viewer"
 
 	// Group registration.
-	msgGroupNotGroup   = "group_not_group"
-	msgGroupNotAdmin   = "group_not_admin"
-	msgGroupNotCreator = "group_not_creator"
-	msgGroupRegistered = "group_registered"
+	msgGroupNotGroup           = "group_not_group"
+	msgGroupNotAdmin           = "group_not_admin"
+	msgGroupNotCreator         = "group_not_creator"
+	msgGroupRegistered         = "group_registered"
+	msgGroupRegisteredDM       = "group_registered_dm"
+	msgGroupAlreadyLinked      = "group_already_linked"
+	msgGroupDifferentLinked    = "group_different_linked"
+	msgGroupTakenByOther       = "group_taken_by_other"
+	msgGroupWarnPublic         = "group_warn_public"          //nolint:gosec // i18n key, not a credential
+	msgGroupWarnJoinByReq      = "group_warn_join_by_request" //nolint:gosec // i18n key, not a credential
+	msgGroupWarnUntrackedUsers = "group_warn_untracked_users" //nolint:gosec // i18n key, not a credential
+	msgGroupWarnSettingsIntro  = "group_warn_settings_intro"  //nolint:gosec // i18n key, not a credential
+	msgGroupCheckingSettings   = "group_checking_settings"
+	msgGroupSettingsOK         = "group_settings_ok"
 
 	// Creator flow.
 	msgErrCreatorLink            = "err_creator_link"
