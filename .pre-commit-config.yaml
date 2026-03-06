@@ -1,10 +1,29 @@
 repos:
-  - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.28.0
+  - repo: local
     hooks:
-      - id: gitleaks
-        args:
-          - detect
-          - --no-banner
-          - --redact
-          - --source=.
+      - id: make-fmt
+        name: make fmt
+        entry: make fmt
+        language: system
+        pass_filenames: false
+        types:
+          - go
+      - id: make-lint
+        name: make lint
+        entry: make lint
+        language: system
+        pass_filenames: false
+        types:
+          - go
+      - id: make-test
+        name: make test
+        entry: make test
+        language: system
+        pass_filenames: false
+        types:
+          - go
+      - id: make-secrets-scan
+        name: make secrets-scan
+        entry: make secrets-scan
+        language: system
+        pass_filenames: false

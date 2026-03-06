@@ -6,8 +6,8 @@ GO ?= go
 
 help:
 	@echo "Targets:"
-	@echo "  make fmt      - format Go files"
-	@echo "  make fmt-check - fail if Go files are not gofmt-formatted"
+	@echo "  make fmt      - format Go files with golangci-lint fmt (goimports)"
+	@echo "  make fmt-check - fail if Go files need golangci-lint fmt (goimports)"
 	@echo "  make vet      - run go vet"
 	@echo "  make test     - run unit tests"
 	@echo "  make test-integration - run integration-tagged tests"
@@ -25,10 +25,10 @@ help:
 	@echo "  make logs     - show recent Fly logs"
 
 fmt:
-	$(GO) fmt ./...
+	GOCACHE=/tmp/gocache GOLANGCI_LINT_CACHE=/tmp/golangci-lint golangci-lint fmt
 
 fmt-check:
-	gofmt -l . | tee /dev/stderr | (! read)
+	GOCACHE=/tmp/gocache GOLANGCI_LINT_CACHE=/tmp/golangci-lint golangci-lint fmt --diff
 
 vet:
 	$(GO) vet ./...
@@ -38,7 +38,7 @@ test:
 
 test-integration:
 	$(GO) test -race -count=1 -tags=integration ./tests/integration/...
-
+	
 build:
 	$(GO) build ./...
 

@@ -8,9 +8,10 @@ import (
 	"strings"
 	"time"
 
+	"imsub/internal/platform/httputil"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"imsub/internal/platform/httputil"
 )
 
 // Metrics holds all Prometheus collectors used by the application.
