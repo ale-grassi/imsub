@@ -115,7 +115,7 @@ func (e *EventSub) EnsureEventSubForCreators(ctx context.Context, creators []Cre
 		return fmt.Errorf("app token for ensure eventsub: %w", err)
 	}
 	for _, c := range creators {
-		for _, eventType := range []string{EventTypeChannelSubscribe, EventTypeChannelSubEnd} {
+		for _, eventType := range []string{EventTypeChannelSubscribe, EventTypeChannelSubEnd, EventTypeChannelSubGift} {
 			e.log.Debug("ensuring eventsub", "creator_id", c.ID, "type", eventType)
 			if err := e.twitch.CreateEventSub(ctx, appToken, c.ID, eventType, "1"); err != nil {
 				return fmt.Errorf("creating %s for creator %s: %w", eventType, c.ID, err)
@@ -140,13 +140,11 @@ func (e *EventSub) IsEventSubActiveForCreatorWithToken(ctx context.Context, appT
 	if err != nil {
 		return false, fmt.Errorf("fetch enabled eventsub types: %w", err)
 	}
-	if !foundTypes[EventTypeChannelSubscribe] {
-		e.log.Debug("eventsub active check missing type", "type", EventTypeChannelSubscribe, "creator_id", creatorID)
-		return false, nil
-	}
-	if !foundTypes[EventTypeChannelSubEnd] {
-		e.log.Debug("eventsub active check missing type", "type", EventTypeChannelSubEnd, "creator_id", creatorID)
-		return false, nil
+	for _, t := range []string{EventTypeChannelSubscribe, EventTypeChannelSubEnd, EventTypeChannelSubGift} {
+		if !foundTypes[t] {
+			e.log.Debug("eventsub active check missing type", "type", t, "creator_id", creatorID)
+			return false, nil
+		}
 	}
 	e.log.Debug("eventsub active check verified", "creator_id", creatorID)
 	return true, nil

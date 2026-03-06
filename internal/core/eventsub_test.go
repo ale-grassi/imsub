@@ -109,7 +109,7 @@ func (m *eventSubFakeTwitch) EnabledEventSubTypes(ctx context.Context, appToken,
 	if m.enabledEventSubFn != nil {
 		return m.enabledEventSubFn(ctx, appToken, creatorID)
 	}
-	return map[string]bool{EventTypeChannelSubscribe: true, EventTypeChannelSubEnd: true}, nil
+	return map[string]bool{EventTypeChannelSubscribe: true, EventTypeChannelSubEnd: true, EventTypeChannelSubGift: true}, nil
 }
 
 func (m *eventSubFakeTwitch) ListSubscriberPage(ctx context.Context, accessToken, broadcasterID, cursor string) ([]string, string, error) {
@@ -150,8 +150,10 @@ func TestEnsureEventSubForCreators(t *testing.T) {
 	want := []string{
 		"c1:" + EventTypeChannelSubscribe,
 		"c1:" + EventTypeChannelSubEnd,
+		"c1:" + EventTypeChannelSubGift,
 		"c2:" + EventTypeChannelSubscribe,
 		"c2:" + EventTypeChannelSubEnd,
+		"c2:" + EventTypeChannelSubGift,
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("EnsureEventSubForCreators(creators) create calls = %v, want %v", got, want)
@@ -239,6 +241,7 @@ func TestIsEventSubActiveForCreatorWithToken(t *testing.T) {
 				return map[string]bool{
 					EventTypeChannelSubscribe: true,
 					EventTypeChannelSubEnd:    false,
+					EventTypeChannelSubGift:   true,
 				}, nil
 			},
 		},

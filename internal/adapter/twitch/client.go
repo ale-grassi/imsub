@@ -250,6 +250,7 @@ func (c *Client) EnabledEventSubTypes(ctx context.Context, appToken, creatorID s
 	found := map[string]bool{
 		core.EventTypeChannelSubscribe: false,
 		core.EventTypeChannelSubEnd:    false,
+		core.EventTypeChannelSubGift:   false,
 	}
 	var cursor string
 	for {
@@ -291,7 +292,7 @@ func (c *Client) EnabledEventSubTypes(ctx context.Context, appToken, creatorID s
 				found[sub.Type] = true
 			}
 		}
-		if found[core.EventTypeChannelSubscribe] && found[core.EventTypeChannelSubEnd] {
+		if found[core.EventTypeChannelSubscribe] && found[core.EventTypeChannelSubEnd] && found[core.EventTypeChannelSubGift] {
 			return found, nil
 		}
 		if list.Pagination.Cursor == "" {
