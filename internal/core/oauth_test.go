@@ -43,7 +43,7 @@ func (f *fakeAPI) RefreshToken(_ context.Context, _ string) (TokenResponse, erro
 	return TokenResponse{}, nil
 }
 
-func (f *fakeAPI) FetchUser(ctx context.Context, userToken string) (string, string, string, error) {
+func (f *fakeAPI) FetchUser(ctx context.Context, userToken string) (id, login, displayName string, err error) {
 	if f.fetchUserFn != nil {
 		return f.fetchUserFn(ctx, userToken)
 	}
@@ -159,7 +159,7 @@ func TestLinkCreatorUpsertSetsUpdatedAt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LinkCreator error: %v", err)
 	}
-	if saved.UpdatedAt != wantNow {
+	if !saved.UpdatedAt.Equal(wantNow) {
 		t.Errorf("LinkCreator() saved UpdatedAt = %v, want %v", saved.UpdatedAt, wantNow)
 	}
 	if got.Creator.ID != "creator-1" {

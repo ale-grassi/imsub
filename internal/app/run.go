@@ -23,7 +23,7 @@ import (
 	"imsub/internal/transport/telegram/flows"
 
 	"github.com/mymmrac/telego"
-	telegohandler "github.com/mymmrac/telego/telegohandler"
+	"github.com/mymmrac/telego/telegohandler"
 	"golang.org/x/sync/errgroup"
 )
 

@@ -15,7 +15,7 @@ import (
 
 	"github.com/mymmrac/telego"
 	tghandler "github.com/mymmrac/telego/telegohandler"
-	telegoutil "github.com/mymmrac/telego/telegoutil"
+	"github.com/mymmrac/telego/telegoutil"
 )
 
 // onUnknownMessage replies with a generic help message and the main menu

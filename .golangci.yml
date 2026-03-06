@@ -66,7 +66,53 @@ linters:
 
   settings:
     revive:
-      config: revive.toml
+      rules:
+        - name: comment-spacings
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: empty-block
+        - name: error-naming
+        - name: error-strings
+        - name: exported
+        - name: if-return
+        - name: increment-decrement
+        - name: package-comments
+        - name: range
+        - name: receiver-naming
+        - name: superfluous-else
+        - name: time-naming
+        - name: unexported-return
+        - name: unnecessary-stmt
+        - name: var-naming
+        - name: early-return
+        - name: indent-error-flow
+        - name: blank-imports
+        - name: redefines-builtin-id
+        - name: import-shadowing
+        - name: bool-literal-in-expr
+        - name: error-return
+        - name: bare-return
+        - name: defer
+        - name: dot-imports
+        - name: errorf
+        - name: modifies-parameter
+        - name: modifies-value-receiver
+        - name: time-equal
+        - name: use-any
+        - name: var-declaration
+        - name: waitgroup-by-value
+        - name: get-return
+        - name: confusing-naming
+        - name: confusing-results
+        - name: package-directory-mismatch
+        - name: import-alias-naming
+        - name: redundant-import-alias
+        - name: inefficient-map-lookup
+        - name: string-of-int
+        - name: struct-tag
+        - name: unnecessary-if
+        - name: useless-break
+        - name: useless-fallthrough
     godot:
       capital: true
 

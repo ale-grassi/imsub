@@ -84,7 +84,7 @@ func (m *eventSubFakeTwitch) RefreshToken(ctx context.Context, refreshToken stri
 	return TokenResponse{}, nil
 }
 
-func (m *eventSubFakeTwitch) FetchUser(ctx context.Context, userToken string) (string, string, string, error) {
+func (m *eventSubFakeTwitch) FetchUser(ctx context.Context, userToken string) (id, login, displayName string, err error) {
 	if m.fetchUserFn != nil {
 		return m.fetchUserFn(ctx, userToken)
 	}

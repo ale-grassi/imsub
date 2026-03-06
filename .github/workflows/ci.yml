@@ -39,15 +39,17 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.10.1
+
       - name: Format check
-        run: |
-          gofmt -l . | tee /dev/stderr | (! read)
+        run: make fmt-check
 
       - name: Vet
-        run: go vet ./...
+        run: make vet
 
       - name: Build
-        run: go build ./...
+        run: make build
 
       - name: Test with race detector and coverage
         run: go test -race -count=1 -covermode=atomic -coverprofile=coverage.out ./...
@@ -75,7 +77,7 @@ jobs:
             coverage.html
 
       - name: Integration Tests
-        run: go test -race -count=1 -tags=integration ./tests/integration/...
+        run: make test-integration
 
   lint:
     runs-on: ubuntu-latest
@@ -88,9 +90,6 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
-
-      - name: Verify golangci-lint config
-        run: golangci-lint config verify
 
       - uses: golangci/golangci-lint-action@v9
         with:
@@ -108,18 +107,15 @@ jobs:
           go-version-file: go.mod
           cache-dependency-path: go.sum
 
-      - name: Install govulncheck
-        run: go install golang.org/x/vuln/cmd/govulncheck@latest
-
       - name: Run govulncheck
-        run: govulncheck ./...
+        run: make vuln
 
   gitleaks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Gitleaks scan
         uses: gitleaks/gitleaks-action@v2

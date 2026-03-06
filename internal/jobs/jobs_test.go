@@ -30,7 +30,7 @@ func (f *fakeStore) ActiveCreatorIDsWithoutGroup(ctx context.Context, creators [
 	return 0, nil
 }
 
-func (f *fakeStore) RepairUserCreatorReverseIndex(ctx context.Context, creators []core.Creator) (int, int, int, int, error) {
+func (f *fakeStore) RepairUserCreatorReverseIndex(ctx context.Context, creators []core.Creator) (indexUsers, repairedUsers, missingLinks, staleLinks int, err error) {
 	if f.repairReverseIndex != nil {
 		return f.repairReverseIndex(ctx, creators)
 	}
