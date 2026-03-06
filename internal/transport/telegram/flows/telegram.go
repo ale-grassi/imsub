@@ -7,8 +7,8 @@ import (
 
 	"imsub/internal/core"
 	"imsub/internal/transport/telegram/client"
-	telegramgroupops "imsub/internal/transport/telegram/groupops"
-	telegramui "imsub/internal/transport/telegram/ui"
+	"imsub/internal/transport/telegram/groupops"
+	"imsub/internal/transport/telegram/ui"
 
 	"github.com/mymmrac/telego"
 )
@@ -76,10 +76,10 @@ func (c *Controller) replyLinkedStatus(
 	joinRows [][]telego.InlineKeyboardButton,
 	activeNames []string,
 ) {
-	text := telegramui.LinkedStatusWithJoinStateHTML(lang, twitchLogin, activeNames, len(joinRows) > 0)
+	text := ui.LinkedStatusWithJoinStateHTML(lang, twitchLogin, activeNames, len(joinRows) > 0)
 	c.reply(ctx, telegramUserID, editMsgID, text, &client.MessageOptions{
 		ParseMode:      telego.ModeHTML,
-		Markup:         telegramui.WithMainMenu(lang, joinRows...),
+		Markup:         ui.WithMainMenu(lang, joinRows...),
 		DisablePreview: true,
 	})
 }
@@ -119,12 +119,12 @@ func (c *Controller) tgClient() *client.Client {
 	return c.telegramClient
 }
 
-func (c *Controller) tgGroupOps() *telegramgroupops.Client {
+func (c *Controller) tgGroupOps() *groupops.Client {
 	if c == nil {
-		return telegramgroupops.New(nil, nil, nil, nil)
+		return groupops.New(nil, nil, nil, nil)
 	}
 	if c.telegramGroupOps == nil {
-		c.telegramGroupOps = telegramgroupops.New(c.tg, c.tgLimiter, c.log(), c.store)
+		c.telegramGroupOps = groupops.New(c.tg, c.tgLimiter, c.log(), c.store)
 	}
 	return c.telegramGroupOps
 }
