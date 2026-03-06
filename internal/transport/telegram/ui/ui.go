@@ -13,8 +13,10 @@ import (
 )
 
 const (
-	// ActionRefresh refreshes viewer status.
-	ActionRefresh = "action:refresh"
+	// ActionRefreshViewer refreshes viewer status.
+	ActionRefreshViewer = "action:refresh_viewer"
+	// ActionRefreshCreator refreshes creator status.
+	ActionRefreshCreator = "action:refresh_creator"
 	// ActionRegisterCreator starts creator registration.
 	ActionRegisterCreator = "action:register_creator"
 	// ActionResetConfirm opens the reset scope picker.
@@ -49,19 +51,37 @@ const (
 	msgLinkedStatusWithSubsNoGroupsHTML = "linked_status_with_subs_no_groups_html"
 )
 
-// MainMenuMarkup builds the shared main-menu inline keyboard.
-func MainMenuMarkup(lang string) *telego.InlineKeyboardMarkup {
+func buildMainMenuMarkup(lang, refreshAction string) *telego.InlineKeyboardMarkup {
 	return tu.InlineKeyboard(
-		tu.InlineKeyboardRow(CallbackButton(i18n.Translate(lang, btnRefresh), ActionRefresh)),
+		tu.InlineKeyboardRow(CallbackButton(i18n.Translate(lang, btnRefresh), refreshAction)),
 		tu.InlineKeyboardRow(CallbackButton(i18n.Translate(lang, btnReset), ActionResetConfirm)),
 	)
 }
 
-// WithMainMenu appends the main menu rows to existing keyboard rows.
-func WithMainMenu(lang string, rows ...[]telego.InlineKeyboardButton) *telego.InlineKeyboardMarkup {
+// MainMenuMarkup builds the viewer main-menu inline keyboard.
+func MainMenuMarkup(lang string) *telego.InlineKeyboardMarkup {
+	return buildMainMenuMarkup(lang, ActionRefreshViewer)
+}
+
+// CreatorMainMenuMarkup builds the creator main-menu inline keyboard.
+func CreatorMainMenuMarkup(lang string) *telego.InlineKeyboardMarkup {
+	return buildMainMenuMarkup(lang, ActionRefreshCreator)
+}
+
+func appendMainMenuRows(menu *telego.InlineKeyboardMarkup, rows ...[]telego.InlineKeyboardButton) *telego.InlineKeyboardMarkup {
 	markup := tu.InlineKeyboard(rows...)
-	markup.InlineKeyboard = append(markup.InlineKeyboard, MainMenuMarkup(lang).InlineKeyboard...)
+	markup.InlineKeyboard = append(markup.InlineKeyboard, menu.InlineKeyboard...)
 	return markup
+}
+
+// WithMainMenu appends the viewer main menu rows to existing keyboard rows.
+func WithMainMenu(lang string, rows ...[]telego.InlineKeyboardButton) *telego.InlineKeyboardMarkup {
+	return appendMainMenuRows(MainMenuMarkup(lang), rows...)
+}
+
+// WithCreatorMainMenu appends the creator main menu rows to existing keyboard rows.
+func WithCreatorMainMenu(lang string, rows ...[]telego.InlineKeyboardButton) *telego.InlineKeyboardMarkup {
+	return appendMainMenuRows(CreatorMainMenuMarkup(lang), rows...)
 }
 
 // LinkedStatusWithJoinStateHTML renders the viewer linked status block for the

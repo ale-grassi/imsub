@@ -192,7 +192,8 @@ func (c *Controller) RegisterTelegramHandlers() {
 	c.tgHandler.HandleMessage(c.onCreatorCommand, tghandler.And(tghandler.CommandEqual("creator"), privateOnly))
 	c.tgHandler.HandleMessage(c.onResetCommand, tghandler.And(tghandler.CommandEqual("reset"), privateOnly))
 
-	registerCallback(ui.ActionRefresh, c.handleViewerStart)
+	registerCallback(ui.ActionRefreshViewer, c.handleViewerStart)
+	registerCallback(ui.ActionRefreshCreator, c.handleCreatorRegistrationStart)
 	registerCallback(ui.ActionRegisterCreator, c.handleCreatorRegistrationStart)
 	registerCallback(ui.ActionResetConfirm, c.handleResetPrompt)
 	registerCallback(ui.ActionResetPickViewer, c.handleResetViewerConfirmPrompt)
@@ -222,7 +223,7 @@ func (c *Controller) callbackHandler(ctx context.Context, q telego.CallbackQuery
 	}
 
 	callbackText := ""
-	if q.Data == ui.ActionRefresh {
+	if q.Data == ui.ActionRefreshViewer || q.Data == ui.ActionRefreshCreator {
 		callbackText = i18n.Translate(lang, msgCbRefreshed)
 	}
 	c.answerCallback(ctx, q.ID, callbackText)

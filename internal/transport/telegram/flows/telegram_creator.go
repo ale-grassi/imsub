@@ -37,7 +37,7 @@ func (c *Controller) handleCreatorRegistrationStart(ctx context.Context, telegra
 	}
 	state, err := c.createOAuthState(ctx, payload, 10*time.Minute)
 	if err != nil {
-		c.reply(ctx, telegramUserID, editMsgID, i18n.Translate(lang, msgErrCreatorLink), &client.MessageOptions{Markup: ui.MainMenuMarkup(lang)})
+		c.reply(ctx, telegramUserID, editMsgID, i18n.Translate(lang, msgErrCreatorLink), &client.MessageOptions{Markup: ui.CreatorMainMenuMarkup(lang)})
 		return i18n.Translate(lang, msgErrCreatorLink)
 	}
 	url := c.oauthStartURL(state)
@@ -70,7 +70,7 @@ func (c *Controller) replyCreatorStatus(ctx context.Context, telegramUserID int6
 		c.reply(ctx, telegramUserID, editMsgID, text, &client.MessageOptions{
 			ParseMode:      telego.ModeHTML,
 			DisablePreview: true,
-			Markup:         ui.WithMainMenu(lang),
+			Markup:         ui.WithCreatorMainMenu(lang),
 		})
 		return
 	}
@@ -94,7 +94,7 @@ func (c *Controller) replyCreatorStatus(ctx context.Context, telegramUserID int6
 		c.reply(ctx, telegramUserID, editMsgID, text, &client.MessageOptions{
 			ParseMode:      telego.ModeHTML,
 			DisablePreview: true,
-			Markup:         ui.WithMainMenu(lang),
+			Markup:         ui.WithCreatorMainMenu(lang),
 		})
 		return
 	}
@@ -102,7 +102,7 @@ func (c *Controller) replyCreatorStatus(ctx context.Context, telegramUserID int6
 	c.sendMsg(ctx, telegramUserID, text, &client.MessageOptions{
 		ParseMode:      telego.ModeHTML,
 		DisablePreview: true,
-		Markup:         ui.WithMainMenu(lang),
+		Markup:         ui.WithCreatorMainMenu(lang),
 	})
 }
 

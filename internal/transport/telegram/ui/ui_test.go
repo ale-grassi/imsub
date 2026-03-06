@@ -20,9 +20,9 @@ func TestProfileAndButtons(t *testing.T) {
 		t.Errorf("TwitchProfileHTML(%q) = %q, want escaped HTML entities", `a/b & "x"`, htmlOut)
 	}
 
-	cb := CallbackButton("Refresh", "action:refresh")
-	if cb.CallbackData != "action:refresh" || cb.Text != "Refresh" {
-		t.Errorf("CallbackButton(%q, %q) = %+v, want Text=%q CallbackData=%q", "Refresh", "action:refresh", cb, "Refresh", "action:refresh")
+	cb := CallbackButton("Refresh", "action:refresh_viewer")
+	if cb.CallbackData != "action:refresh_viewer" || cb.Text != "Refresh" {
+		t.Errorf("CallbackButton(%q, %q) = %+v, want Text=%q CallbackData=%q", "Refresh", "action:refresh_viewer", cb, "Refresh", "action:refresh_viewer")
 	}
 	ub := URLButton("Open", "https://example.com")
 	if ub.URL != "https://example.com" || ub.Text != "Open" {
@@ -61,16 +61,38 @@ func TestMainMenuAndWithMainMenuMarkup(t *testing.T) {
 	if menu == nil || len(menu.InlineKeyboard) != 2 {
 		t.Fatalf("MainMenuMarkup(%q) = %+v, want 2 rows", "en", menu)
 	}
-	if menu.InlineKeyboard[0][0].CallbackData != ActionRefresh {
-		t.Errorf("MainMenuMarkup(%q) first callback = %+v, want CallbackData=%q", "en", menu.InlineKeyboard[0][0], ActionRefresh)
+	if menu.InlineKeyboard[0][0].CallbackData != ActionRefreshViewer {
+		t.Errorf("MainMenuMarkup(%q) first callback = %+v, want CallbackData=%q", "en", menu.InlineKeyboard[0][0], ActionRefreshViewer)
 	}
 	if menu.InlineKeyboard[1][0].CallbackData != ActionResetConfirm {
 		t.Errorf("MainMenuMarkup(%q) second callback = %+v, want CallbackData=%q", "en", menu.InlineKeyboard[1][0], ActionResetConfirm)
 	}
 
+	creatorMenu := CreatorMainMenuMarkup("en")
+	if creatorMenu == nil || len(creatorMenu.InlineKeyboard) != 2 {
+		t.Fatalf("CreatorMainMenuMarkup(%q) = %+v, want 2 rows", "en", creatorMenu)
+	}
+	if creatorMenu.InlineKeyboard[0][0].CallbackData != ActionRefreshCreator {
+		t.Errorf("CreatorMainMenuMarkup(%q) first callback = %+v, want CallbackData=%q", "en", creatorMenu.InlineKeyboard[0][0], ActionRefreshCreator)
+	}
+	if creatorMenu.InlineKeyboard[1][0].CallbackData != ActionResetConfirm {
+		t.Errorf("CreatorMainMenuMarkup(%q) second callback = %+v, want CallbackData=%q", "en", creatorMenu.InlineKeyboard[1][0], ActionResetConfirm)
+	}
+
 	extra := WithMainMenu("en", []telego.InlineKeyboardButton{CallbackButton("X", "x")})
 	if extra == nil || len(extra.InlineKeyboard) != 3 {
 		t.Errorf("WithMainMenu(%q, rows=1) = %+v, want 3 rows", "en", extra)
+	}
+	if extra.InlineKeyboard[1][0].CallbackData != ActionRefreshViewer {
+		t.Errorf("WithMainMenu(%q, rows=1) refresh callback = %+v, want CallbackData=%q", "en", extra.InlineKeyboard[1][0], ActionRefreshViewer)
+	}
+
+	creatorExtra := WithCreatorMainMenu("en", []telego.InlineKeyboardButton{CallbackButton("X", "x")})
+	if creatorExtra == nil || len(creatorExtra.InlineKeyboard) != 3 {
+		t.Errorf("WithCreatorMainMenu(%q, rows=1) = %+v, want 3 rows", "en", creatorExtra)
+	}
+	if creatorExtra.InlineKeyboard[1][0].CallbackData != ActionRefreshCreator {
+		t.Errorf("WithCreatorMainMenu(%q, rows=1) refresh callback = %+v, want CallbackData=%q", "en", creatorExtra.InlineKeyboard[1][0], ActionRefreshCreator)
 	}
 }
 
