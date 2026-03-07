@@ -300,7 +300,7 @@ func (c *Controller) sendPostRegistrationMessages(ctx context.Context, opts post
 
 	// Stream partial DM with "checking..." status.
 	checking := i18n.Translate(opts.lang, msgGroupCheckingSettings)
-	c.sendDraft(ctx, opts.ownerUserID, draftID, dmBase+"\n\n"+checking, telego.ModeHTML)
+	c.sendDraft(ctx, opts.ownerUserID, draftID, dmBase+"\n\n"+checking, &client.MessageOptions{ParseMode: telego.ModeHTML})
 
 	warnings := c.checkGroupSettings(ctx, opts.groupChatID, opts.lang)
 
@@ -313,7 +313,7 @@ func (c *Controller) sendPostRegistrationMessages(ctx context.Context, opts post
 
 	dmText := dmBase + "\n\n" + settingsResult
 	// Update the draft with the result before sending the final message.
-	c.sendDraft(ctx, opts.ownerUserID, draftID, dmText, telego.ModeHTML)
+	c.sendDraft(ctx, opts.ownerUserID, draftID, dmText, &client.MessageOptions{ParseMode: telego.ModeHTML})
 
 	// Send the final message which replaces the draft.
 	c.sendMsg(ctx, opts.ownerUserID, dmText, &client.MessageOptions{ParseMode: telego.ModeHTML})

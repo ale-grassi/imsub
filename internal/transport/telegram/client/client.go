@@ -19,6 +19,7 @@ type MessageOptions struct {
 	ParseMode        string
 	Markup           *telego.InlineKeyboardMarkup
 	DisablePreview   bool
+	MessageThreadID  int
 	ReplyToMessageID int
 }
 
@@ -57,6 +58,9 @@ func (c *Client) Send(ctx context.Context, chatID int64, text string, opts *Mess
 		}
 		if opts.DisablePreview {
 			params.WithLinkPreviewOptions(&telego.LinkPreviewOptions{IsDisabled: true})
+		}
+		if opts.MessageThreadID > 0 {
+			params.WithMessageThreadID(opts.MessageThreadID)
 		}
 		if opts.ReplyToMessageID > 0 {
 			params.WithReplyParameters((&telego.ReplyParameters{}).
@@ -140,7 +144,7 @@ func (c *Client) Delete(ctx context.Context, chatID int64, messageID int) {
 
 // SendDraft streams a partial message draft to a private chat.
 // The draft is shown as a typing indicator with text that updates in place.
-func (c *Client) SendDraft(ctx context.Context, chatID int64, draftID int, text string, parseMode string) {
+func (c *Client) SendDraft(ctx context.Context, chatID int64, draftID int, text string, opts *MessageOptions) {
 	if c == nil || c.bot == nil {
 		return
 	}
@@ -155,8 +159,13 @@ func (c *Client) SendDraft(ctx context.Context, chatID int64, draftID int, text 
 		DraftID: draftID,
 		Text:    text,
 	}
-	if parseMode != "" {
-		params.ParseMode = parseMode
+	if opts != nil {
+		if opts.ParseMode != "" {
+			params.ParseMode = opts.ParseMode
+		}
+		if opts.MessageThreadID > 0 {
+			params.MessageThreadID = opts.MessageThreadID
+		}
 	}
 	if err := c.bot.SendMessageDraft(ctx, params); err != nil && !tgerr.IsForbidden(err) {
 		c.logger.Warn("Send draft failed", "chat_id", chatID, "draft_id", draftID, "error", err)

@@ -26,8 +26,8 @@ func (c *Controller) reply(ctx context.Context, chatID int64, messageID int, tex
 	c.tgClient().Reply(ctx, chatID, messageID, text, opts)
 }
 
-func (c *Controller) sendDraft(ctx context.Context, chatID int64, draftID int, text, parseMode string) {
-	c.tgClient().SendDraft(ctx, chatID, draftID, text, parseMode)
+func (c *Controller) sendDraft(ctx context.Context, chatID int64, draftID int, text string, opts *client.MessageOptions) {
+	c.tgClient().SendDraft(ctx, chatID, draftID, text, opts)
 }
 
 func (c *Controller) deleteMessage(ctx context.Context, chatID int64, messageID int) {
