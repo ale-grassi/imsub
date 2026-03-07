@@ -81,7 +81,7 @@ func (c *Controller) EventSubWebhook(w http.ResponseWriter, r *http.Request) {
 
 	if messageType == "webhook_callback_verification" {
 		logger.Debug("eventsub webhook challenge accepted", "sub_type", env.Subscription.Type, "broadcaster_id", env.Subscription.Condition.BroadcasterUserID)
-		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		// A write error here only means the client connection closed early.
 		_, _ = w.Write([]byte(env.Challenge))

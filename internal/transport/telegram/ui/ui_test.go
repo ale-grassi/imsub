@@ -54,6 +54,9 @@ func TestProfileAndButtons(t *testing.T) {
 	if del.IconCustomEmojiID != deleteButtonEmojiID {
 		t.Errorf("DeleteButton(%q, %q) icon = %q, want %q", "Delete", "action:delete", del.IconCustomEmojiID, deleteButtonEmojiID)
 	}
+	if del.Style != "danger" {
+		t.Errorf("DeleteButton(%q, %q) style = %q, want %q", "Delete", "action:delete", del.Style, "danger")
+	}
 
 	back := BackButton("Back", "action:back")
 	if back.IconCustomEmojiID != backButtonEmojiID {
@@ -110,6 +113,9 @@ func TestMainMenuAndWithMainMenuMarkup(t *testing.T) {
 	if menu.InlineKeyboard[1][0].IconCustomEmojiID != deleteButtonEmojiID {
 		t.Errorf("MainMenuMarkup(%q) second icon = %q, want %q", "en", menu.InlineKeyboard[1][0].IconCustomEmojiID, deleteButtonEmojiID)
 	}
+	if menu.InlineKeyboard[1][0].Style != "danger" {
+		t.Errorf("MainMenuMarkup(%q) second style = %q, want %q", "en", menu.InlineKeyboard[1][0].Style, "danger")
+	}
 
 	creatorMenu := CreatorMainMenuMarkup("en")
 	if creatorMenu == nil || len(creatorMenu.InlineKeyboard) != 2 {
@@ -126,6 +132,9 @@ func TestMainMenuAndWithMainMenuMarkup(t *testing.T) {
 	}
 	if creatorMenu.InlineKeyboard[1][0].IconCustomEmojiID != deleteButtonEmojiID {
 		t.Errorf("CreatorMainMenuMarkup(%q) second icon = %q, want %q", "en", creatorMenu.InlineKeyboard[1][0].IconCustomEmojiID, deleteButtonEmojiID)
+	}
+	if creatorMenu.InlineKeyboard[1][0].Style != "danger" {
+		t.Errorf("CreatorMainMenuMarkup(%q) second style = %q, want %q", "en", creatorMenu.InlineKeyboard[1][0].Style, "danger")
 	}
 
 	extra := WithMainMenu("en", []telego.InlineKeyboardButton{CallbackButton("X", "x")})

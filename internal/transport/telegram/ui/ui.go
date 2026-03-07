@@ -174,7 +174,7 @@ func CopyLinkButton(text, copyText string) telego.InlineKeyboardButton {
 
 // DeleteButton creates a destructive action button.
 func DeleteButton(text, data string) telego.InlineKeyboardButton {
-	return IconCallbackButton(text, data, deleteButtonEmojiID)
+	return IconCallbackButton(text, data, deleteButtonEmojiID).WithStyle("danger")
 }
 
 // BackButton creates a back-navigation action button.
