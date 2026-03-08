@@ -179,7 +179,7 @@ other = "⚠️ This group is already linked to another creator account (<b>%s</
 other = "🎉 <b>Group registered</b>\n\nYour group <b>%s</b> is now linked to your creator account <b>%s</b>.\n\n⏳ ImSub will start syncing your Twitch subscribers shortly. Once syncing is active, only users with an active subscription will be able to join the group.\n\n❔ <b>What happens next</b>\n• Subscriber sync activates automatically\n• Current subscribers can use /start to get a join link\n• When a subscription ends, the user is removed from the group\n\nUse /creator to check your setup status at any time."
 
 [link_prompt_html]
-other = "😊 <b>Welcome to ImSub, %s</b>\n\nImSub checks your <b>Twitch subscriptions</b> and unlocks the Telegram groups you can access.\n\n❔ <b>What to do</b>\n1. Tap <b>Connect Twitch</b>\n2. Approve access on Twitch\n3. Come back here to see your group access\n\n🚨 <b>Having issues?</b>\nCopy and paste the link below into a private browser window."
+other = "😊 <b>Welcome to ImSub, %s</b>\n\nImSub checks your <b>Twitch subscriptions</b> and unlocks the Telegram groups you can access.\n\n❔ <b>What to do</b>\n1. Tap <b>Connect Twitch</b>\n2. Approve access on Twitch\n3. Come back here to see your group access\n\n⚠️ <b>Having issues?</b>\nCopy and paste the link below into a private browser window."
 
 [linked_status_no_subs_html]
 other = "🎉 <b>Your Twitch account is connected.</b>\n🔗 <b>Twitch:</b> %s\n\n❗️ No active subscriptions are currently detected for this account.\nIf you just subscribed, wait a bit and tap <b>Refresh</b>.\n\nIf this is the wrong Twitch account, use /reset or tap <b>Delete linked data</b> below."
@@ -231,3 +231,9 @@ other = "⚠️ <b>Subscription ended</b>\n\nYour subscription to <b>%s</b> is n
 
 [user_generic_name]
 other = "there"
+
+[group_unregistered]
+other = "🎉 <b>Group has been Unregistered</b>"
+
+[group_unregister_not_owner]
+other = "⚠️ Only the creator who linked this group can unregister it."

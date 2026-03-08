@@ -265,6 +265,63 @@ func (c *Controller) onRegisterGroup(ctx *tghandler.Context, msg telego.Message)
 	return nil
 }
 
+// onUnregisterCommand handles /unregister by unbinding the current Telegram group
+// from the caller's creator account. The caller must be the creator managing it.
+func (c *Controller) onUnregisterCommand(ctx *tghandler.Context, msg telego.Message) error {
+	if msg.From == nil {
+		return nil
+	}
+	lang := i18n.NormalizeLanguage(msg.From.LanguageCode)
+	replyOpts := &client.MessageOptions{ReplyToMessageID: msg.MessageID}
+
+	if msg.Chat.Type == telego.ChatTypePrivate {
+		c.sendMsg(ctx, msg.Chat.ID, i18n.Translate(lang, msgGroupNotGroup), replyOpts)
+		return nil
+	}
+
+	group, alreadyManaged, err := c.store.ManagedGroupByChatID(ctx, msg.Chat.ID)
+	if err != nil {
+		c.log().Warn("ManagedGroupByChatID for unregister failed", "chat_id", msg.Chat.ID, "error", err)
+		return nil
+	}
+	if !alreadyManaged {
+		return nil
+	}
+
+	matched, ok, err := c.store.OwnedCreatorForUser(ctx, msg.From.ID)
+	if err != nil {
+		c.log().Warn("OnUnregister getOwnedCreator failed", "error", err)
+		return nil
+	}
+
+	if !ok || group.CreatorID != matched.ID {
+		c.sendMsg(ctx, msg.Chat.ID, i18n.Translate(lang, msgGroupUnregisterNotOwner), replyOpts)
+		return nil
+	}
+
+	if err := c.store.DeleteManagedGroup(ctx, msg.Chat.ID); err != nil {
+		c.log().Warn("DeleteManagedGroup failed", "chat_id", msg.Chat.ID, "error", err)
+		return nil
+	}
+
+	// Unlink EventSubs asynchronously.
+	go func() {
+		delCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 1*time.Minute)
+		defer cancel()
+		if subErr := c.eventSubSvc.DeleteEventSubsForCreator(delCtx, matched.ID); subErr != nil {
+			c.log().Warn("DeleteEventSubsForCreator failed during unregister", "creator_id", matched.ID, "error", subErr)
+		}
+	}()
+
+	successText := i18n.Translate(lang, msgGroupUnregistered)
+	c.sendMsg(ctx, msg.Chat.ID, successText, &client.MessageOptions{
+		ReplyToMessageID: msg.MessageID,
+		ParseMode:        telego.ModeHTML,
+	})
+
+	return nil
+}
+
 func (c *Controller) activateCreatorOnFirstGroupRegistration(parent context.Context, creator core.Creator, groupChatID int64, lang string) {
 	if parent == nil {
 		c.log().Warn("Activate creator called with nil context", "creator_id", creator.ID)

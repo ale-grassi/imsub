@@ -179,7 +179,7 @@ other = "⚠️ Questo gruppo e' gia' collegato a un altro account creator (<b>%
 other = "🎉 <b>Gruppo registrato</b>\n\nIl tuo gruppo <b>%s</b> e' ora collegato al tuo account creator <b>%s</b>.\n\n⏳ ImSub iniziera' a sincronizzare i tuoi subscriber Twitch a breve. Una volta attiva la sincronizzazione, solo gli utenti con un abbonamento attivo potranno entrare nel gruppo.\n\n❔ <b>Cosa succede adesso</b>\n• La sincronizzazione subscriber si attiva automaticamente\n• I subscriber attuali possono usare /start per ottenere un link di accesso\n• Quando un abbonamento termina, l'utente viene rimosso dal gruppo\n\nUsa /creator per controllare lo stato del tuo setup in qualsiasi momento."
 
 [link_prompt_html]
-other = "😊 <b>Benvenuto su ImSub, %s</b>\n\nImSub controlla i tuoi <b>abbonamenti Twitch</b> e sblocca i gruppi Telegram a cui puoi accedere.\n\n❔ <b>Cosa fare</b>\n1. Tocca <b>Collega Twitch</b>\n2. Approva l'accesso su Twitch\n3. Torna qui per vedere l'accesso ai tuoi gruppi\n\n🚨 <b>Hai problemi?</b>\nCopia e incolla il link qui sotto in una finestra privata del browser."
+other = "😊 <b>Benvenuto su ImSub, %s</b>\n\nImSub controlla i tuoi <b>abbonamenti Twitch</b> e sblocca i gruppi Telegram a cui puoi accedere.\n\n❔ <b>Cosa fare</b>\n1. Tocca <b>Collega Twitch</b>\n2. Approva l'accesso su Twitch\n3. Torna qui per vedere l'accesso ai tuoi gruppi\n\n⚠️ <b>Hai problemi?</b>\nCopia e incolla il link qui sotto in una finestra privata del browser."
 
 [linked_status_no_subs_html]
 other = "🎉 <b>Il tuo account Twitch e' collegato.</b>\n🔗 <b>Twitch:</b> %s\n\n❗️ Al momento non risultano abbonamenti attivi per questo account.\nSe ti sei appena abbonato, attendi un attimo e tocca <b>Aggiorna</b>.\n\nSe questo e' l'account Twitch sbagliato, usa /reset oppure tocca <b>Elimina dati collegati</b> qui sotto."
@@ -231,3 +231,9 @@ other = "⚠️ <b>Abbonamento terminato</b>\n\nIl tuo abbonamento a <b>%s</b> n
 
 [user_generic_name]
 other = "amico"
+
+[group_unregistered]
+other = "🎉 <b>Gruppo sono stati Scollegati</b>"
+
+[group_unregister_not_owner]
+other = "Solo il creator che ha collegato questo gruppo può scollegarlo."

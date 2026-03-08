@@ -260,6 +260,7 @@ func configureBotCommands(ctx context.Context, bot *telego.Bot, tgLimiter *ratel
 			{Command: "start", Description: "Open user dashboard"},
 			{Command: "creator", Description: "Register creator account"},
 			{Command: "registergroup", Description: "Bind this group to creator"},
+			{Command: "unregister", Description: "Unlink this group and stop EventSubs"},
 			{Command: "reset", Description: "Clear your linked data"},
 		},
 	}); err != nil {

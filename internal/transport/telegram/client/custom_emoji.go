@@ -20,7 +20,7 @@ var htmlCustomEmojiReplacementTable = []customEmojiReplacement{
 	},
 	{
 		standard: "⚠️",
-		customID: "5274099962655816924",
+		customID: "5447644880824181073",
 	},
 	{
 		standard: "✅",

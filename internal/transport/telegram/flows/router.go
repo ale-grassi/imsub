@@ -25,6 +25,7 @@ func (c *Controller) RegisterTelegramHandlers() {
 	}
 
 	c.tgHandler.HandleMessage(c.onRegisterGroup, tghandler.CommandEqual("registergroup"))
+	c.tgHandler.HandleMessage(c.onUnregisterCommand, tghandler.And(tghandler.CommandEqual("unregister"), groupOnly))
 	c.tgHandler.HandleMessage(c.onStartCommand, tghandler.And(tghandler.CommandEqual("start"), privateOnly))
 	c.tgHandler.HandleMessage(c.onCreatorCommand, tghandler.And(tghandler.CommandEqual("creator"), privateOnly))
 	c.tgHandler.HandleMessage(c.onResetCommand, tghandler.And(tghandler.CommandEqual("reset"), privateOnly))

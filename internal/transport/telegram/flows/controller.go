@@ -44,6 +44,8 @@ const (
 	msgGroupCheckingSettings   = "group_checking_settings"
 	msgGroupSettingsOK         = "group_settings_ok"
 	msgGroupBotStatusChanged   = "group_bot_status_changed"
+	msgGroupUnregistered       = "group_unregistered"
+	msgGroupUnregisterNotOwner = "group_unregister_not_owner"
 
 	// Buttons.
 	btnCopyLink = "btn_copy_link"
