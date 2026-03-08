@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 )
 
 type creatorFakeStore struct {
@@ -40,6 +41,8 @@ func (f *fakeChecker) IsEventSubActiveForCreator(ctx context.Context, creatorID 
 func TestLoadStatus(t *testing.T) {
 	t.Parallel()
 
+	wantAuthAt := time.Date(2026, 3, 7, 17, 0, 0, 0, time.UTC)
+	wantSyncAt := time.Date(2026, 3, 7, 17, 5, 0, 0, time.UTC)
 	svc := NewCreator(
 		&creatorFakeStore{
 			countFn: func(_ context.Context, _ string) (int64, error) {
@@ -54,7 +57,13 @@ func TestLoadStatus(t *testing.T) {
 		nil,
 	)
 
-	status, err := svc.LoadStatus(t.Context(), "c1")
+	status, err := svc.LoadStatus(t.Context(), Creator{
+		ID:            "c1",
+		AuthStatus:    CreatorAuthReconnectRequired,
+		AuthErrorCode: "token_refresh_failed",
+		AuthStatusAt:  wantAuthAt,
+		LastSyncAt:    wantSyncAt,
+	})
 	if err != nil {
 		t.Fatalf("LoadStatus(%q) returned error %v, want nil", "c1", err)
 	}
@@ -66,6 +75,15 @@ func TestLoadStatus(t *testing.T) {
 	}
 	if got, want := status.SubscriberCount, int64(12); got != want {
 		t.Errorf("LoadStatus(%q).SubscriberCount = %d, want %d", "c1", got, want)
+	}
+	if got, want := status.Auth, CreatorAuthReconnectRequired; got != want {
+		t.Errorf("LoadStatus(%q).Auth = %q, want %q", "c1", got, want)
+	}
+	if got, want := status.AuthStatusAt, wantAuthAt; !got.Equal(want) {
+		t.Errorf("LoadStatus(%q).AuthStatusAt = %v, want %v", "c1", got, want)
+	}
+	if got, want := status.LastSyncAt, wantSyncAt; !got.Equal(want) {
+		t.Errorf("LoadStatus(%q).LastSyncAt = %v, want %v", "c1", got, want)
 	}
 }
 
@@ -86,7 +104,7 @@ func TestLoadStatusErrorsDegradeToUnknown(t *testing.T) {
 		nil,
 	)
 
-	status, err := svc.LoadStatus(t.Context(), "c1")
+	status, err := svc.LoadStatus(t.Context(), Creator{ID: "c1"})
 	if err == nil {
 		t.Fatalf("LoadStatus(%q) returned nil error, want non-nil", "c1")
 	}

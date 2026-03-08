@@ -33,6 +33,11 @@ type Store interface {
 	DeleteCreatorData(ctx context.Context, ownerTelegramID int64) (deletedCount int, deletedNames []string, err error)
 	UpdateCreatorGroup(ctx context.Context, creatorID string, groupChatID int64, groupName string) error
 	UpdateCreatorTokens(ctx context.Context, creatorID, accessToken, refreshToken string) error
+	MarkCreatorAuthReconnectRequired(ctx context.Context, creatorID, errorCode string, at time.Time) (transitioned bool, err error)
+	MarkCreatorAuthHealthy(ctx context.Context, creatorID string, at time.Time) error
+	UpdateCreatorLastSync(ctx context.Context, creatorID string, at time.Time) error
+	UpdateCreatorLastReconnectNotice(ctx context.Context, creatorID string, at time.Time) error
+	CreatorAuthReconnectRequiredCount(ctx context.Context) (int, error)
 
 	// --- OAuth state ---
 

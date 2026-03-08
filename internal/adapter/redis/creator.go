@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"slices"
 	"strconv"
 	"time"
@@ -13,6 +14,24 @@ import (
 )
 
 // --- Creator ---
+
+func parseCreatorTimeField(logger *slog.Logger, creatorID string, vals map[string]string, key string) time.Time {
+	raw := vals[key]
+	if raw == "" {
+		return time.Time{}
+	}
+	ts, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		logger.Warn("parseCreatorHash invalid timestamp field, using zero time",
+			"creator_id", creatorID,
+			"field", key,
+			"raw", raw,
+			"error", err,
+		)
+		return time.Time{}
+	}
+	return ts
+}
 
 func (s *Store) parseCreatorHash(vals map[string]string, fallbackID string) core.Creator {
 	ownerID, _ := strconv.ParseInt(vals["owner_telegram_id"], 10, 64)
@@ -35,12 +54,20 @@ func (s *Store) parseCreatorHash(vals map[string]string, fallbackID string) core
 		AccessToken:     vals["access_token"],
 		RefreshToken:    vals["refresh_token"],
 		UpdatedAt:       updatedAt,
+		AuthStatus:      core.CreatorAuthStatus(vals["auth_status"]),
+		AuthErrorCode:   vals["auth_error_code"],
+		AuthStatusAt:    parseCreatorTimeField(s.log(), fallbackID, vals, "auth_status_changed_at"),
+		LastSyncAt:      parseCreatorTimeField(s.log(), fallbackID, vals, "last_subscriber_sync_at"),
+		LastNoticeAt:    parseCreatorTimeField(s.log(), fallbackID, vals, "last_reconnect_notice_at"),
 	}
 	if c.ID == "" {
 		c.ID = fallbackID
 	}
 	if c.Name == "" {
 		c.Name = c.ID
+	}
+	if c.AuthStatus == "" {
+		c.AuthStatus = core.CreatorAuthHealthy
 	}
 	return c
 }
@@ -142,6 +169,9 @@ func (s *Store) UpsertCreator(ctx context.Context, c core.Creator) error {
 	if err != nil {
 		return err
 	}
+	if c.AuthStatus == "" {
+		c.AuthStatus = core.CreatorAuthHealthy
+	}
 
 	activeGroupChatID := c.GroupChatID
 	if activeGroupChatID == 0 && exists {
@@ -162,7 +192,24 @@ func (s *Store) UpsertCreator(ctx context.Context, c core.Creator) error {
 		"access_token":      c.AccessToken,
 		"refresh_token":     c.RefreshToken,
 		"updated_at":        time.Now().UTC().Format(time.RFC3339),
+		"auth_status":       string(c.AuthStatus),
+		"auth_error_code":   c.AuthErrorCode,
 	})
+	if !c.AuthStatusAt.IsZero() {
+		pipe.HSet(ctx, keyCreator(c.ID), "auth_status_changed_at", c.AuthStatusAt.UTC().Format(time.RFC3339))
+	} else {
+		pipe.HDel(ctx, keyCreator(c.ID), "auth_status_changed_at")
+	}
+	if !c.LastSyncAt.IsZero() {
+		pipe.HSet(ctx, keyCreator(c.ID), "last_subscriber_sync_at", c.LastSyncAt.UTC().Format(time.RFC3339))
+	} else {
+		pipe.HDel(ctx, keyCreator(c.ID), "last_subscriber_sync_at")
+	}
+	if !c.LastNoticeAt.IsZero() {
+		pipe.HSet(ctx, keyCreator(c.ID), "last_reconnect_notice_at", c.LastNoticeAt.UTC().Format(time.RFC3339))
+	} else {
+		pipe.HDel(ctx, keyCreator(c.ID), "last_reconnect_notice_at")
+	}
 
 	if activeGroupChatID != 0 {
 		pipe.SAdd(ctx, keyActiveCreatorsSet(), c.ID)
@@ -245,4 +292,71 @@ func (s *Store) UpdateCreatorTokens(ctx context.Context, creatorID, accessToken,
 		return fmt.Errorf("redis hset update creator tokens: %w", err)
 	}
 	return nil
+}
+
+// MarkCreatorAuthReconnectRequired records that a creator must reconnect their Twitch account.
+func (s *Store) MarkCreatorAuthReconnectRequired(ctx context.Context, creatorID, errorCode string, at time.Time) (bool, error) {
+	creator, ok, err := s.Creator(ctx, creatorID)
+	if err != nil {
+		return false, err
+	}
+	if !ok {
+		return false, nil
+	}
+	if creator.AuthStatus == core.CreatorAuthReconnectRequired && creator.AuthErrorCode == errorCode {
+		return false, nil
+	}
+	fields := map[string]any{
+		"auth_status":            string(core.CreatorAuthReconnectRequired),
+		"auth_error_code":        errorCode,
+		"auth_status_changed_at": at.UTC().Format(time.RFC3339),
+	}
+	if err := s.rdb.HSet(ctx, keyCreator(creatorID), fields).Err(); err != nil {
+		return false, fmt.Errorf("redis hset creator auth reconnect required: %w", err)
+	}
+	return true, nil
+}
+
+// MarkCreatorAuthHealthy clears reconnect-required auth state for a creator.
+func (s *Store) MarkCreatorAuthHealthy(ctx context.Context, creatorID string, at time.Time) error {
+	fields := map[string]any{
+		"auth_status":            string(core.CreatorAuthHealthy),
+		"auth_error_code":        "",
+		"auth_status_changed_at": at.UTC().Format(time.RFC3339),
+	}
+	if err := s.rdb.HSet(ctx, keyCreator(creatorID), fields).Err(); err != nil {
+		return fmt.Errorf("redis hset creator auth healthy: %w", err)
+	}
+	return nil
+}
+
+// UpdateCreatorLastSync stores the timestamp of the last successful subscriber sync.
+func (s *Store) UpdateCreatorLastSync(ctx context.Context, creatorID string, at time.Time) error {
+	if err := s.rdb.HSet(ctx, keyCreator(creatorID), "last_subscriber_sync_at", at.UTC().Format(time.RFC3339)).Err(); err != nil {
+		return fmt.Errorf("redis hset creator last sync: %w", err)
+	}
+	return nil
+}
+
+// UpdateCreatorLastReconnectNotice stores the timestamp of the last reconnect-required notice.
+func (s *Store) UpdateCreatorLastReconnectNotice(ctx context.Context, creatorID string, at time.Time) error {
+	if err := s.rdb.HSet(ctx, keyCreator(creatorID), "last_reconnect_notice_at", at.UTC().Format(time.RFC3339)).Err(); err != nil {
+		return fmt.Errorf("redis hset creator last reconnect notice: %w", err)
+	}
+	return nil
+}
+
+// CreatorAuthReconnectRequiredCount counts creators currently marked as reconnect_required.
+func (s *Store) CreatorAuthReconnectRequiredCount(ctx context.Context) (int, error) {
+	creators, err := s.ListCreators(ctx)
+	if err != nil {
+		return 0, err
+	}
+	total := 0
+	for _, creator := range creators {
+		if creator.AuthStatus == core.CreatorAuthReconnectRequired {
+			total++
+		}
+	}
+	return total, nil
 }

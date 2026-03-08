@@ -8,6 +8,10 @@ import (
 )
 
 var errMissingScope = errors.New("missing required scope")
+var (
+	errReconnectWithoutCreator  = errors.New("creator reconnect requested without existing creator")
+	errReconnectCreatorMismatch = errors.New("reconnect returned a different creator account")
+)
 
 // Kind identifies a user-visible OAuth flow failure mode.
 type Kind string
@@ -23,6 +27,8 @@ const (
 	KindScopeMissing Kind = "scope_missing"
 	// KindStore indicates creator-link persistence failure.
 	KindStore Kind = "store"
+	// KindCreatorMismatch indicates reconnect used a different Twitch creator account.
+	KindCreatorMismatch Kind = "creator_mismatch"
 )
 
 // FlowError wraps an OAuth flow failure with a stable Kind.
@@ -66,6 +72,7 @@ type CreatorResult struct {
 
 type oauthStore interface {
 	SaveUserIdentityOnly(ctx context.Context, telegramUserID int64, twitchUserID, twitchLogin, language string) (displacedUserID int64, err error)
+	OwnedCreatorForUser(ctx context.Context, ownerTelegramID int64) (Creator, bool, error)
 	UpsertCreator(ctx context.Context, c Creator) error
 }
 
@@ -127,13 +134,32 @@ func (o *OAuth) LinkCreator(ctx context.Context, code string, payload OAuthState
 		return CreatorResult{}, &FlowError{Kind: KindUserInfo, Cause: err}
 	}
 
+	now := o.now()
 	creator := Creator{
 		ID:              broadcasterID,
 		Name:            broadcasterLogin,
 		OwnerTelegramID: payload.TelegramUserID,
 		AccessToken:     tok.AccessToken,
 		RefreshToken:    tok.RefreshToken,
-		UpdatedAt:       o.now(),
+		UpdatedAt:       now,
+		AuthStatus:      CreatorAuthHealthy,
+		AuthStatusAt:    now,
+	}
+	if payload.Reconnect {
+		existing, ok, err := o.store.OwnedCreatorForUser(ctx, payload.TelegramUserID)
+		if err != nil {
+			return CreatorResult{}, &FlowError{Kind: KindStore, Cause: err}
+		}
+		if !ok {
+			return CreatorResult{}, &FlowError{Kind: KindStore, Cause: errReconnectWithoutCreator}
+		}
+		if existing.ID != broadcasterID {
+			return CreatorResult{}, &FlowError{Kind: KindCreatorMismatch, Cause: errReconnectCreatorMismatch}
+		}
+		creator.GroupChatID = existing.GroupChatID
+		creator.GroupName = existing.GroupName
+		creator.LastSyncAt = existing.LastSyncAt
+		creator.LastNoticeAt = existing.LastNoticeAt
 	}
 	if err := o.store.UpsertCreator(ctx, creator); err != nil {
 		return CreatorResult{}, &FlowError{Kind: KindStore, Cause: err}

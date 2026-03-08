@@ -115,6 +115,9 @@ func Run() error {
 			},
 		},
 	})
+	eventSubSvc.SetObserver(metrics)
+	eventSubSvc.SetNotifier(flowController)
+	eventSubSvc.SyncReconnectRequiredGauge(context.Background())
 	flowController.RegisterTelegramHandlers()
 
 	httpController := handlers.New(handlers.Dependencies{

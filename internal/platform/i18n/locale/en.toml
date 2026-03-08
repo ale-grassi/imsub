@@ -13,6 +13,9 @@ other = "Copy link"
 [btn_refresh]
 other = "Refresh"
 
+[btn_reconnect_creator]
+other = "Reconnect Creator Account"
+
 [btn_register_creator_open]
 other = "Connect Creator Account"
 
@@ -35,7 +38,7 @@ other = "Delete viewer data"
 other = "Subscribe on Twitch"
 
 [cb_refreshed]
-other = "Refreshed ✅"
+other = "Status refreshed ✅"
 
 [cmd_help]
 other = "Use /start to connect your viewer account, /creator to set up a creator account, /registergroup in your Telegram group, and /reset to delete linked data."
@@ -55,6 +58,12 @@ other = "• Subscriber sync: ✅ <b>Active</b>"
 [creator_eventsub_fail]
 other = "Your creator account is connected, but subscriber sync is not active yet. Open <code>/creator</code> in DM and reconnect to retry setup."
 
+[creator_auth_healthy]
+other = "• Creator auth: ✅ <b>Healthy</b>"
+
+[creator_auth_reconnect_required]
+other = "• Creator auth: ⚠️ <b>Reconnect required</b> — use the button below to restore subscriber syncing"
+
 [creator_eventsub_inactive]
 other = "• Subscriber sync: ⚠️ <b>Action needed</b> — open /creator in DM to retry setup"
 
@@ -70,14 +79,32 @@ other = "• No groups linked yet."
 [creator_register_info]
 other = "🎬 <b>Creator Setup</b>\n\nConnect your Twitch creator account so ImSub can verify subscribers and manage access to your Telegram group.\n\n<b>Setup steps</b>\n1. Tap <b>Connect Creator Account</b>\n2. Approve access on Twitch\n3. Run /registergroup in your Telegram group\n\n⚠️ You must be an <b>admin</b> in that group.\n\nIf the button does not open Twitch, use <b>Copy link</b> below."
 
+[creator_reconnect_info]
+other = "🔄 <b>Reconnect Creator Account</b>\n\nYour creator account needs a fresh Twitch authorization so ImSub can continue syncing subscribers.\n\n<b>Steps</b>\n1. Tap <b>Reconnect Creator Account</b>\n2. Approve access on Twitch\n3. Return to Telegram and check <b>/creator</b> again\n\nIf the button does not open Twitch, use <b>Copy link</b> below."
+
 [creator_registered_html]
-other = "✅ <b>Creator account connected</b>\n🎬 <b>Twitch:</b> %s\n\n<b>Setup status</b>\n%s\n• Current subscribers cached: %s\n\n👉 <b>Next step</b>\nIf your group is not linked yet, run /registergroup in the Telegram group you want to protect. You must be an <b>admin</b> there.\n\n<b>Current group status</b>\n%s"
+other = "✅ <b>Creator account connected</b>\n🎬 <b>Twitch:</b> %s\n\n<b>Setup status</b>\n%s\n%s\n%s\n• Current subscribers cached: %s\n\n👉 <b>Next step</b>\nIf your group is not linked yet, run /registergroup in the Telegram group you want to protect. You must be an <b>admin</b> there.\n\n<b>Current group status</b>\n%s"
 
 [creator_registered_no_group_html]
-other = "✅ <b>Creator account connected</b>\n🎬 <b>Twitch:</b> %s\n\n👉 <b>Next step</b>\nRun /registergroup in the Telegram group you want to protect. You must be an <b>admin</b> there.\n\n⏳ Subscriber syncing will start automatically after the group is linked.\n\n<b>Current group status</b>\n%s"
+other = "✅ <b>Creator account connected</b>\n🎬 <b>Twitch:</b> %s\n\n<b>Account status</b>\n%s\n%s\n\n👉 <b>Next step</b>\nRun /registergroup in the Telegram group you want to protect. You must be an <b>admin</b> there.\n\n⏳ Subscriber syncing will start automatically after the group is linked.\n\n<b>Current group status</b>\n%s"
 
 [creator_scope_missing]
 other = "⚠️ <b>Missing Twitch permission</b>\nThe required creator access was not granted.\nRun /creator again and approve access."
+
+[creator_reconnect_mismatch]
+other = "⚠️ <b>Wrong Twitch creator account</b>\nThe reconnect finished with a different Twitch creator account than the one already linked here.\n\nIf you want to replace the creator account, run /reset first."
+
+[creator_reconnect_needed]
+other = "⚠️ <b>Creator reconnect required</b>\n\nImSub could not refresh your Twitch creator access, so subscriber syncing is currently stale.\n\nUse the button below to reconnect your creator account."
+
+[creator_last_sync_at]
+other = "• Last successful sync: <b>%s</b>"
+
+[creator_reconnect_since]
+other = "• Reconnect required since: <b>%s</b>"
+
+[creator_refresh_note]
+other = "• Refresh checks status only. Use <b>Reconnect Creator Account</b> to repair auth."
 
 [creator_store_fail]
 other = "⚠️ <b>Could not save creator setup</b>\nTry /creator again."

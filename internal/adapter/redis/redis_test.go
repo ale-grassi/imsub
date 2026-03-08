@@ -225,6 +225,105 @@ func TestDeleteCreatorData(t *testing.T) {
 	}
 }
 
+func TestUpsertCreatorClearsZeroTimestampFields(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	ctx := t.Context()
+
+	authAt := time.Date(2026, 3, 7, 12, 0, 0, 0, time.UTC)
+	syncAt := authAt.Add(5 * time.Minute)
+	noticeAt := authAt.Add(10 * time.Minute)
+	if err := s.UpsertCreator(ctx, core.Creator{
+		ID:              "c1",
+		Name:            "c1",
+		OwnerTelegramID: 900,
+		AuthStatus:      core.CreatorAuthReconnectRequired,
+		AuthErrorCode:   "token_refresh_failed",
+		AuthStatusAt:    authAt,
+		LastSyncAt:      syncAt,
+		LastNoticeAt:    noticeAt,
+	}); err != nil {
+		t.Fatalf("UpsertCreator seeded timestamps failed: %v", err)
+	}
+
+	if err := s.UpsertCreator(ctx, core.Creator{
+		ID:              "c1",
+		Name:            "c1",
+		OwnerTelegramID: 900,
+		AuthStatus:      core.CreatorAuthHealthy,
+	}); err != nil {
+		t.Fatalf("UpsertCreator clear timestamps failed: %v", err)
+	}
+
+	got, ok, err := s.Creator(ctx, "c1")
+	if err != nil {
+		t.Fatalf("Creator(c1) failed: %v", err)
+	}
+	if !ok {
+		t.Fatal("Creator(c1) not found, want found")
+	}
+	if !got.AuthStatusAt.IsZero() {
+		t.Fatalf("Creator(c1).AuthStatusAt = %v, want zero", got.AuthStatusAt)
+	}
+	if !got.LastSyncAt.IsZero() {
+		t.Fatalf("Creator(c1).LastSyncAt = %v, want zero", got.LastSyncAt)
+	}
+	if !got.LastNoticeAt.IsZero() {
+		t.Fatalf("Creator(c1).LastNoticeAt = %v, want zero", got.LastNoticeAt)
+	}
+
+	vals, err := s.rdb.HGetAll(ctx, keyCreator("c1")).Result()
+	if err != nil {
+		t.Fatalf("HGetAll(c1) failed: %v", err)
+	}
+	for _, field := range []string{"auth_status_changed_at", "last_subscriber_sync_at", "last_reconnect_notice_at"} {
+		if _, ok := vals[field]; ok {
+			t.Fatalf("persisted creator field %q still present after clear", field)
+		}
+	}
+}
+
+func TestCreatorLogsInvalidOptionalTimestampFields(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	ctx := t.Context()
+
+	var logBuf strings.Builder
+	s.logger = slog.New(slog.NewTextHandler(&logBuf, nil))
+
+	if err := s.rdb.HSet(ctx, keyCreator("c1"), map[string]any{
+		"id":                       "c1",
+		"name":                     "c1",
+		"owner_telegram_id":        "900",
+		"updated_at":               "2026-03-07T12:00:00Z",
+		"auth_status_changed_at":   "not-a-time",
+		"last_subscriber_sync_at":  "also-not-a-time",
+		"last_reconnect_notice_at": "still-not-a-time",
+	}).Err(); err != nil {
+		t.Fatalf("seed creator hash failed: %v", err)
+	}
+
+	got, ok, err := s.Creator(ctx, "c1")
+	if err != nil {
+		t.Fatalf("Creator(c1) failed: %v", err)
+	}
+	if !ok {
+		t.Fatal("Creator(c1) not found, want found")
+	}
+	if !got.AuthStatusAt.IsZero() || !got.LastSyncAt.IsZero() || !got.LastNoticeAt.IsZero() {
+		t.Fatalf("Creator(c1) optional timestamps = %+v, want zero values", got)
+	}
+
+	logOutput := logBuf.String()
+	for _, field := range []string{"auth_status_changed_at", "last_subscriber_sync_at", "last_reconnect_notice_at"} {
+		if !strings.Contains(logOutput, field) {
+			t.Fatalf("log output %q does not mention invalid field %q", logOutput, field)
+		}
+	}
+}
+
 func TestOAuthStateRoundTrip(t *testing.T) {
 	t.Parallel()
 

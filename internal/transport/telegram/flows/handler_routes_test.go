@@ -99,6 +99,37 @@ func TestRegisterTelegramHandlersRefreshViewerCallback(t *testing.T) {
 	h.caller.assertExactMethods(t, "editMessageText", "answerCallbackQuery")
 }
 
+func TestRegisterTelegramHandlersReconnectCreatorCallback(t *testing.T) {
+	t.Parallel()
+
+	h := newRouteTestHarness(t)
+
+	h.handleUpdate(t, telego.Update{
+		UpdateID: 33,
+		CallbackQuery: &telego.CallbackQuery{
+			ID:   "cb-reconnect",
+			Data: ui.ActionReconnectCreator,
+			From: telego.User{
+				ID:           77,
+				LanguageCode: "en",
+			},
+			Message: &telego.Message{
+				MessageID: 88,
+				Chat: telego.Chat{
+					ID:   77,
+					Type: telego.ChatTypePrivate,
+				},
+			},
+		},
+	})
+
+	h.assertOAuthPromptSaved(t, 1, core.OAuthModeCreator, 77, 88)
+	if !h.store.lastSavedStatePayload().Reconnect {
+		t.Fatal("last saved payload reconnect = false, want true")
+	}
+	h.caller.assertExactMethods(t, "editMessageText", "answerCallbackQuery")
+}
+
 func TestRegisterTelegramHandlersApprovesJoinRequest(t *testing.T) {
 	t.Parallel()
 
@@ -193,7 +224,7 @@ func newRouteTestHarness(t *testing.T) routeTestHarness {
 func (h routeTestHarness) handleUpdate(t *testing.T, update telego.Update) {
 	t.Helper()
 
-	if err := h.baseGroup.HandleUpdate(context.Background(), h.bot, update); err != nil {
+	if err := h.baseGroup.HandleUpdate(t.Context(), h.bot, update); err != nil {
 		t.Fatalf("HandleUpdate(%+v) error = %v, want nil", update, err)
 	}
 }
@@ -343,6 +374,19 @@ func (routeTestStoreStub) UpdateCreatorGroup(context.Context, string, int64, str
 }
 func (routeTestStoreStub) UpdateCreatorTokens(context.Context, string, string, string) error {
 	return nil
+}
+func (routeTestStoreStub) MarkCreatorAuthReconnectRequired(context.Context, string, string, time.Time) (bool, error) {
+	return false, nil
+}
+func (routeTestStoreStub) MarkCreatorAuthHealthy(context.Context, string, time.Time) error {
+	return nil
+}
+func (routeTestStoreStub) UpdateCreatorLastSync(context.Context, string, time.Time) error { return nil }
+func (routeTestStoreStub) UpdateCreatorLastReconnectNotice(context.Context, string, time.Time) error {
+	return nil
+}
+func (routeTestStoreStub) CreatorAuthReconnectRequiredCount(context.Context) (int, error) {
+	return 0, nil
 }
 func (routeTestStoreStub) OAuthState(context.Context, string) (core.OAuthStatePayload, error) {
 	return core.OAuthStatePayload{}, nil

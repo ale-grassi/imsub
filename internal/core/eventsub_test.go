@@ -7,12 +7,18 @@ import (
 	"log/slog"
 	"slices"
 	"testing"
+	"time"
 )
 
 type eventsubFakeStore struct {
 	Store
 	listActiveCreatorsFn  func(ctx context.Context) ([]Creator, error)
+	reconnectCountFn      func(ctx context.Context) (int, error)
 	updateTokensFn        func(ctx context.Context, creatorID, accessToken, refreshToken string) error
+	markReconnectFn       func(ctx context.Context, creatorID, errorCode string, at time.Time) (bool, error)
+	markHealthyFn         func(ctx context.Context, creatorID string, at time.Time) error
+	updateLastSyncFn      func(ctx context.Context, creatorID string, at time.Time) error
+	updateLastNoticeFn    func(ctx context.Context, creatorID string, at time.Time) error
 	newSubscriberDumpKey  func(creatorID string) string
 	addToSubscriberDumpFn func(ctx context.Context, tmpKey string, userIDs []string) error
 	finalizeDumpFn        func(ctx context.Context, creatorID, tmpKey string, hasData bool) error
@@ -26,9 +32,44 @@ func (f *eventsubFakeStore) ListActiveCreators(ctx context.Context) ([]Creator, 
 	return nil, nil
 }
 
+func (f *eventsubFakeStore) CreatorAuthReconnectRequiredCount(ctx context.Context) (int, error) {
+	if f.reconnectCountFn != nil {
+		return f.reconnectCountFn(ctx)
+	}
+	return 0, nil
+}
+
 func (f *eventsubFakeStore) UpdateCreatorTokens(ctx context.Context, creatorID, accessToken, refreshToken string) error {
 	if f.updateTokensFn != nil {
 		return f.updateTokensFn(ctx, creatorID, accessToken, refreshToken)
+	}
+	return nil
+}
+
+func (f *eventsubFakeStore) MarkCreatorAuthReconnectRequired(ctx context.Context, creatorID, errorCode string, at time.Time) (bool, error) {
+	if f.markReconnectFn != nil {
+		return f.markReconnectFn(ctx, creatorID, errorCode, at)
+	}
+	return true, nil
+}
+
+func (f *eventsubFakeStore) MarkCreatorAuthHealthy(ctx context.Context, creatorID string, at time.Time) error {
+	if f.markHealthyFn != nil {
+		return f.markHealthyFn(ctx, creatorID, at)
+	}
+	return nil
+}
+
+func (f *eventsubFakeStore) UpdateCreatorLastSync(ctx context.Context, creatorID string, at time.Time) error {
+	if f.updateLastSyncFn != nil {
+		return f.updateLastSyncFn(ctx, creatorID, at)
+	}
+	return nil
+}
+
+func (f *eventsubFakeStore) UpdateCreatorLastReconnectNotice(ctx context.Context, creatorID string, at time.Time) error {
+	if f.updateLastNoticeFn != nil {
+		return f.updateLastNoticeFn(ctx, creatorID, at)
 	}
 	return nil
 }
@@ -68,6 +109,39 @@ type eventSubFakeTwitch struct {
 	createEventSubFn     func(ctx context.Context, appToken, broadcasterID, eventType, version string) error
 	enabledEventSubFn    func(ctx context.Context, appToken, creatorID string) (map[string]bool, error)
 	listSubscriberPageFn func(ctx context.Context, accessToken, broadcasterID, cursor string) (userIDs []string, nextCursor string, err error)
+}
+
+type eventSubFakeNotifier struct {
+	notified []Creator
+	err      error
+}
+
+func (n *eventSubFakeNotifier) NotifyCreatorReconnectRequired(_ context.Context, creator Creator) error {
+	n.notified = append(n.notified, creator)
+	return n.err
+}
+
+type eventSubFakeObserver struct {
+	refreshes      []string
+	transitions    []string
+	reconnectGauge []int
+	notifications  []string
+}
+
+func (o *eventSubFakeObserver) CreatorTokenRefresh(result string) {
+	o.refreshes = append(o.refreshes, result)
+}
+
+func (o *eventSubFakeObserver) CreatorAuthTransition(from, to, reason string) {
+	o.transitions = append(o.transitions, from+"->"+to+":"+reason)
+}
+
+func (o *eventSubFakeObserver) CreatorsReconnectRequired(count int) {
+	o.reconnectGauge = append(o.reconnectGauge, count)
+}
+
+func (o *eventSubFakeObserver) CreatorReconnectNotification(result string) {
+	o.notifications = append(o.notifications, result)
 }
 
 func (m *eventSubFakeTwitch) ExchangeCode(ctx context.Context, code string) (TokenResponse, error) {
@@ -278,5 +352,77 @@ func TestDumpCurrentSubscribersPropagatesStoreErrors(t *testing.T) {
 	_, err := svc.DumpCurrentSubscribers(t.Context(), Creator{ID: "c1", AccessToken: "token"})
 	if err == nil {
 		t.Fatal("DumpCurrentSubscribers(c1) error = nil, want non-nil")
+	}
+}
+
+func TestDumpCurrentSubscribersMarksReconnectRequiredOnceOnRefreshFailure(t *testing.T) {
+	t.Parallel()
+
+	var (
+		markCalls   int
+		noticeCalls int
+	)
+	notifier := &eventSubFakeNotifier{}
+	observer := &eventSubFakeObserver{}
+	svc := NewEventSub(
+		&eventsubFakeStore{
+			markReconnectFn: func(_ context.Context, creatorID, errorCode string, _ time.Time) (bool, error) {
+				markCalls++
+				if creatorID != "c1" || errorCode != creatorAuthErrorTokenRefreshFailed {
+					t.Fatalf("markReconnectFn() args = creatorID=%q errorCode=%q", creatorID, errorCode)
+				}
+				return true, nil
+			},
+			updateLastNoticeFn: func(_ context.Context, creatorID string, _ time.Time) error {
+				noticeCalls++
+				if creatorID != "c1" {
+					t.Fatalf("updateLastNoticeFn() creatorID = %q, want %q", creatorID, "c1")
+				}
+				return nil
+			},
+			reconnectCountFn: func(context.Context) (int, error) { return 1, nil },
+		},
+		&eventSubFakeTwitch{
+			listSubscriberPageFn: func(_ context.Context, _, _, _ string) ([]string, string, error) {
+				return nil, "", fmt.Errorf("%w: 401", ErrUnauthorized)
+			},
+			refreshTokenFn: func(_ context.Context, _ string) (TokenResponse, error) {
+				return TokenResponse{}, errors.New("refresh failed")
+			},
+		},
+		nil,
+	)
+	svc.SetNotifier(notifier)
+	svc.SetObserver(observer)
+
+	_, err := svc.DumpCurrentSubscribers(t.Context(), Creator{
+		ID:              "c1",
+		OwnerTelegramID: 77,
+		AccessToken:     "expired",
+		RefreshToken:    "refresh",
+	})
+	if err == nil {
+		t.Fatal("DumpCurrentSubscribers() error = nil, want non-nil")
+	}
+	if markCalls != 1 {
+		t.Fatalf("mark reconnect calls = %d, want 1", markCalls)
+	}
+	if noticeCalls != 1 {
+		t.Fatalf("notice timestamp calls = %d, want 1", noticeCalls)
+	}
+	if len(notifier.notified) != 1 || notifier.notified[0].ID != "c1" {
+		t.Fatalf("notified creators = %+v, want one creator c1", notifier.notified)
+	}
+	if !slices.Equal(observer.refreshes, []string{"failed"}) {
+		t.Fatalf("refresh metrics = %v, want %v", observer.refreshes, []string{"failed"})
+	}
+	if !slices.Equal(observer.transitions, []string{"healthy->reconnect_required:" + creatorAuthErrorTokenRefreshFailed}) {
+		t.Fatalf("auth transitions = %v", observer.transitions)
+	}
+	if !slices.Equal(observer.notifications, []string{"ok"}) {
+		t.Fatalf("notification metrics = %v, want [ok]", observer.notifications)
+	}
+	if !slices.Equal(observer.reconnectGauge, []int{1}) {
+		t.Fatalf("reconnect gauge values = %v, want [1]", observer.reconnectGauge)
 	}
 }

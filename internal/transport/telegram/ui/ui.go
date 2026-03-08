@@ -19,6 +19,8 @@ const (
 	ActionRefreshCreator = "action:refresh_creator"
 	// ActionRegisterCreator starts creator registration.
 	ActionRegisterCreator = "action:register_creator"
+	// ActionReconnectCreator starts creator reconnect for an existing creator.
+	ActionReconnectCreator = "action:reconnect_creator"
 	// ActionResetConfirm opens the reset scope picker.
 	ActionResetConfirm = "action:reset_confirm"
 
@@ -43,6 +45,7 @@ const (
 	ActionResetDoBoth = "action:reset_do_both"
 
 	btnRefresh   = "btn_refresh"
+	btnReconnect = "btn_reconnect_creator"
 	btnReset     = "btn_reset"
 	btnSubscribe = "btn_subscribe"
 
@@ -68,9 +71,20 @@ func MainMenuMarkup(lang string) *telego.InlineKeyboardMarkup {
 	return buildMainMenuMarkup(lang, ActionRefreshViewer)
 }
 
-// CreatorMainMenuMarkup builds the creator main-menu inline keyboard.
+// CreatorStatusMenuMarkup builds the creator status inline keyboard.
+func CreatorStatusMenuMarkup(lang, reconnectURL string) *telego.InlineKeyboardMarkup {
+	rows := make([][]telego.InlineKeyboardButton, 0, 3)
+	if strings.TrimSpace(reconnectURL) != "" {
+		rows = append(rows, tu.InlineKeyboardRow(LinkButton(i18n.Translate(lang, btnReconnect), reconnectURL)))
+	}
+	rows = append(rows, tu.InlineKeyboardRow(RefreshButton(i18n.Translate(lang, btnRefresh), ActionRefreshCreator)))
+	rows = append(rows, tu.InlineKeyboardRow(DeleteButton(i18n.Translate(lang, btnReset), ActionResetConfirm)))
+	return tu.InlineKeyboard(rows...)
+}
+
+// CreatorMainMenuMarkup builds the default creator main-menu inline keyboard.
 func CreatorMainMenuMarkup(lang string) *telego.InlineKeyboardMarkup {
-	return buildMainMenuMarkup(lang, ActionRefreshCreator)
+	return CreatorStatusMenuMarkup(lang, "")
 }
 
 func appendMainMenuRows(menu *telego.InlineKeyboardMarkup, rows ...[]telego.InlineKeyboardButton) *telego.InlineKeyboardMarkup {
@@ -84,9 +98,14 @@ func WithMainMenu(lang string, rows ...[]telego.InlineKeyboardButton) *telego.In
 	return appendMainMenuRows(MainMenuMarkup(lang), rows...)
 }
 
-// WithCreatorMainMenu appends the creator main menu rows to existing keyboard rows.
+// WithCreatorStatusMenu appends the creator status menu rows to existing keyboard rows.
+func WithCreatorStatusMenu(lang, reconnectURL string, rows ...[]telego.InlineKeyboardButton) *telego.InlineKeyboardMarkup {
+	return appendMainMenuRows(CreatorStatusMenuMarkup(lang, reconnectURL), rows...)
+}
+
+// WithCreatorMainMenu appends the default creator main menu rows to existing keyboard rows.
 func WithCreatorMainMenu(lang string, rows ...[]telego.InlineKeyboardButton) *telego.InlineKeyboardMarkup {
-	return appendMainMenuRows(CreatorMainMenuMarkup(lang), rows...)
+	return WithCreatorStatusMenu(lang, "", rows...)
 }
 
 // LinkedStatusWithJoinStateHTML renders the viewer linked status block for the
@@ -175,6 +194,11 @@ func CopyLinkButton(text, copyText string) telego.InlineKeyboardButton {
 // DeleteButton creates a destructive action button.
 func DeleteButton(text, data string) telego.InlineKeyboardButton {
 	return IconCallbackButton(text, data, deleteButtonEmojiID).WithStyle("danger")
+}
+
+// ReconnectButton creates a primary reconnect action button.
+func ReconnectButton(text, data string) telego.InlineKeyboardButton {
+	return IconCallbackButton(text, data, linkButtonEmojiID).WithStyle("primary")
 }
 
 // BackButton creates a back-navigation action button.

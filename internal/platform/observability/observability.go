@@ -25,6 +25,10 @@ type Metrics struct {
 	telegramWebhook     *prometheus.CounterVec
 	backgroundJobsTotal *prometheus.CounterVec
 	backgroundJobTime   *prometheus.HistogramVec
+	creatorTokenRefresh *prometheus.CounterVec
+	creatorAuthChange   *prometheus.CounterVec
+	creatorsReconnect   prometheus.Gauge
+	creatorReconnectDM  *prometheus.CounterVec
 }
 
 // New creates and registers all Prometheus metrics.
@@ -86,6 +90,31 @@ func New() *Metrics {
 			},
 			[]string{"job"},
 		),
+		creatorTokenRefresh: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "imsub_creator_token_refresh_total",
+				Help: "Creator token refresh attempts by result.",
+			},
+			[]string{"result"},
+		),
+		creatorAuthChange: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "imsub_creator_auth_state_transitions_total",
+				Help: "Creator auth state transitions by source and destination.",
+			},
+			[]string{"from", "to", "reason"},
+		),
+		creatorsReconnect: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "imsub_creators_reconnect_required",
+			Help: "Current number of creators marked as reconnect required.",
+		}),
+		creatorReconnectDM: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "imsub_creator_reconnect_notifications_total",
+				Help: "Creator reconnect-required DM notification attempts by result.",
+			},
+			[]string{"result"},
+		),
 	}
 
 	m.registry.MustRegister(
@@ -97,9 +126,49 @@ func New() *Metrics {
 		m.telegramWebhook,
 		m.backgroundJobsTotal,
 		m.backgroundJobTime,
+		m.creatorTokenRefresh,
+		m.creatorAuthChange,
+		m.creatorsReconnect,
+		m.creatorReconnectDM,
 	)
 
 	return m
+}
+
+// CreatorTokenRefresh records creator token refresh attempts.
+func (m *Metrics) CreatorTokenRefresh(result string) {
+	if m == nil {
+		return
+	}
+	m.creatorTokenRefresh.WithLabelValues(httputil.LabelOrUnknown(result)).Inc()
+}
+
+// CreatorAuthTransition records a creator auth state transition.
+func (m *Metrics) CreatorAuthTransition(from, to, reason string) {
+	if m == nil {
+		return
+	}
+	m.creatorAuthChange.WithLabelValues(
+		httputil.LabelOrUnknown(from),
+		httputil.LabelOrUnknown(to),
+		httputil.LabelOrUnknown(reason),
+	).Inc()
+}
+
+// CreatorsReconnectRequired sets the current reconnect-required creator gauge.
+func (m *Metrics) CreatorsReconnectRequired(count int) {
+	if m == nil {
+		return
+	}
+	m.creatorsReconnect.Set(float64(count))
+}
+
+// CreatorReconnectNotification records reconnect-required owner notifications.
+func (m *Metrics) CreatorReconnectNotification(result string) {
+	if m == nil {
+		return
+	}
+	m.creatorReconnectDM.WithLabelValues(httputil.LabelOrUnknown(result)).Inc()
 }
 
 // Handler returns an HTTP handler that serves Prometheus metrics.

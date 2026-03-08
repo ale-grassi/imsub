@@ -10,6 +10,7 @@ import (
 type oauthFakeStore struct {
 	Store
 	saveViewerFn func(ctx context.Context, telegramUserID int64, twitchUserID, twitchLogin, language string) (int64, error)
+	getOwnedFn   func(ctx context.Context, ownerTelegramID int64) (Creator, bool, error)
 	upsertFn     func(ctx context.Context, c Creator) error
 }
 
@@ -25,6 +26,13 @@ func (f *oauthFakeStore) UpsertCreator(ctx context.Context, c Creator) error {
 		return f.upsertFn(ctx, c)
 	}
 	return nil
+}
+
+func (f *oauthFakeStore) OwnedCreatorForUser(ctx context.Context, ownerTelegramID int64) (Creator, bool, error) {
+	if f.getOwnedFn != nil {
+		return f.getOwnedFn(ctx, ownerTelegramID)
+	}
+	return Creator{}, false, nil
 }
 
 type fakeAPI struct {
@@ -167,5 +175,95 @@ func TestLinkCreatorUpsertSetsUpdatedAt(t *testing.T) {
 	}
 	if got.BroadcasterDisplayName != "Creator Display" {
 		t.Errorf("LinkCreator() BroadcasterDisplayName = %q, want \"Creator Display\"", got.BroadcasterDisplayName)
+	}
+	if got.Creator.AuthStatus != CreatorAuthHealthy {
+		t.Errorf("LinkCreator() Creator.AuthStatus = %q, want %q", got.Creator.AuthStatus, CreatorAuthHealthy)
+	}
+}
+
+func TestLinkCreatorReconnectPreservesGroupAndClearsAuthDegradation(t *testing.T) {
+	t.Parallel()
+
+	var saved Creator
+	svc := NewOAuth(
+		&oauthFakeStore{
+			getOwnedFn: func(_ context.Context, ownerTelegramID int64) (Creator, bool, error) {
+				if ownerTelegramID != 99 {
+					t.Fatalf("OwnedCreatorForUser() ownerTelegramID = %d, want 99", ownerTelegramID)
+				}
+				return Creator{
+					ID:              "creator-1",
+					Name:            "creator_login",
+					OwnerTelegramID: 99,
+					GroupChatID:     1234,
+					GroupName:       "VIP Group",
+					AuthStatus:      CreatorAuthReconnectRequired,
+					AuthErrorCode:   "token_refresh_failed",
+				}, true, nil
+			},
+			upsertFn: func(_ context.Context, c Creator) error {
+				saved = c
+				return nil
+			},
+		},
+		&fakeAPI{
+			exchangeFn: func(_ context.Context, _ string) (TokenResponse, error) {
+				return TokenResponse{
+					AccessToken:  "new-at",
+					RefreshToken: "new-rt",
+					Scope:        []string{ScopeChannelReadSubscriptions},
+				}, nil
+			},
+			fetchUserFn: func(_ context.Context, _ string) (id, login, displayName string, err error) {
+				return "creator-1", "creator_login", "Creator Display", nil
+			},
+		},
+	)
+
+	got, err := svc.LinkCreator(t.Context(), "abc", OAuthStatePayload{TelegramUserID: 99, Reconnect: true})
+	if err != nil {
+		t.Fatalf("LinkCreator reconnect error: %v", err)
+	}
+	if got.Creator.GroupChatID != 1234 || got.Creator.GroupName != "VIP Group" {
+		t.Fatalf("LinkCreator reconnect group = (%d, %q), want (1234, %q)", got.Creator.GroupChatID, got.Creator.GroupName, "VIP Group")
+	}
+	if got.Creator.AuthStatus != CreatorAuthHealthy {
+		t.Fatalf("LinkCreator reconnect auth status = %q, want %q", got.Creator.AuthStatus, CreatorAuthHealthy)
+	}
+	if saved.GroupChatID != 1234 || saved.GroupName != "VIP Group" {
+		t.Fatalf("UpsertCreator saved group = (%d, %q), want (1234, %q)", saved.GroupChatID, saved.GroupName, "VIP Group")
+	}
+}
+
+func TestLinkCreatorReconnectRejectsDifferentCreator(t *testing.T) {
+	t.Parallel()
+
+	svc := NewOAuth(
+		&oauthFakeStore{
+			getOwnedFn: func(_ context.Context, _ int64) (Creator, bool, error) {
+				return Creator{ID: "creator-1", OwnerTelegramID: 99}, true, nil
+			},
+		},
+		&fakeAPI{
+			exchangeFn: func(_ context.Context, _ string) (TokenResponse, error) {
+				return TokenResponse{
+					AccessToken:  "new-at",
+					RefreshToken: "new-rt",
+					Scope:        []string{ScopeChannelReadSubscriptions},
+				}, nil
+			},
+			fetchUserFn: func(_ context.Context, _ string) (id, login, displayName string, err error) {
+				return "creator-2", "creator_login", "Creator Display", nil
+			},
+		},
+	)
+
+	_, err := svc.LinkCreator(t.Context(), "abc", OAuthStatePayload{TelegramUserID: 99, Reconnect: true})
+	var flowErr *FlowError
+	if !errors.As(err, &flowErr) {
+		t.Fatalf("LinkCreator reconnect mismatch error = %v, want FlowError", err)
+	}
+	if flowErr.Kind != KindCreatorMismatch {
+		t.Fatalf("LinkCreator reconnect mismatch kind = %q, want %q", flowErr.Kind, KindCreatorMismatch)
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"imsub/internal/transport/telegram/ui"
 
 	"github.com/mymmrac/telego"
+	tu "github.com/mymmrac/telego/telegoutil"
 )
 
 const (
@@ -22,6 +23,8 @@ const (
 	resultScopeMissing        = "scope_missing"
 	resultSuccess             = "success"
 )
+
+var errReconnectNotificationSend = errors.New("send reconnect-required notification")
 
 // --- Viewer OAuth callback ---
 
@@ -44,6 +47,9 @@ func (c *Controller) HandleViewerOAuthCallback(ctx context.Context, code string,
 			case core.KindScopeMissing, core.KindStore:
 				c.sendMsg(ctx, payload.TelegramUserID, i18n.Translate(lang, msgOAuthSaveFail), nil)
 				return resultSaveFailed, "", fmt.Errorf("viewer other fail: %w", flowErr)
+			case core.KindCreatorMismatch:
+				c.sendMsg(ctx, payload.TelegramUserID, i18n.Translate(lang, msgOAuthSaveFail), nil)
+				return resultSaveFailed, "", fmt.Errorf("viewer creator mismatch fail: %w", flowErr)
 			}
 		}
 		c.sendMsg(ctx, payload.TelegramUserID, i18n.Translate(lang, msgOAuthSaveFail), nil)
@@ -91,6 +97,11 @@ func (c *Controller) HandleCreatorOAuthCallback(ctx context.Context, code string
 			case core.KindSave:
 				c.sendMsg(ctx, payload.TelegramUserID, i18n.Translate(lang, msgCreatorStoreFail), nil)
 				return resultStoreFailed, "", fmt.Errorf("creator save fail: %w", flowErr)
+			case core.KindCreatorMismatch:
+				c.sendMsg(ctx, payload.TelegramUserID, i18n.Translate(lang, msgCreatorReconnectMismatch), &client.MessageOptions{
+					ParseMode: telego.ModeHTML,
+				})
+				return "creator_mismatch", "", fmt.Errorf("creator reconnect mismatch: %w", flowErr)
 			}
 		}
 		c.sendMsg(ctx, payload.TelegramUserID, i18n.Translate(lang, msgCreatorStoreFail), nil)
@@ -101,15 +112,30 @@ func (c *Controller) HandleCreatorOAuthCallback(ctx context.Context, code string
 	if payload.PromptMessageID != 0 {
 		c.deleteMessage(ctx, payload.TelegramUserID, payload.PromptMessageID)
 	}
-	profileDisplay := ui.TwitchProfileHTML(creator.Name)
-	groupLines := CreatorGroupLine(lang, creator)
-	text := fmt.Sprintf(
-		i18n.Translate(lang, msgCreatorRegisteredNoGroup),
-		profileDisplay,
-		groupLines,
-	)
-	c.sendMsg(ctx, payload.TelegramUserID, text, &client.MessageOptions{ParseMode: telego.ModeHTML, DisablePreview: true})
+	c.replyCreatorStatus(ctx, payload.TelegramUserID, 0, lang, creator)
 	return "success", res.BroadcasterDisplayName, nil
+}
+
+// NotifyCreatorReconnectRequired sends a one-shot stale-auth notification to a creator owner.
+func (c *Controller) NotifyCreatorReconnectRequired(ctx context.Context, creator core.Creator) error {
+	lang := "en"
+	if identity, ok, err := c.store.UserIdentity(ctx, creator.OwnerTelegramID); err == nil && ok && identity.Language != "" {
+		lang = identity.Language
+	}
+	reconnectURL, err := c.creatorReconnectURL(ctx, creator.OwnerTelegramID, lang)
+	if err != nil {
+		return fmt.Errorf("creator reconnect url: %w", err)
+	}
+	markup := tu.InlineKeyboard(
+		tu.InlineKeyboardRow(ui.LinkButton(i18n.Translate(lang, btnReconnectCreator), reconnectURL)),
+	)
+	if messageID := c.sendMsg(ctx, creator.OwnerTelegramID, i18n.Translate(lang, msgCreatorReconnectNeeded), &client.MessageOptions{
+		ParseMode: telego.ModeHTML,
+		Markup:    markup,
+	}); messageID == 0 {
+		return errReconnectNotificationSend
+	}
+	return nil
 }
 
 // HandleSubscriptionEnd applies subscription-end side effects for a viewer.

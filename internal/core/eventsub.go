@@ -12,12 +12,30 @@ var errNilContext = errors.New("nil context")
 
 type eventSubStore interface {
 	ListActiveCreators(ctx context.Context) ([]Creator, error)
+	CreatorAuthReconnectRequiredCount(ctx context.Context) (int, error)
 	NewSubscriberDumpKey(creatorID string) string
 	AddToSubscriberDump(ctx context.Context, tmpKey string, userIDs []string) error
 	FinalizeSubscriberDump(ctx context.Context, creatorID, tmpKey string, hasData bool) error
 	CleanupSubscriberDump(ctx context.Context, tmpKey string)
 	UpdateCreatorTokens(ctx context.Context, creatorID, accessToken, refreshToken string) error
+	MarkCreatorAuthReconnectRequired(ctx context.Context, creatorID, errorCode string, at time.Time) (transitioned bool, err error)
+	MarkCreatorAuthHealthy(ctx context.Context, creatorID string, at time.Time) error
+	UpdateCreatorLastSync(ctx context.Context, creatorID string, at time.Time) error
+	UpdateCreatorLastReconnectNotice(ctx context.Context, creatorID string, at time.Time) error
 }
+
+type creatorReconnectNotifier interface {
+	NotifyCreatorReconnectRequired(ctx context.Context, creator Creator) error
+}
+
+type eventSubObserver interface {
+	CreatorTokenRefresh(result string)
+	CreatorAuthTransition(from, to, reason string)
+	CreatorsReconnectRequired(count int)
+	CreatorReconnectNotification(result string)
+}
+
+const creatorAuthErrorTokenRefreshFailed = "token_refresh_failed"
 
 // EventSub manages EventSub lifecycle checks, creation, and subscriber dumps.
 type EventSub struct {
@@ -25,6 +43,8 @@ type EventSub struct {
 	twitch         TwitchAPI
 	log            *slog.Logger
 	bootstrapDelay time.Duration
+	notifier       creatorReconnectNotifier
+	observer       eventSubObserver
 }
 
 // NewEventSub creates an EventSub service with default timings.
@@ -38,6 +58,29 @@ func NewEventSub(store eventSubStore, twitchAPI TwitchAPI, logger *slog.Logger) 
 		log:            logger,
 		bootstrapDelay: 3 * time.Second,
 	}
+}
+
+// SetNotifier wires a reconnect-required notifier into EventSub flows.
+func (e *EventSub) SetNotifier(notifier creatorReconnectNotifier) {
+	e.notifier = notifier
+}
+
+// SetObserver wires metrics/observability hooks into EventSub flows.
+func (e *EventSub) SetObserver(observer eventSubObserver) {
+	e.observer = observer
+}
+
+// SyncReconnectRequiredGauge refreshes the reconnect-required gauge from storage.
+func (e *EventSub) SyncReconnectRequiredGauge(ctx context.Context) {
+	if e == nil || e.observer == nil {
+		return
+	}
+	count, err := e.store.CreatorAuthReconnectRequiredCount(ctx)
+	if err != nil {
+		e.log.Warn("eventsub reconnect-required gauge sync failed", "error", err)
+		return
+	}
+	e.observer.CreatorsReconnectRequired(count)
 }
 
 // BootstrapEventSub verifies and repairs EventSub subscriptions for active creators.
@@ -167,6 +210,7 @@ func (e *EventSub) DumpCurrentSubscribers(ctx context.Context, creator Creator) 
 		if err != nil && !refreshed && isUnauthorized(err) {
 			updated, refreshErr := e.refreshCreatorAccessToken(ctx, creator)
 			if refreshErr != nil {
+				e.markCreatorReconnectRequired(ctx, creator, creatorAuthErrorTokenRefreshFailed)
 				return total, fmt.Errorf("refresh access token on dump: %w", refreshErr)
 			}
 			creator = updated
@@ -193,22 +237,88 @@ func (e *EventSub) DumpCurrentSubscribers(ctx context.Context, creator Creator) 
 	if err := e.store.FinalizeSubscriberDump(ctx, creator.ID, tmpKey, wroteAny); err != nil {
 		return total, fmt.Errorf("finalize subscriber dump: %w", err)
 	}
+	now := time.Now().UTC()
+	if err := e.store.UpdateCreatorLastSync(ctx, creator.ID, now); err != nil {
+		return total, fmt.Errorf("update creator last sync: %w", err)
+	}
+	if err := e.clearCreatorReconnectRequired(ctx, creator, now); err != nil {
+		return total, err
+	}
 	return total, nil
 }
 
 func (e *EventSub) refreshCreatorAccessToken(ctx context.Context, creator Creator) (Creator, error) {
 	tok, err := e.twitch.RefreshToken(ctx, creator.RefreshToken)
 	if err != nil {
+		if e.observer != nil {
+			e.observer.CreatorTokenRefresh("failed")
+		}
 		return creator, fmt.Errorf("refresh token call: %w", err)
+	}
+	if e.observer != nil {
+		e.observer.CreatorTokenRefresh("ok")
 	}
 	if err := e.store.UpdateCreatorTokens(ctx, creator.ID, tok.AccessToken, tok.RefreshToken); err != nil {
 		return creator, fmt.Errorf("update creator tokens in store: %w", err)
+	}
+	now := time.Now().UTC()
+	if err := e.clearCreatorReconnectRequired(ctx, creator, now); err != nil {
+		return creator, err
 	}
 	creator.AccessToken = tok.AccessToken
 	if tok.RefreshToken != "" {
 		creator.RefreshToken = tok.RefreshToken
 	}
+	creator.AuthStatus = CreatorAuthHealthy
+	creator.AuthErrorCode = ""
+	creator.AuthStatusAt = now
 	return creator, nil
+}
+
+func (e *EventSub) clearCreatorReconnectRequired(ctx context.Context, creator Creator, at time.Time) error {
+	if creator.AuthStatus != CreatorAuthReconnectRequired {
+		return nil
+	}
+	if err := e.store.MarkCreatorAuthHealthy(ctx, creator.ID, at); err != nil {
+		return fmt.Errorf("mark creator auth healthy: %w", err)
+	}
+	if e.observer != nil {
+		e.observer.CreatorAuthTransition(string(CreatorAuthReconnectRequired), string(CreatorAuthHealthy), creator.AuthErrorCode)
+	}
+	e.SyncReconnectRequiredGauge(ctx)
+	return nil
+}
+
+func (e *EventSub) markCreatorReconnectRequired(ctx context.Context, creator Creator, errorCode string) {
+	at := time.Now().UTC()
+	transitioned, err := e.store.MarkCreatorAuthReconnectRequired(ctx, creator.ID, errorCode, at)
+	if err != nil {
+		e.log.Warn("mark creator auth reconnect required failed", "creator_id", creator.ID, "error", err)
+		return
+	}
+	if !transitioned {
+		return
+	}
+	if e.observer != nil {
+		e.observer.CreatorAuthTransition(string(CreatorAuthHealthy), string(CreatorAuthReconnectRequired), errorCode)
+	}
+	e.SyncReconnectRequiredGauge(ctx)
+	if e.notifier == nil {
+		return
+	}
+	if err := e.notifier.NotifyCreatorReconnectRequired(ctx, creator); err != nil {
+		e.log.Warn("notify creator reconnect required failed", "creator_id", creator.ID, "owner_telegram_id", creator.OwnerTelegramID, "error", err)
+		if e.observer != nil {
+			e.observer.CreatorReconnectNotification("failed")
+		}
+		return
+	}
+	if err := e.store.UpdateCreatorLastReconnectNotice(ctx, creator.ID, at); err != nil {
+		e.log.Warn("update creator last reconnect notice failed", "creator_id", creator.ID, "error", err)
+	}
+	if e.observer != nil {
+		e.observer.CreatorReconnectNotification("ok")
+	}
 }
 
 func isUnauthorized(err error) bool {

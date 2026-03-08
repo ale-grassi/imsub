@@ -56,10 +56,15 @@ const (
 	msgCreatorEventSubInactive   = "creator_eventsub_inactive"
 	msgCreatorEventSubUnknown    = "creator_eventsub_unknown"
 	msgCreatorEventSubFail       = "creator_eventsub_fail"
+	msgCreatorAuthHealthy        = "creator_auth_healthy"
+	msgCreatorAuthReconnect      = "creator_auth_reconnect_required"
 	msgCreatorSubscribersPending = "creator_subscribers_pending"
 	msgCreatorSubscribersReady   = "creator_subscribers_ready"
 	msgCreatorGroupsNone         = "creator_groups_none"
 	msgCreatorExchangeFail       = "creator_exchange_fail"
+	msgCreatorReconnectInfo      = "creator_reconnect_info"
+	msgCreatorReconnectMismatch  = "creator_reconnect_mismatch"
+	msgCreatorReconnectNeeded    = "creator_reconnect_needed"
 	msgCreatorScopeMissing       = "creator_scope_missing"
 	msgCreatorUserInfoFail       = "creator_userinfo_fail"
 	msgCreatorStoreFail          = "creator_store_fail"
@@ -84,6 +89,7 @@ const (
 
 	// Buttons.
 	btnRegisterCreatorOpen = "btn_register_creator_open"
+	btnReconnectCreator    = "btn_reconnect_creator"
 	btnLinkTwitch          = "btn_link_twitch"
 	btnCopyLink            = "btn_copy_link"
 	btnJoin                = "btn_join"
@@ -196,6 +202,7 @@ func (c *Controller) RegisterTelegramHandlers() {
 	registerCallback(ui.ActionRefreshViewer, c.handleViewerStart)
 	registerCallback(ui.ActionRefreshCreator, c.handleCreatorRegistrationStart)
 	registerCallback(ui.ActionRegisterCreator, c.handleCreatorRegistrationStart)
+	registerCallback(ui.ActionReconnectCreator, c.handleCreatorReconnectStart)
 	registerCallback(ui.ActionResetConfirm, c.handleResetPrompt)
 	registerCallback(ui.ActionResetPickViewer, c.handleResetViewerConfirmPrompt)
 	registerCallback(ui.ActionResetPickCreator, c.handleResetCreatorConfirmPrompt)

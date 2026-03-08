@@ -58,6 +58,12 @@ var (
 		Message: "ImSub could not finish creator setup.",
 		Hint:    "Return to Telegram and try /creator again in a moment.",
 	}
+	oauthErrorCreatorMismatch = oauthErrorPage{
+		Status:  http.StatusConflict,
+		Title:   "Wrong Twitch creator account",
+		Message: "This reconnect used a different Twitch creator account than the one already linked.",
+		Hint:    "Return to Telegram. If you want to replace the creator account, run /reset first.",
+	}
 )
 
 // TwitchCallback completes OAuth callback processing for viewer and creator flows.
@@ -105,7 +111,7 @@ func (c *Controller) TwitchCallback(w http.ResponseWriter, r *http.Request) {
 				switch fe.Kind {
 				case core.KindSave:
 					renderOAuthError(w, oauthErrorViewerSaveFailed)
-				case core.KindTokenExchange, core.KindUserInfo, core.KindScopeMissing, core.KindStore:
+				case core.KindTokenExchange, core.KindUserInfo, core.KindScopeMissing, core.KindStore, core.KindCreatorMismatch:
 					renderOAuthError(w, oauthErrorVerificationFailed)
 				}
 			} else {
@@ -123,9 +129,12 @@ func (c *Controller) TwitchCallback(w http.ResponseWriter, r *http.Request) {
 		if flowErr != nil {
 			var fe *core.FlowError
 			if errors.As(flowErr, &fe) {
-				if fe.Kind == core.KindScopeMissing {
+				switch fe.Kind {
+				case core.KindScopeMissing:
 					renderOAuthError(w, oauthErrorMissingCreatorScope)
-				} else {
+				case core.KindCreatorMismatch:
+					renderOAuthError(w, oauthErrorCreatorMismatch)
+				case core.KindTokenExchange, core.KindUserInfo, core.KindSave, core.KindStore:
 					renderOAuthError(w, oauthErrorCreatorSetupFailed)
 				}
 			} else {

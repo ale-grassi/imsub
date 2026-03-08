@@ -166,10 +166,17 @@ func (s *Service) RunIntegrityAuditOnce(ctx context.Context) error {
 		s.logger().Warn("integrity audit reverse index repair failed", "error", err)
 		return fmt.Errorf("repair reverse index: %w", err)
 	}
+	reconnectRequired := 0
+	for _, creator := range creators {
+		if creator.AuthStatus == core.CreatorAuthReconnectRequired {
+			reconnectRequired++
+		}
+	}
 
 	s.logger().Info("integrity audit done",
 		"creators", len(creators),
 		"active_without_group", activeNoGroup,
+		"creators_reconnect_required", reconnectRequired,
 		"index_users", indexUsers,
 		"index_repaired_users", repairedUsers,
 		"index_missing_links", missingLinks,

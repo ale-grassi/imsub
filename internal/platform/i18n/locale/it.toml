@@ -13,6 +13,9 @@ other = "Copia link"
 [btn_refresh]
 other = "Aggiorna"
 
+[btn_reconnect_creator]
+other = "Ricollega account creator"
+
 [btn_register_creator_open]
 other = "Collega account creator"
 
@@ -35,7 +38,7 @@ other = "Elimina dati viewer"
 other = "Abbonati su Twitch"
 
 [cb_refreshed]
-other = "Aggiornato ✅"
+other = "Stato aggiornato ✅"
 
 [cmd_help]
 other = "Usa /start per collegare l'account viewer, /creator per configurare l'account creator, /registergroup nel gruppo Telegram e /reset per eliminare i dati collegati."
@@ -55,6 +58,12 @@ other = "• Sincronizzazione subscriber: ✅ <b>Attiva</b>"
 [creator_eventsub_fail]
 other = "Il tuo account creator e' collegato, ma la sincronizzazione subscriber non e' ancora attiva. Apri <code>/creator</code> in DM e ricollega l'account per riprovare."
 
+[creator_auth_healthy]
+other = "• Auth creator: ✅ <b>Valida</b>"
+
+[creator_auth_reconnect_required]
+other = "• Auth creator: ⚠️ <b>Ricollegamento richiesto</b> — usa il pulsante qui sotto per ripristinare la sincronizzazione"
+
 [creator_eventsub_inactive]
 other = "• Sincronizzazione subscriber: ⚠️ <b>Azione richiesta</b> — apri /creator in DM per riprovare"
 
@@ -70,14 +79,32 @@ other = "• Nessun gruppo collegato al momento."
 [creator_register_info]
 other = "🎬 <b>Setup Creator</b>\n\nCollega il tuo account creator Twitch cosi' ImSub puo' verificare i subscriber e gestire l'accesso al tuo gruppo Telegram.\n\n<b>Passaggi</b>\n1. Tocca <b>Collega account creator</b>\n2. Approva l'accesso su Twitch\n3. Esegui /registergroup nel tuo gruppo Telegram\n\n⚠️ Devi essere <b>admin</b> in quel gruppo.\n\nSe il pulsante non apre Twitch, usa <b>Copia link</b> qui sotto."
 
+[creator_reconnect_info]
+other = "🔄 <b>Ricollega account creator</b>\n\nIl tuo account creator ha bisogno di una nuova autorizzazione Twitch per permettere a ImSub di continuare a sincronizzare i subscriber.\n\n<b>Passaggi</b>\n1. Tocca <b>Ricollega account creator</b>\n2. Approva l'accesso su Twitch\n3. Torna su Telegram e controlla di nuovo <b>/creator</b>\n\nSe il pulsante non apre Twitch, usa <b>Copia link</b> qui sotto."
+
 [creator_registered_html]
-other = "✅ <b>Account creator collegato</b>\n🎬 <b>Twitch:</b> %s\n\n<b>Stato setup</b>\n%s\n• Subscriber attuali in cache: %s\n\n👉 <b>Prossimo step</b>\nSe il gruppo non e' ancora collegato, esegui /registergroup nel gruppo Telegram che vuoi proteggere.\nDevi essere <b>admin</b> li'.\n\n<b>Stato gruppo attuale</b>\n%s"
+other = "✅ <b>Account creator collegato</b>\n🎬 <b>Twitch:</b> %s\n\n<b>Stato setup</b>\n%s\n%s\n%s\n• Subscriber attuali in cache: %s\n\n👉 <b>Prossimo step</b>\nSe il gruppo non e' ancora collegato, esegui /registergroup nel gruppo Telegram che vuoi proteggere.\nDevi essere <b>admin</b> li'.\n\n<b>Stato gruppo attuale</b>\n%s"
 
 [creator_registered_no_group_html]
-other = "✅ <b>Account creator collegato</b>\n🎬 <b>Twitch:</b> %s\n\n👉 <b>Prossimo step</b>\nEsegui /registergroup nel gruppo Telegram che vuoi proteggere.\nDevi essere <b>admin</b> li'.\n\n⏳ La sincronizzazione subscriber partira' automaticamente dopo il collegamento del gruppo.\n\n<b>Stato gruppo attuale</b>\n%s"
+other = "✅ <b>Account creator collegato</b>\n🎬 <b>Twitch:</b> %s\n\n<b>Stato account</b>\n%s\n%s\n\n👉 <b>Prossimo step</b>\nEsegui /registergroup nel gruppo Telegram che vuoi proteggere.\nDevi essere <b>admin</b> li'.\n\n⏳ La sincronizzazione subscriber partira' automaticamente dopo il collegamento del gruppo.\n\n<b>Stato gruppo attuale</b>\n%s"
 
 [creator_scope_missing]
 other = "⚠️ <b>Permesso Twitch mancante</b>\nNon hai concesso l'accesso richiesto per i creator.\nEsegui di nuovo /creator e approva l'accesso."
+
+[creator_reconnect_mismatch]
+other = "⚠️ <b>Account creator Twitch errato</b>\nIl ricollegamento e' stato completato con un account creator Twitch diverso da quello gia' collegato qui.\n\nSe vuoi sostituire l'account creator, esegui prima /reset."
+
+[creator_reconnect_needed]
+other = "⚠️ <b>Ricollegamento creator richiesto</b>\n\nImSub non e' riuscito ad aggiornare l'accesso del tuo account creator Twitch, quindi la sincronizzazione dei subscriber non e' piu' aggiornata.\n\nUsa il pulsante qui sotto per ricollegare l'account creator."
+
+[creator_last_sync_at]
+other = "• Ultima sincronizzazione riuscita: <b>%s</b>"
+
+[creator_reconnect_since]
+other = "• Ricollegamento richiesto da: <b>%s</b>"
+
+[creator_refresh_note]
+other = "• Aggiorna controlla solo lo stato. Usa <b>Ricollega account creator</b> per riparare l'autorizzazione."
 
 [creator_store_fail]
 other = "⚠️ <b>Impossibile salvare il setup creator</b>\nRiprova con /creator."
