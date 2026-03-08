@@ -82,7 +82,7 @@ func TestSendDraftIncludesMessageThreadID(t *testing.T) {
 	caller.assertJSONField(t, "sendMessageDraft", "parse_mode", telego.ModeHTML)
 }
 
-func TestSendTransformsConfiguredEmojiForHTML(t *testing.T) {
+func TestSendTransformsConfiguredEmojiForHTMLByDefault(t *testing.T) {
 	t.Parallel()
 
 	caller := &recordingCaller{
@@ -93,8 +93,7 @@ func TestSendTransformsConfiguredEmojiForHTML(t *testing.T) {
 	c := newTestClient(t, caller)
 
 	c.Send(t.Context(), 100, "⏳ Checking", &MessageOptions{
-		ParseMode:         telego.ModeHTML,
-		EnableCustomEmoji: true,
+		ParseMode: telego.ModeHTML,
 	})
 
 	caller.assertJSONFieldContains(t, "sendMessage", "text", `<tg-emoji emoji-id="5386367538735104399">⏳</tg-emoji>`)
@@ -115,7 +114,7 @@ func TestSendLeavesPlainTextEmojiUntouched(t *testing.T) {
 	caller.assertJSONField(t, "sendMessage", "text", "⏳ Checking")
 }
 
-func TestSendLeavesHTMLEmojiUntouchedWithoutOptIn(t *testing.T) {
+func TestSendLeavesHTMLEmojiUntouchedWhenDisabled(t *testing.T) {
 	t.Parallel()
 
 	caller := &recordingCaller{
@@ -125,7 +124,10 @@ func TestSendLeavesHTMLEmojiUntouchedWithoutOptIn(t *testing.T) {
 	}
 	c := newTestClient(t, caller)
 
-	c.Send(t.Context(), 100, "⏳ Checking", &MessageOptions{ParseMode: telego.ModeHTML})
+	c.Send(t.Context(), 100, "⏳ Checking", &MessageOptions{
+		ParseMode:          telego.ModeHTML,
+		DisableCustomEmoji: true,
+	})
 
 	caller.assertJSONField(t, "sendMessage", "text", "⏳ Checking")
 }

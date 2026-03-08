@@ -115,10 +115,9 @@ func (c *Controller) replyCreatorStatus(ctx context.Context, telegramUserID int6
 			groupLines,
 		)
 		c.reply(ctx, telegramUserID, editMsgID, text, &client.MessageOptions{
-			ParseMode:         telego.ModeHTML,
-			EnableCustomEmoji: true,
-			DisablePreview:    true,
-			Markup:            ui.WithCreatorStatusMenu(lang, reconnectURL),
+			ParseMode:      telego.ModeHTML,
+			DisablePreview: true,
+			Markup:         ui.WithCreatorStatusMenu(lang, reconnectURL),
 		})
 		return
 	}
@@ -136,19 +135,17 @@ func (c *Controller) replyCreatorStatus(ctx context.Context, telegramUserID int6
 
 	if editMsgID != 0 {
 		c.reply(ctx, telegramUserID, editMsgID, text, &client.MessageOptions{
-			ParseMode:         telego.ModeHTML,
-			EnableCustomEmoji: true,
-			DisablePreview:    true,
-			Markup:            ui.WithCreatorStatusMenu(lang, reconnectURL),
+			ParseMode:      telego.ModeHTML,
+			DisablePreview: true,
+			Markup:         ui.WithCreatorStatusMenu(lang, reconnectURL),
 		})
 		return
 	}
 
 	c.sendMsg(ctx, telegramUserID, text, &client.MessageOptions{
-		ParseMode:         telego.ModeHTML,
-		EnableCustomEmoji: true,
-		DisablePreview:    true,
-		Markup:            ui.WithCreatorStatusMenu(lang, reconnectURL),
+		ParseMode:      telego.ModeHTML,
+		DisablePreview: true,
+		Markup:         ui.WithCreatorStatusMenu(lang, reconnectURL),
 	})
 }
 

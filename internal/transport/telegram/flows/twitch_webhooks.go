@@ -156,7 +156,8 @@ func (c *Controller) HandleSubscriptionEnd(ctx context.Context, broadcasterID, b
 	}
 
 	c.sendMsg(ctx, res.TelegramUserID, fmt.Sprintf(i18n.Translate(res.Language, msgSubEndPartial), res.ViewerLogin), &client.MessageOptions{
-		Markup: ui.SubEndSubscribeMarkup(res.Language, res.BroadcasterLogin),
+		ParseMode: telego.ModeHTML,
+		Markup:    ui.SubEndSubscribeMarkup(res.Language, res.BroadcasterLogin),
 	})
 	return nil
 }

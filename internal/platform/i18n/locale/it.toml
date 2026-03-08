@@ -77,16 +77,16 @@ other = "⚠️ <b>Setup creator non completato</b>\nL'autorizzazione Twitch e' 
 other = "• Nessun gruppo collegato al momento."
 
 [creator_register_info]
-other = "🎬 <b>Setup Creator</b>\n\nCollega il tuo account creator Twitch cosi' ImSub puo' verificare i subscriber e gestire l'accesso al tuo gruppo Telegram.\n\n<b>Passaggi</b>\n1. Tocca <b>Collega account creator</b>\n2. Approva l'accesso su Twitch\n3. Esegui /registergroup nel tuo gruppo Telegram\n\n⚠️ Devi essere <b>admin</b> in quel gruppo.\n\nSe il pulsante non apre Twitch, usa <b>Copia link</b> qui sotto."
+other = "🎙️ <b>Setup Creator</b>\n\nCollega il tuo account creator Twitch cosi' ImSub puo' verificare i subscriber e gestire l'accesso al tuo gruppo Telegram.\n\n<b>❔ Passaggi</b>\n1. Tocca <b>Collega account creator</b>\n2. Approva l'accesso su Twitch\n3. Esegui /registergroup nel tuo gruppo Telegram\n\n⚠️ Devi essere <b>admin</b> in quel gruppo.\n\nSe il pulsante non apre Twitch, usa <b>Copia link</b> qui sotto."
 
 [creator_reconnect_info]
 other = "🔄 <b>Ricollega account creator</b>\n\nIl tuo account creator ha bisogno di una nuova autorizzazione Twitch per permettere a ImSub di continuare a sincronizzare i subscriber.\n\n<b>Passaggi</b>\n1. Tocca <b>Ricollega account creator</b>\n2. Approva l'accesso su Twitch\n3. Torna su Telegram e controlla di nuovo <b>/creator</b>\n\nSe il pulsante non apre Twitch, usa <b>Copia link</b> qui sotto."
 
 [creator_registered_html]
-other = "✅ <b>Account creator collegato</b>\n🎬 <b>Twitch:</b> %s\n\n<b>Stato setup</b>\n%s\n%s\n%s\n• Subscriber attuali in cache: %s\n\n👉 <b>Prossimo step</b>\nSe il gruppo non e' ancora collegato, esegui /registergroup nel gruppo Telegram che vuoi proteggere.\nDevi essere <b>admin</b> li'.\n\n<b>Stato gruppo attuale</b>\n%s"
+other = "✅ <b>Account creator collegato</b>\n🎙️ <b>Twitch:</b> %s\n\n<b>Stato setup</b>\n%s\n%s\n%s\n• Subscriber attuali in cache: %s\n\n➡️ <b>Prossimo step</b>\nSe il gruppo non e' ancora collegato, esegui /registergroup nel gruppo Telegram che vuoi proteggere.\nDevi essere <b>admin</b> li'.\n\n<b>Stato gruppo attuale</b>\n%s"
 
 [creator_registered_no_group_html]
-other = "✅ <b>Account creator collegato</b>\n🎬 <b>Twitch:</b> %s\n\n<b>Stato account</b>\n%s\n%s\n\n👉 <b>Prossimo step</b>\nEsegui /registergroup nel gruppo Telegram che vuoi proteggere.\nDevi essere <b>admin</b> li'.\n\n⏳ La sincronizzazione subscriber partira' automaticamente dopo il collegamento del gruppo.\n\n<b>Stato gruppo attuale</b>\n%s"
+other = "✅ <b>Account creator collegato</b>\n🎙️ <b>Twitch:</b> %s\n\n<b>Stato account</b>\n%s\n%s\n\n➡️ <b>Prossimo step</b>\nEsegui /registergroup nel gruppo Telegram che vuoi proteggere.\nDevi essere <b>admin</b> li'.\n\n⏳ La sincronizzazione subscriber partira' automaticamente dopo il collegamento del gruppo.\n\n<b>Stato gruppo attuale</b>\n%s"
 
 [creator_scope_missing]
 other = "⚠️ <b>Permesso Twitch mancante</b>\nNon hai concesso l'accesso richiesto per i creator.\nEsegui di nuovo /creator e approva l'accesso."
@@ -143,7 +143,7 @@ other = "⏳ Controllo impostazioni del gruppo..."
 other = "✅ Le impostazioni del gruppo sono corrette."
 
 [group_warn_settings_intro]
-other = "⚠️ <b>Impostazioni del gruppo da correggere</b>"
+other = "⚙️ <b>Impostazioni del gruppo da correggere</b>"
 
 [group_warn_public]
 other = "• Il gruppo e' <b>pubblico</b> (ha un username). Chiunque puo' trovarlo e unirsi, aggirando il controllo abbonamento. Rendi il gruppo <b>privato</b> rimuovendo lo username nelle impostazioni del gruppo."
@@ -155,7 +155,7 @@ other = "• Il gruppo ha <b>%d membro/i non admin</b> che non sono tracciati da
 other = "• <b>Approva nuovi membri</b> non e' abilitato. Se un admin condivide un altro link di invito, gli utenti potrebbero entrare senza verifica dell'abbonamento. Abilita <b>Approva nuovi membri</b> nelle impostazioni del gruppo, cosi' tutti i tentativi di accesso richiederanno l'approvazione, non solo quelli dai link di ImSub."
 
 [group_already_linked]
-other = "ℹ️ Questo gruppo e' gia' collegato a <b>%s</b>.\n\nUsa <code>/unregister</code> per scollegarlo prima di apportare modifiche."
+other = "❗️ Questo gruppo e' gia' collegato a <b>%s</b>.\n\nUsa <code>/unregister</code> per scollegarlo prima di apportare modifiche."
 
 [group_different_linked]
 other = "⚠️ Il tuo account creator <b>%s</b> e' gia' collegato al gruppo <b>%s</b>.\n\nUsa <code>/unregister</code> in quel gruppo prima di registrarne uno nuovo."
@@ -164,19 +164,19 @@ other = "⚠️ Il tuo account creator <b>%s</b> e' gia' collegato al gruppo <b>
 other = "⚠️ Questo gruppo e' gia' collegato a un altro account creator (<b>%s</b>). Ogni gruppo puo' essere gestito da un solo creator. L'altro creator deve prima usare <code>/unregister</code>."
 
 [group_registered_dm]
-other = "📢 <b>Gruppo registrato</b>\n\nIl tuo gruppo <b>%s</b> e' ora collegato al tuo account creator <b>%s</b>.\n\n⏳ ImSub iniziera' a sincronizzare i tuoi subscriber Twitch a breve. Una volta attiva la sincronizzazione, solo gli utenti con un abbonamento attivo potranno entrare nel gruppo.\n\n📋 <b>Cosa succede adesso</b>\n• La sincronizzazione subscriber si attiva automaticamente\n• I subscriber attuali possono usare /start per ottenere un link di accesso\n• Quando un abbonamento termina, l'utente viene rimosso dal gruppo\n\nUsa /creator per controllare lo stato del tuo setup in qualsiasi momento."
+other = "🎉 <b>Gruppo registrato</b>\n\nIl tuo gruppo <b>%s</b> e' ora collegato al tuo account creator <b>%s</b>.\n\n⏳ ImSub iniziera' a sincronizzare i tuoi subscriber Twitch a breve. Una volta attiva la sincronizzazione, solo gli utenti con un abbonamento attivo potranno entrare nel gruppo.\n\n❔ <b>Cosa succede adesso</b>\n• La sincronizzazione subscriber si attiva automaticamente\n• I subscriber attuali possono usare /start per ottenere un link di accesso\n• Quando un abbonamento termina, l'utente viene rimosso dal gruppo\n\nUsa /creator per controllare lo stato del tuo setup in qualsiasi momento."
 
 [link_prompt_html]
-other = "👋 <b>Benvenuto su ImSub, %s</b>\n\nImSub controlla i tuoi <b>abbonamenti Twitch</b> e sblocca i gruppi Telegram a cui puoi accedere.\n\n<b>Cosa fare</b>\n1. Tocca <b>Collega Twitch</b>\n2. Approva l'accesso su Twitch\n3. Torna qui per vedere l'accesso ai tuoi gruppi\n\n⚠️ <b>Hai aperto l'account Twitch sbagliato?</b>\nApri il link in una finestra privata o in incognito.\n\n🔗 <b>Se il pulsante non apre Twitch</b>\nUsa <b>Copia link</b> qui sotto."
+other = "😊 <b>Benvenuto su ImSub, %s</b>\n\nImSub controlla i tuoi <b>abbonamenti Twitch</b> e sblocca i gruppi Telegram a cui puoi accedere.\n\n❔ <b>Cosa fare</b>\n1. Tocca <b>Collega Twitch</b>\n2. Approva l'accesso su Twitch\n3. Torna qui per vedere l'accesso ai tuoi gruppi\n\n🚨 <b>Hai problemi?</b>\nCopia e incolla il link qui sotto in una finestra privata del browser."
 
 [linked_status_no_subs_html]
-other = "✅ <b>Il tuo account Twitch e' collegato.</b>\n👤 <b>Twitch:</b> %s\n\nℹ️ Al momento non risultano abbonamenti attivi per questo account.\nSe ti sei appena abbonato, attendi un attimo e tocca <b>Aggiorna</b>.\n\nSe questo e' l'account Twitch sbagliato, usa /reset oppure tocca <b>Elimina dati collegati</b> qui sotto."
+other = "🎉 <b>Il tuo account Twitch e' collegato.</b>\n🔗 <b>Twitch:</b> %s\n\n❗️ Al momento non risultano abbonamenti attivi per questo account.\nSe ti sei appena abbonato, attendi un attimo e tocca <b>Aggiorna</b>.\n\nSe questo e' l'account Twitch sbagliato, usa /reset oppure tocca <b>Elimina dati collegati</b> qui sotto."
 
 [linked_status_with_subs_html]
-other = "✅ <b>Twitch collegato</b>\n👤 <b>Account:</b> %s\n\n🎉 <b>Abbonamenti attivi trovati</b>\n%s\n\n👉 Tocca un pulsante qui sotto per entrare nel gruppo Telegram corrispondente."
+other = "🎉 <b>Twitch collegato</b>\n🔗 <b>Account:</b> %s\n\n🎉 <b>Abbonamenti attivi trovati</b>\n%s\n\n⬇️ Tocca un pulsante qui sotto per entrare nel gruppo Telegram corrispondente."
 
 [linked_status_with_subs_no_groups_html]
-other = "✅ <b>Twitch collegato</b>\n👤 <b>Account:</b> %s\n\n🎉 <b>Abbonamenti attivi trovati</b>\n%s\n\n⏳ <b>Nessun gruppo Telegram disponibile per ora</b>\nQuesti creator non hanno ancora collegato un gruppo subscriber a ImSub.\n\nTocca <b>Aggiorna</b> e riprova piu' tardi."
+other = "🎉 <b>Twitch collegato</b>\n🔗 <b>Account:</b> %s\n\n🎉 <b>Abbonamenti attivi trovati</b>\n%s\n\n⏳ <b>Nessun gruppo Telegram disponibile per ora</b>\nQuesti creator non hanno ancora collegato un gruppo subscriber a ImSub.\n\nTocca <b>Aggiorna</b> e riprova piu' tardi."
 
 [oauth_exchange_fail]
 other = "⚠️ <b>Autorizzazione Twitch non completata</b>\nTorna su Telegram e riprova."
@@ -188,34 +188,34 @@ other = "⚠️ <b>Impossibile salvare il collegamento Twitch</b>\nSe hai usato 
 other = "⚠️ <b>Impossibile leggere i dati dell'account Twitch</b>\nTorna su Telegram e riprova tra poco."
 
 [reset_choose_scope_html]
-other = "⚠️ <b>Scegli cosa eliminare</b>\n\nAl momento hai sia dati viewer sia dati creator collegati a questo account Telegram.\n\n👤 <b>Account viewer:</b> %s\n🎬 <b>Account creator:</b> %s\n\nSeleziona qui sotto i dati che vuoi rimuovere."
+other = "🗑️ <b>Scegli cosa eliminare</b>\n\nAl momento hai sia dati viewer sia dati creator collegati a questo account Telegram.\n\n🔗 <b>Account viewer:</b> %s\n🎙️ <b>Account creator:</b> %s\n\nSeleziona qui sotto i dati che vuoi rimuovere."
 
 [reset_confirm_both_html]
-other = "⚠️ <b>Elimina tutti i dati collegati</b>\n\n👤 <b>Account viewer:</b> %s\n🎬 <b>Account creator:</b> %s\n📦 <b>Record creator da eliminare:</b> %d\n🚪 <b>Gruppi che potrebbero revocare l'accesso:</b> %d\n\nSe continui:\n• verranno eliminati sia i dati viewer sia quelli creator\n• potresti perdere l'accesso ai gruppi Telegram collegati\n\n🔄 Per collegarti di nuovo in seguito, usa /start o /creator."
+other = "🗑️ <b>Elimina tutti i dati collegati</b>\n\n🔗 <b>Account viewer:</b> %s\n🎙️ <b>Account creator:</b> %s\n🗑️ <b>Record creator da eliminare:</b> %d\n🚫 <b>Gruppi che potrebbero revocare l'accesso:</b> %d\n\nSe continui:\n• verranno eliminati sia i dati viewer sia quelli creator\n• potresti perdere l'accesso ai gruppi Telegram collegati\n\n➡️ Per collegarti di nuovo in seguito, usa /start o /creator."
 
 [reset_confirm_creator_html]
-other = "⚠️ <b>Elimina dati creator</b>\n\n🎬 <b>Account creator:</b> %s\n📦 <b>Record creator da eliminare:</b> %d\n\nSe continui:\n• il setup creator verra' eliminato\n• le registrazioni creator collegate verranno rimosse\n\n🔄 Per configurarlo di nuovo, usa /creator."
+other = "❗️ <b>Elimina dati creator</b>\n\n🎙️ <b>Account creator:</b> %s\n🗑️ <b>Record creator da eliminare:</b> %d\n\nSe continui:\n• il setup creator verra' eliminato\n• le registrazioni creator collegate verranno rimosse\n\n➡️ Per configurarlo di nuovo, usa /creator."
 
 [reset_confirm_viewer_html]
-other = "⚠️ <b>Elimina dati viewer</b>\n\n👤 <b>Account Twitch:</b> %s\n🚪 <b>Gruppi che potrebbero revocare l'accesso:</b> %d\n\nSe continui:\n• i dati del tuo account viewer collegato verranno eliminati\n• potresti perdere l'accesso a quei gruppi Telegram\n\n🔄 Per collegarti di nuovo, usa /start."
+other = "🗑️ <b>Elimina dati viewer</b>\n\n🔗 <b>Account Twitch:</b> %s\n🚫 <b>Gruppi che potrebbero revocare l'accesso:</b> %d\n\nSe continui:\n• i dati del tuo account viewer collegato verranno eliminati\n• potresti perdere l'accesso a quei gruppi Telegram\n\n➡️ Per collegarti di nuovo, usa /start."
 
 [reset_done_both_html]
-other = "✅ <b>Dati collegati eliminati</b>\n\n👤 <b>Account viewer rimosso:</b> %s\n🚪 <b>Gruppi processati:</b> %d\n🎬 <b>Account creator rimosso:</b> %s\n📦 <b>Record creator eliminati:</b> %d\n\nSe vuoi configurare tutto di nuovo:\n• usa /start per l'accesso viewer\n• usa /creator per il setup creator"
+other = "✅ <b>Dati collegati eliminati</b>\n\n🔗 <b>Account viewer rimosso:</b> %s\n🚫 <b>Gruppi processati:</b> %d\n🎙️ <b>Account creator rimosso:</b> %s\n🗑️ <b>Record creator eliminati:</b> %d\n\nSe vuoi configurare tutto di nuovo:\n• usa /start per l'accesso viewer\n• usa /creator per il setup creator"
 
 [reset_done_creator_html]
-other = "✅ <b>Dati creator eliminati</b>\n\n🎬 <b>Account creator rimosso:</b> %s\n📦 <b>Record creator eliminati:</b> %d\n\n🔄 Per configurarlo di nuovo, usa /creator."
+other = "✅ <b>Dati creator eliminati</b>\n\n🎙️ <b>Account creator rimosso:</b> %s\n🗑️ <b>Record creator eliminati:</b> %d\n\n➡️ Per configurarlo di nuovo, usa /creator."
 
 [reset_done_viewer_html]
-other = "✅ <b>Dati viewer eliminati</b>\n\n👤 <b>Account Twitch rimosso:</b> %s\n🚪 <b>Gruppi processati:</b> %d\n\n🔄 Per collegarti di nuovo, usa /start."
+other = "✅ <b>Dati viewer eliminati</b>\n\n🔗 <b>Account Twitch rimosso:</b> %s\n🚫 <b>Gruppi processati:</b> %d\n\n➡️ Per collegarti di nuovo, usa /start."
 
 [reset_exit_html]
-other = "ℹ️ <b>Nessuna modifica effettuata</b>\n\nI tuoi dati collegati sono al sicuro e non sono stati modificati.\n\n🔄 Premi /start per visualizzare e gestire i tuoi dati."
+other = "❗️ <b>Nessuna modifica effettuata</b>\n\nI tuoi dati collegati sono al sicuro e non sono stati modificati.\n\n➡️ Premi /start per visualizzare e gestire i tuoi dati."
 
 [reset_nothing_html]
 other = "✅ <b>Niente da reimpostare al momento.</b>\n\nNon ho trovato dati viewer o creator collegati al tuo account."
 
 [sub_end_partial]
-other = "⚠️ <b>Abbonamento terminato</b>\n\nIl tuo abbonamento a <b>%s</b> non e' piu' attivo, quindi l'accesso al gruppo Telegram e' stato rimosso.\n\n🔁 Dopo esserti riabbonato su Twitch, torna qui e usa /start per ottenere un nuovo link."
+other = "⚠️ <b>Abbonamento terminato</b>\n\nIl tuo abbonamento a <b>%s</b> non e' piu' attivo, quindi l'accesso al gruppo Telegram e' stato rimosso.\n\n➡️ Dopo esserti riabbonato su Twitch, torna qui e usa /start per ottenere un nuovo link."
 
 [user_generic_name]
 other = "amico"

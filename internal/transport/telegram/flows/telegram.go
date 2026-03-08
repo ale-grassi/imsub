@@ -78,10 +78,9 @@ func (c *Controller) replyLinkedStatus(
 ) {
 	text := telegramui.LinkedStatusWithJoinStateHTML(lang, twitchLogin, activeNames, len(joinRows) > 0)
 	c.reply(ctx, telegramUserID, editMsgID, text, &client.MessageOptions{
-		ParseMode:         telego.ModeHTML,
-		EnableCustomEmoji: true,
-		Markup:            telegramui.WithMainMenu(lang, joinRows...),
-		DisablePreview:    true,
+		ParseMode:      telego.ModeHTML,
+		Markup:         telegramui.WithMainMenu(lang, joinRows...),
+		DisablePreview: true,
 	})
 }
 

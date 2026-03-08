@@ -16,12 +16,12 @@ type limiter interface {
 
 // MessageOptions configures send/edit operations.
 type MessageOptions struct {
-	ParseMode         string
-	EnableCustomEmoji bool
-	Markup            *telego.InlineKeyboardMarkup
-	DisablePreview    bool
-	MessageThreadID   int
-	ReplyToMessageID  int
+	ParseMode          string
+	DisableCustomEmoji bool
+	Markup             *telego.InlineKeyboardMarkup
+	DisablePreview     bool
+	MessageThreadID    int
+	ReplyToMessageID   int
 }
 
 // Client wraps Telegram send/edit/delete/callback operations with limiter and
