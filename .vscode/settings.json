@@ -1,0 +1,21 @@
+{
+  "editor.detectIndentation": false,
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "[go]": {
+    "editor.detectIndentation": false,
+    "editor.insertSpaces": false,
+    "editor.tabSize": 2
+  },
+  "go.coverOnSingleTest": true,
+  "go.coverOnSingleTestFile": true,
+  "go.coverOnTestPackage": true,
+  "go.coverageDecorator": {
+    "type": "gutter",
+    "coveredGutterStyle": "blockgreen",
+    "uncoveredGutterStyle": "slashyellow"
+  },
+  "go.coverageOptions": "showBothCoveredAndUncoveredCode",
+  "makefile.configureOnOpen": false,
+  "remote.autoForwardPortsFallback": 0
+}

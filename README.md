@@ -155,6 +155,14 @@ make check
 go run ./cmd/imsub
 ```
 
+When you open the repository in the devcontainer, the post-create bootstrap installs the CLI tools used by the `Makefile` targets (`flyctl`, `golangci-lint`, `govulncheck`, `gitleaks`, `xdg-open`) and the AI coding CLIs (`codex`, `claude`, `gemini`) so the local workflow works without extra manual setup.
+
+The devcontainer also bind-mounts `~/.codex`, `~/.claude`, `~/.claude.json`, `~/.fly`, and `~/.gemini` from the host into the container so CLI settings and login state persist across rebuilds. Anthropic’s docs note Claude Code uses both `~/.claude/` and `~/.claude.json` for user-level state, so both are mounted for the `claude` CLI. `claude` also supports `ANTHROPIC_API_KEY`, but for interactive usage the normal flow is `/login`. `flyctl` will reuse the host login from `~/.fly`, with `FLY_ACCESS_TOKEN` still supported as an override.
+
+These mounts are tolerant of missing host state for Codex, Claude, Gemini, Fly, SSH, and Git config: the devcontainer `initializeCommand` creates placeholder host directories and files before the container starts. 1Password SSH signing is different: if you require signed commits, the host must provide `/opt/1Password/op-ssh-sign` and the relevant Git signer configuration. Without that signer, signed commits in the container will not work by design.
+
+For Fly Redis inspection from VS Code, use the `fly redis proxy` task or run `make redis-proxy`. Both use the interactive `flyctl redis proxy` flow so Fly can prompt for the managed Redis database, print the local proxy port, and show the generated password. Point your Redis extension at the printed local host/port, typically `127.0.0.1:16379`, and use the password shown by `flyctl`.
+
 ### Make Targets
 
 | Target | Description |
