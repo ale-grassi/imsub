@@ -15,6 +15,7 @@ import (
 const (
 	btnRefresh          = "btn_refresh"
 	btnReconnect        = "btn_reconnect_creator"
+	btnManageGroups     = "btn_manage_groups"
 	btnReset            = "btn_reset"
 	btnSubscribe        = "btn_subscribe"
 	btnResetViewerData  = "btn_reset_viewer_data"
@@ -31,6 +32,9 @@ const (
 	linkButtonEmojiID    = "5257991477358763590"
 	deleteButtonEmojiID  = "5258130763148172425"
 	backButtonEmojiID    = "5258236805890710909"
+	manageButtonEmojiID  = "5258096772776991776"
+	groupButtonEmojiID   = "5258513401784573443"
+	unregisterEmojiID    = "5258084656674250503"
 )
 
 // MainMenuCallbacks defines callback data for the viewer main menu.
@@ -41,8 +45,9 @@ type MainMenuCallbacks struct {
 
 // CreatorMenuCallbacks defines callback data for the creator status menu.
 type CreatorMenuCallbacks struct {
-	Refresh string
-	Reset   string
+	Refresh      string
+	ManageGroups string
+	Reset        string
 }
 
 func buildMainMenuMarkup(lang string, callbacks MainMenuCallbacks) *telego.InlineKeyboardMarkup {
@@ -64,6 +69,9 @@ func CreatorStatusMenuMarkup(lang, reconnectURL string, callbacks CreatorMenuCal
 		rows = append(rows, tu.InlineKeyboardRow(LinkButton(i18n.Translate(lang, btnReconnect), reconnectURL)))
 	} else {
 		rows = append(rows, tu.InlineKeyboardRow(RefreshButton(i18n.Translate(lang, btnRefresh), callbacks.Refresh)))
+	}
+	if strings.TrimSpace(callbacks.ManageGroups) != "" {
+		rows = append(rows, tu.InlineKeyboardRow(ManageButton(i18n.Translate(lang, btnManageGroups), callbacks.ManageGroups)))
 	}
 	rows = append(rows, tu.InlineKeyboardRow(DeleteButton(i18n.Translate(lang, btnReset), callbacks.Reset)))
 	return tu.InlineKeyboard(rows...)
@@ -199,6 +207,21 @@ func CopyLinkButton(text, copyText string) telego.InlineKeyboardButton {
 // DeleteButton creates a destructive action button.
 func DeleteButton(text, data string) telego.InlineKeyboardButton {
 	return IconCallbackButton(text, data, deleteButtonEmojiID).WithStyle("danger")
+}
+
+// ManageButton creates a creator group-management action button.
+func ManageButton(text, data string) telego.InlineKeyboardButton {
+	return IconCallbackButton(text, data, manageButtonEmojiID)
+}
+
+// GroupButton creates a managed-group selection button.
+func GroupButton(text, data string) telego.InlineKeyboardButton {
+	return IconCallbackButton(text, data, groupButtonEmojiID)
+}
+
+// UnregisterButton creates a destructive unregister-group button.
+func UnregisterButton(text, data string) telego.InlineKeyboardButton {
+	return IconCallbackButton(text, data, unregisterEmojiID).WithStyle("danger")
 }
 
 // ReconnectButton creates a primary reconnect action button.

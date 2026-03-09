@@ -69,7 +69,7 @@ func TestOAuthStartMissingState(t *testing.T) {
 	t.Parallel()
 
 	c := testController(&oauthFakeStore{}, nil, nil)
-	req := httptest.NewRequest(http.MethodGet, "/auth/start/", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/auth/start/", nil)
 	req.SetPathValue("state", "")
 	rec := httptest.NewRecorder()
 
@@ -94,7 +94,7 @@ func TestOAuthStartCreatorScope(t *testing.T) {
 			return core.OAuthStatePayload{Mode: core.OAuthModeCreator}, nil
 		},
 	}, nil, nil)
-	req := httptest.NewRequest(http.MethodGet, "/auth/start/state-1", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/auth/start/state-1", nil)
 	req.SetPathValue("state", "state-1")
 	rec := httptest.NewRecorder()
 
@@ -116,7 +116,7 @@ func TestTelegramWebhookQueueUnavailable(t *testing.T) {
 	c := testController(&oauthFakeStore{}, obs, nil)
 
 	updateBody, _ := json.Marshal(telego.Update{UpdateID: 123})
-	req := httptest.NewRequest(http.MethodPost, "/webhooks/telegram", strings.NewReader(string(updateBody)))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/webhooks/telegram", strings.NewReader(string(updateBody)))
 	req.Header.Set("X-Telegram-Bot-Api-Secret-Token", "secret")
 	rec := httptest.NewRecorder()
 
@@ -139,7 +139,7 @@ func TestTelegramWebhookEnqueueSuccess(t *testing.T) {
 
 	payload := telego.Update{UpdateID: 321}
 	updateBody, _ := json.Marshal(payload)
-	req := httptest.NewRequest(http.MethodPost, "/webhooks/telegram", strings.NewReader(string(updateBody)))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/webhooks/telegram", strings.NewReader(string(updateBody)))
 	req.Header.Set("X-Telegram-Bot-Api-Secret-Token", "secret")
 	rec := httptest.NewRecorder()
 
@@ -169,7 +169,7 @@ func TestTelegramWebhookUnauthorized(t *testing.T) {
 	c := testController(&oauthFakeStore{}, obs, updates)
 
 	updateBody, _ := json.Marshal(telego.Update{UpdateID: 456})
-	req := httptest.NewRequest(http.MethodPost, "/webhooks/telegram", strings.NewReader(string(updateBody)))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/webhooks/telegram", strings.NewReader(string(updateBody)))
 	req.Header.Set("X-Telegram-Bot-Api-Secret-Token", "wrong")
 	rec := httptest.NewRecorder()
 
@@ -196,7 +196,7 @@ func TestOAuthStartViewerNoScope(t *testing.T) {
 			return core.OAuthStatePayload{Mode: core.OAuthModeViewer}, nil
 		},
 	}, nil, nil)
-	req := httptest.NewRequest(http.MethodGet, "/auth/start/state-2", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/auth/start/state-2", nil)
 	req.SetPathValue("state", "state-2")
 	rec := httptest.NewRecorder()
 

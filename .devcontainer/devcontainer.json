@@ -3,14 +3,18 @@
   "dockerComposeFile": "docker-compose.yml",
   "service": "app",
   "workspaceFolder": "/workspace",
+  "initializeCommand": "bash -lc 'mkdir -p \"$HOME/.1password\" \"$HOME/.ssh\" \"$HOME/.claude\" \"$HOME/.codex\" \"$HOME/.fly\" \"$HOME/.gemini\" \"$HOME/.config/git\" && touch \"$HOME/.claude.json\"'",
   "features": {
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
       "version": "latest",
       "enableNonRootDocker": "true",
       "moby": "false"
     },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "24"
+    },
     "ghcr.io/devcontainers/features/go:1": {
-      "version": "1.26",
+      "version": "latest",
       "target": "/usr/local/go"
     }
   },
@@ -28,14 +32,46 @@
         "editorconfig.editorconfig",
         "tamasfe.even-better-toml",
         "ms-vscode.makefile-tools",
-        "humao.rest-client"
+        "humao.rest-client",
+        "Anthropic.claude-code",
+        "redhat.vscode-yaml",
+        "openai.chatgpt",
+        "1Password.op-vscode",
+        "github.vscode-github-actions",
+        "GitHub.vscode-pull-request-github",
+        "GitHub.copilot-chat",
+        "google.gemini-cli-vscode-ide-companion",
+        "Redis.redis-for-vscode"
       ]
     }
   },
-  "postCreateCommand": "curl -L https://fly.io/install.sh | sh && sudo ln -sf /home/vscode/.fly/bin/flyctl /usr/local/bin/fly && sudo ln -sf /home/vscode/.fly/bin/flyctl /usr/local/bin/flyctl && go mod download",
+  "mounts": [
+    "source=${localEnv:HOME}/.1password,target=/home/vscode/.1password,type=bind,readonly",
+    "source=${localEnv:HOME}/.ssh,target=/home/vscode/.ssh,type=bind,readonly",
+    "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.claude.json,target=/home/vscode/.claude.json,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.codex,target=/home/vscode/.codex,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.fly,target=/home/vscode/.fly,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.gemini,target=/home/vscode/.gemini,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.config/git,target=/mnt/host-git-config,type=bind,readonly",
+    "source=/opt/1Password/op-ssh-sign,target=/usr/local/bin/op-ssh-sign,type=bind,readonly"
+  ],
+  "remoteEnv": {
+    "OPENAI_API_KEY": "${localEnv:OPENAI_API_KEY}",
+    "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}",
+    "GEMINI_API_KEY": "${localEnv:GEMINI_API_KEY}",
+    "FLY_ACCESS_TOKEN": "${localEnv:FLY_ACCESS_TOKEN}"
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
   "remoteUser": "vscode",
   "forwardPorts": [
     8080,
-    6379
-  ]
+    6379,
+    16379
+  ],
+  "portsAttributes": {
+    "16379": {
+      "label": "Fly Redis Proxy"
+    }
+  }
 }

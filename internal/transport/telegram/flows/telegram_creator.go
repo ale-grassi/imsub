@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"html"
+	"strconv"
 	"strings"
 	"time"
 
 	"imsub/internal/core"
 	"imsub/internal/platform/i18n"
+	"imsub/internal/usecase"
 )
 
 const (
@@ -32,14 +34,21 @@ const (
 	msgCreatorScopeMissing       = "creator_scope_missing"
 	msgCreatorUserInfoFail       = "creator_userinfo_fail"
 	msgCreatorStoreFail          = "creator_store_fail"
+	msgCreatorManageGroupsHTML   = "creator_manage_groups_html"
+	msgCreatorManageGroupsEmpty  = "creator_manage_groups_empty_html"
+	msgCreatorUnregisterConfirm  = "creator_unregister_confirm_html"
+	msgCreatorGroupUnregistered  = "creator_group_unregistered_html"
+	msgCreatorGroupUnavailable   = "creator_group_unavailable_html"
 
 	btnRegisterCreatorOpen = "btn_register_creator_open"
 	btnReconnectCreator    = "btn_reconnect_creator"
+	btnManageGroup         = "btn_manage_group"
+	btnUnregisterGroup     = "btn_unregister_group"
 )
 
 // --- Creator flow ---
 
-func (c *Controller) handleCreatorRegistrationStart(ctx context.Context, telegramUserID int64, editMsgID int, lang string) string {
+func (c *Controller) handleCreatorStart(ctx context.Context, telegramUserID int64, editMsgID int, lang string) string {
 	_, ok, err := c.app.CreatorStatus.LoadOwnedCreator(ctx, telegramUserID)
 	if err != nil {
 		view := buildCreatorStatusErrorView(lang)
@@ -212,4 +221,132 @@ func CreatorGroupLines(lang, creatorName string, groups []core.ManagedGroup) str
 		))
 	}
 	return strings.Join(lines, "\n")
+}
+
+func (c *Controller) replyCreatorManagedGroups(ctx context.Context, telegramUserID int64, editMsgID int, lang, notice string) string {
+	res, ok := c.loadCreatorStatusResult(ctx, telegramUserID, lang, editMsgID)
+	if !ok {
+		return ""
+	}
+	if len(res.Groups) == 1 {
+		return c.replyCreatorGroupUnregisterConfirmForResult(ctx, telegramUserID, editMsgID, lang, res, res.Groups[0].ChatID)
+	}
+	view := buildCreatorManagedGroupsView(lang, res.Creator, res.Groups, notice)
+	c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
+	return ""
+}
+
+func (c *Controller) replyCreatorGroupUnregisterConfirm(ctx context.Context, telegramUserID int64, editMsgID int, lang string, groupChatID int64) string {
+	res, ok := c.loadCreatorStatusResult(ctx, telegramUserID, lang, editMsgID)
+	if !ok {
+		return ""
+	}
+	return c.replyCreatorGroupUnregisterConfirmForResult(ctx, telegramUserID, editMsgID, lang, res, groupChatID)
+}
+
+func (c *Controller) replyCreatorGroupUnregisterConfirmForResult(
+	ctx context.Context,
+	telegramUserID int64,
+	editMsgID int,
+	lang string,
+	res usecase.CreatorStatusResult,
+	groupChatID int64,
+) string {
+	group, found := findCreatorManagedGroup(res.Groups, groupChatID)
+	if !found {
+		view := buildCreatorManagedGroupsView(
+			lang,
+			res.Creator,
+			res.Groups,
+			i18n.Translate(lang, msgCreatorGroupUnavailable),
+		)
+		c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
+		return ""
+	}
+
+	backCallback := creatorGroupBackCallback()
+	if len(res.Groups) <= 1 {
+		backCallback = creatorMenuCallback()
+	}
+	view := buildCreatorGroupUnregisterConfirmView(lang, res.Creator, group, backCallback)
+	c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
+	return ""
+}
+
+func (c *Controller) executeCreatorGroupUnregister(ctx context.Context, telegramUserID int64, editMsgID int, lang string, groupChatID int64) string {
+	if c.app.GroupUnregistration == nil {
+		c.log().Warn("group unregistration use case unavailable")
+		return ""
+	}
+
+	res, err := c.app.GroupUnregistration.UnregisterGroup(ctx, telegramUserID, groupChatID)
+	if err != nil {
+		c.log().Warn("UnregisterGroup from creator menu failed", "chat_id", groupChatID, "owner_telegram_id", telegramUserID, "error", err)
+		view := buildCreatorStatusErrorView(lang)
+		c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
+		return view.text
+	}
+
+	switch res.Outcome {
+	case usecase.UnregisterGroupOutcomeNotManaged:
+		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, i18n.Translate(lang, msgCreatorGroupUnavailable))
+	case usecase.UnregisterGroupOutcomeNotOwner:
+		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, i18n.Translate(lang, msgGroupUnregisterNotOwner))
+	case usecase.UnregisterGroupOutcomeUnregistered, usecase.UnregisterGroupOutcomeUnregisteredCleanupLag:
+		if res.CleanupFailed {
+			c.log().Warn("group unregistered from creator menu but eventsub cleanup deferred to reconciliation", "creator_id", res.Creator.ID, "chat_id", groupChatID)
+		}
+		groupName := creatorManagedGroupButtonLabel(res.Group, map[string]int{res.Group.GroupName: 1})
+		notice := fmt.Sprintf(i18n.Translate(lang, msgCreatorGroupUnregistered), html.EscapeString(groupName))
+		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, notice)
+	default:
+		c.log().Warn("unsupported group unregistration outcome", "chat_id", groupChatID, "outcome", res.Outcome)
+		return ""
+	}
+}
+
+func (c *Controller) loadCreatorStatusResult(ctx context.Context, telegramUserID int64, lang string, editMsgID int) (usecase.CreatorStatusResult, bool) {
+	statusCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	res, err := c.app.CreatorStatus.LoadStatus(statusCtx, telegramUserID)
+	if err != nil {
+		if !res.HasCreator {
+			c.log().Warn("LoadStatus failed", "telegram_user_id", telegramUserID, "error", err)
+			view := buildCreatorStatusErrorView(lang)
+			c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
+			return usecase.CreatorStatusResult{}, false
+		}
+		c.log().Warn("LoadStatus degraded", "telegram_user_id", telegramUserID, "error", err)
+	}
+	if !res.HasCreator {
+		c.replyCreatorOAuthPrompt(ctx, telegramUserID, editMsgID, lang, false)
+		return usecase.CreatorStatusResult{}, false
+	}
+	if res.GroupsError != nil {
+		c.log().Warn("LoadManagedGroups failed", "creator_id", res.Creator.ID, "error", res.GroupsError)
+	}
+	if res.StatusError != nil {
+		c.log().Warn("LoadStatus degraded", "creator_id", res.Creator.ID, "error", res.StatusError)
+	}
+	return res, true
+}
+
+func findCreatorManagedGroup(groups []core.ManagedGroup, groupChatID int64) (core.ManagedGroup, bool) {
+	for _, group := range groups {
+		if group.ChatID == groupChatID {
+			return group, true
+		}
+	}
+	return core.ManagedGroup{}, false
+}
+
+func creatorManagedGroupButtonLabel(group core.ManagedGroup, counts map[string]int) string {
+	name := strings.TrimSpace(group.GroupName)
+	if name == "" {
+		name = strconv.FormatInt(group.ChatID, 10)
+	}
+	if counts[name] > 1 {
+		return fmt.Sprintf("%s (%d)", name, group.ChatID)
+	}
+	return name
 }

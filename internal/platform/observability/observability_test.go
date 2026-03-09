@@ -1,6 +1,7 @@
 package observability
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -32,7 +33,7 @@ func TestNilSafety(t *testing.T) {
 	m.ViewerJoinTargets("invite_groups", 2)
 	m.ViewerInviteLink("ok")
 
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
 	rec := httptest.NewRecorder()
 	m.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusNotFound {
@@ -62,7 +63,7 @@ func TestMetricsExposure(t *testing.T) {
 	m.ViewerJoinTargets("invite_groups", 2)
 	m.ViewerInviteLink("ok")
 
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
 	rec := httptest.NewRecorder()
 	m.Handler().ServeHTTP(rec, req)
 
@@ -103,7 +104,7 @@ func TestEmitProjectsViewerEvents(t *testing.T) {
 	m.Emit(t.Context(), events.Event{Name: events.NameViewerJoinTarget, Fields: map[string]string{"kind": "invite_groups"}, Count: 2})
 	m.Emit(t.Context(), events.Event{Name: events.NameViewerInviteLink, Outcome: "ok"})
 
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
 	rec := httptest.NewRecorder()
 	m.Handler().ServeHTTP(rec, req)
 
@@ -129,7 +130,7 @@ func TestEmitProjectsEventSubEvents(t *testing.T) {
 	m.Emit(t.Context(), events.Event{Name: events.NameCreatorsReconnectRequired, Count: 3})
 	m.Emit(t.Context(), events.Event{Name: events.NameCreatorReconnectNotice, Outcome: "failed"})
 
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
 	rec := httptest.NewRecorder()
 	m.Handler().ServeHTTP(rec, req)
 
@@ -160,7 +161,7 @@ func TestEmitProjectsNewApplicationEvents(t *testing.T) {
 		Count:   3,
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
 	rec := httptest.NewRecorder()
 	m.Handler().ServeHTTP(rec, req)
 
@@ -182,7 +183,7 @@ func TestMiddlewareNilDependencies(t *testing.T) {
 
 	m := New()
 	handler := m.Middleware(nil, nil, nil)
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/healthz", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 

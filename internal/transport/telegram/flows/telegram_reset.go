@@ -95,7 +95,7 @@ func (c *Controller) handleResetBack(ctx context.Context, telegramUserID int64, 
 	case resetOriginViewer:
 		return c.handleViewerStart(ctx, telegramUserID, editMsgID, lang)
 	case resetOriginCreator:
-		return c.handleCreatorRegistrationStart(ctx, telegramUserID, editMsgID, lang)
+		return c.handleCreatorStart(ctx, telegramUserID, editMsgID, lang)
 	case resetOriginCommand:
 		return c.handleResetCancel(ctx, telegramUserID, editMsgID, lang)
 	}
@@ -107,7 +107,7 @@ func (c *Controller) handleResetBackToMenu(ctx context.Context, telegramUserID i
 	case resetOriginViewer:
 		return c.handleViewerStart(ctx, telegramUserID, editMsgID, lang)
 	case resetOriginCreator:
-		return c.handleCreatorRegistrationStart(ctx, telegramUserID, editMsgID, lang)
+		return c.handleCreatorStart(ctx, telegramUserID, editMsgID, lang)
 	case resetOriginCommand:
 		return c.handleResetCancel(ctx, telegramUserID, editMsgID, lang)
 	}

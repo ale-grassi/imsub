@@ -1,8 +1,13 @@
 SHELL := /bin/bash
 APP := imsub
 GO ?= go
+GOLANGCI_LINT ?= golangci-lint
+GOVULNCHECK ?= govulncheck
+GITLEAKS ?= gitleaks
+export GOCACHE ?= /tmp/gocache
+export GOLANGCI_LINT_CACHE ?= /tmp/golangci-lint
 
-.PHONY: help fmt fmt-check vet test test-integration build check ci-check deploy status logs lint style-check cover cover-open vuln secrets-scan
+.PHONY: help fmt fmt-check vet test test-integration build check ci-check deploy status logs lint style-check cover cover-open vuln secrets-scan redis-proxy
 
 help:
 	@echo "Targets:"
@@ -18,6 +23,7 @@ help:
 	@echo "  make cover-open - open interactive coverage HTML view"
 	@echo "  make vuln     - run govulncheck against all packages"
 	@echo "  make secrets-scan - scan repository for leaked secrets (gitleaks)"
+	@echo "  make redis-proxy - open an interactive Fly Redis proxy"
 	@echo "  make check    - fmt + test + build"
 	@echo "  make ci-check - run the full local equivalent of CI checks"
 	@echo "  make deploy   - deploy to Fly app $(APP)"
@@ -26,7 +32,7 @@ help:
 
 fmt:
 	find . -type f -name '*.go' -not -path './vendor/*' -print0 | xargs -0 gofmt -w
-	GOCACHE=/tmp/gocache GOLANGCI_LINT_CACHE=/tmp/golangci-lint golangci-lint fmt
+	$(GOLANGCI_LINT) fmt
 
 fmt-check:
 	@out="$$(find . -type f -name '*.go' -not -path './vendor/*' -exec gofmt -l {} +)"; \
@@ -34,7 +40,7 @@ fmt-check:
 		echo "$$out"; \
 		exit 1; \
 	fi
-	GOCACHE=/tmp/gocache GOLANGCI_LINT_CACHE=/tmp/golangci-lint golangci-lint fmt --diff
+	$(GOLANGCI_LINT) fmt --diff
 
 vet:
 	$(GO) vet ./...
@@ -49,7 +55,7 @@ build:
 	$(GO) build ./...
 
 lint:
-	GOCACHE=/tmp/gocache GOLANGCI_LINT_CACHE=/tmp/golangci-lint golangci-lint run
+	$(GOLANGCI_LINT) run
 
 style-check: fmt-check lint
 
@@ -62,10 +68,17 @@ cover-open:
 	$(GO) tool cover -html=coverage.out
 
 vuln:
-	$(GO) run golang.org/x/vuln/cmd/govulncheck@latest ./...
+	@if command -v $(GOVULNCHECK) >/dev/null 2>&1; then \
+		$(GOVULNCHECK) ./...; \
+	else \
+		$(GO) run golang.org/x/vuln/cmd/govulncheck@latest ./...; \
+	fi
 
 secrets-scan:
-	gitleaks detect --no-banner --redact --source=.
+	$(GITLEAKS) detect --no-banner --redact --source=.
+
+redis-proxy:
+	flyctl redis proxy
 
 check: fmt test build
 

@@ -52,6 +52,7 @@ const (
 	msgGroupUnregisterNotOwner = "group_unregister_not_owner"
 
 	// Buttons.
+	btnBack     = "btn_back"
 	btnCopyLink = "btn_copy_link"
 )
 

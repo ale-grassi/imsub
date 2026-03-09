@@ -45,7 +45,7 @@ func TestNewHandlerHealthzOK(t *testing.T) {
 	deps := testDeps(fakeHealthStore{})
 	handler := newHandler(deps, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/healthz", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -69,7 +69,7 @@ func TestNewHandlerRootRedirectsToRepoHomepage(t *testing.T) {
 	deps := testDeps(fakeHealthStore{})
 	handler := newHandler(deps, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -87,7 +87,7 @@ func TestNewHandlerHealthzStoreError(t *testing.T) {
 	deps := testDeps(fakeHealthStore{pingErr: errors.New("redis down")})
 	handler := newHandler(deps, nil)
 
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/healthz", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -109,7 +109,7 @@ func TestNewHandlerTelegramWebhookRouteGate(t *testing.T) {
 		deps.Config.TelegramWebhookSecret = ""
 		handler := newHandler(deps, nil)
 
-		req := httptest.NewRequest(http.MethodPost, deps.Config.TelegramWebhookPath, nil)
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, deps.Config.TelegramWebhookPath, nil)
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 		if rec.Code != http.StatusMethodNotAllowed {
@@ -124,7 +124,7 @@ func TestNewHandlerTelegramWebhookRouteGate(t *testing.T) {
 		deps.Config.TelegramWebhookSecret = "secret"
 		handler := newHandler(deps, nil)
 
-		req := httptest.NewRequest(http.MethodPost, deps.Config.TelegramWebhookPath, nil)
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, deps.Config.TelegramWebhookPath, nil)
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 		if rec.Code != http.StatusNoContent {
@@ -141,7 +141,7 @@ func TestNewHandlerMetricsRoute(t *testing.T) {
 	deps.Metrics = observability.New()
 	handler := newHandler(deps, nil)
 
-	req := httptest.NewRequest(http.MethodGet, deps.Config.MetricsPath, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, deps.Config.MetricsPath, nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 

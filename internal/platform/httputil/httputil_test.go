@@ -24,7 +24,7 @@ func TestRequestID(t *testing.T) {
 		{
 			name: "fly_header_precedence",
 			req: func() *http.Request {
-				r := httptest.NewRequest(http.MethodGet, "/", nil)
+				r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 				r.Header.Set("Fly-Request-Id", " fly-id ")
 				r.Header.Set("X-Request-Id", "x-id")
 				return r
@@ -34,7 +34,7 @@ func TestRequestID(t *testing.T) {
 		{
 			name: "x_request_id_fallback",
 			req: func() *http.Request {
-				r := httptest.NewRequest(http.MethodGet, "/", nil)
+				r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 				r.Header.Set("X-Request-Id", " x-id ")
 				return r
 			}(),
@@ -42,7 +42,7 @@ func TestRequestID(t *testing.T) {
 		},
 		{
 			name: "missing_headers",
-			req:  httptest.NewRequest(http.MethodGet, "/", nil),
+			req:  httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil),
 			want: "",
 		},
 	}
@@ -106,7 +106,7 @@ func TestClientIP(t *testing.T) {
 		{
 			name: "fly_client_ip",
 			req: func() *http.Request {
-				r := httptest.NewRequest(http.MethodGet, "/", nil)
+				r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 				r.Header.Set("Fly-Client-Ip", " 203.0.113.10 ")
 				return r
 			}(),
@@ -115,7 +115,7 @@ func TestClientIP(t *testing.T) {
 		{
 			name: "x_forwarded_for",
 			req: func() *http.Request {
-				r := httptest.NewRequest(http.MethodGet, "/", nil)
+				r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 				r.Header.Set("X-Forwarded-For", "198.51.100.3, 10.0.0.1")
 				return r
 			}(),
@@ -124,7 +124,7 @@ func TestClientIP(t *testing.T) {
 		{
 			name: "remote_addr_host_port",
 			req: func() *http.Request {
-				r := httptest.NewRequest(http.MethodGet, "/", nil)
+				r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 				r.RemoteAddr = "192.0.2.7:1234"
 				return r
 			}(),
@@ -133,7 +133,7 @@ func TestClientIP(t *testing.T) {
 		{
 			name: "remote_addr_fallback",
 			req: func() *http.Request {
-				r := httptest.NewRequest(http.MethodGet, "/", nil)
+				r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 				r.RemoteAddr = "192.0.2.8"
 				return r
 			}(),
@@ -196,7 +196,7 @@ func TestRouteLabel(t *testing.T) {
 		{
 			name: "pattern_precedence",
 			req: func() *http.Request {
-				r := httptest.NewRequest(http.MethodGet, "/path", nil)
+				r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/path", nil)
 				r.Pattern = "/users/{id}"
 				return r
 			}(),
@@ -204,13 +204,13 @@ func TestRouteLabel(t *testing.T) {
 		},
 		{
 			name: "path_fallback",
-			req:  httptest.NewRequest(http.MethodGet, "/path", nil),
+			req:  httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/path", nil),
 			want: "/path",
 		},
 		{
 			name: "empty_path",
 			req: func() *http.Request {
-				r := httptest.NewRequest(http.MethodGet, "/", nil)
+				r := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/", nil)
 				r.URL.Path = " "
 				return r
 			}(),

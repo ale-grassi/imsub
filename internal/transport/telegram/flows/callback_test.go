@@ -24,6 +24,47 @@ func TestParseCallbackAction(t *testing.T) {
 			ok:   true,
 		},
 		{
+			name: "creator open groups",
+			data: creatorManageGroupsCallback(),
+			want: callbackAction{
+				domain: callbackDomainCreator,
+				verb:   callbackVerbOpen,
+				target: creatorCallbackTargetGroups,
+			},
+			ok: true,
+		},
+		{
+			name: "creator pick group",
+			data: creatorGroupPickCallback(-100123),
+			want: callbackAction{
+				domain: callbackDomainCreator,
+				verb:   callbackVerbPick,
+				target: creatorCallbackTargetGroup,
+				chatID: -100123,
+			},
+			ok: true,
+		},
+		{
+			name: "creator execute group",
+			data: creatorGroupExecuteCallback(-100123),
+			want: callbackAction{
+				domain: callbackDomainCreator,
+				verb:   callbackVerbExecute,
+				target: creatorCallbackTargetGroup,
+				chatID: -100123,
+			},
+			ok: true,
+		},
+		{
+			name: "creator menu",
+			data: creatorMenuCallback(),
+			want: callbackAction{
+				domain: callbackDomainCreator,
+				verb:   callbackVerbMenu,
+			},
+			ok: true,
+		},
+		{
 			name: "reset pick",
 			data: resetPickCallback(resetOriginCreator, resetScopeBoth),
 			want: callbackAction{
@@ -58,6 +99,8 @@ func TestParseCallbackAction(t *testing.T) {
 		{name: "invalid origin", data: "reset:open:oops", ok: false},
 		{name: "invalid scope", data: "reset:pick:viewer:oops", ok: false},
 		{name: "invalid creator verb", data: "creator:oops", ok: false},
+		{name: "invalid creator open target", data: "creator:open:oops", ok: false},
+		{name: "invalid creator pick id", data: "creator:pick:group:oops", ok: false},
 	}
 
 	for _, tt := range tests {

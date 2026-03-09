@@ -73,7 +73,7 @@ func (c *Client) postOAuthToken(ctx context.Context, values url.Values, endpoint
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := c.client.Do(req) //nolint:gosec // req URL is a hardcoded Twitch URL
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return core.TokenResponse{}, fmt.Errorf("do oauth token request: %w", err)
 	}
@@ -191,7 +191,7 @@ func (c *Client) doAppAuthenticatedRequest(ctx context.Context, build func(token
 	if err != nil {
 		return nil, err
 	}
-	resp, err := c.client.Do(req) //nolint:gosec // req URL is a hardcoded Twitch URL
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("do app-authenticated request: %w", err)
 	}
@@ -210,7 +210,7 @@ func (c *Client) doAppAuthenticatedRequest(ctx context.Context, build func(token
 	if err != nil {
 		return nil, err
 	}
-	resp, err = c.client.Do(req) //nolint:gosec // req URL is a hardcoded Twitch URL
+	resp, err = c.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("retry app-authenticated request: %w", err)
 	}
@@ -267,7 +267,7 @@ func (c *Client) FetchUser(ctx context.Context, userToken string) (id, login, di
 	req.Header.Set("Authorization", "Bearer "+userToken)
 	req.Header.Set("Client-Id", c.cfg.TwitchClientID)
 
-	resp, err := c.client.Do(req) //nolint:gosec // req URL is a hardcoded Twitch URL
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return "", "", "", fmt.Errorf("do users request: %w", err)
 	}
@@ -489,7 +489,7 @@ func (c *Client) ListSubscriberPage(ctx context.Context, accessToken, broadcaste
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("Client-Id", c.cfg.TwitchClientID)
 
-	resp, err := c.client.Do(req) //nolint:gosec // req URL is a hardcoded Twitch URL
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, "", fmt.Errorf("do subscriptions request: %w", err)
 	}

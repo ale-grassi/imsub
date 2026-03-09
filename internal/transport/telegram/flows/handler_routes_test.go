@@ -151,6 +151,145 @@ func TestRegisterTelegramHandlersReconnectCreatorCallback(t *testing.T) {
 	h.caller.assertExactMethods(t, "editMessageText", "answerCallbackQuery")
 }
 
+func TestRegisterTelegramHandlersCreatorManageGroupsFlow(t *testing.T) {
+	t.Parallel()
+
+	h := newRouteTestHarness(t)
+	h.store.setOwnedCreator(core.Creator{
+		ID:              "creator-1",
+		Name:            "streamer",
+		OwnerTelegramID: 77,
+	})
+	h.store.setManagedGroup(core.ManagedGroup{
+		ChatID:    -1001,
+		CreatorID: "creator-1",
+		GroupName: "VIP One",
+	})
+	h.store.setManagedGroup(core.ManagedGroup{
+		ChatID:    -1002,
+		CreatorID: "creator-1",
+		GroupName: "VIP Two",
+	})
+
+	h.handleUpdate(t, telego.Update{
+		UpdateID: 34,
+		CallbackQuery: &telego.CallbackQuery{
+			ID:   "cb-groups-open",
+			Data: creatorManageGroupsCallback(),
+			From: telego.User{
+				ID:           77,
+				LanguageCode: "en",
+			},
+			Message: &telego.Message{
+				MessageID: 90,
+				Chat: telego.Chat{
+					ID:   77,
+					Type: telego.ChatTypePrivate,
+				},
+			},
+		},
+	})
+
+	body := h.caller.lastEditMessageBody()
+	h.assertEditMessageHasCallback(t, body, creatorGroupPickCallback(-1001))
+	h.assertEditMessageHasCallback(t, body, creatorGroupPickCallback(-1002))
+	h.assertEditMessageHasCallback(t, body, creatorMenuCallback())
+	h.assertEditMessageTextContains(t, body, "Manage linked groups")
+
+	h.handleUpdate(t, telego.Update{
+		UpdateID: 35,
+		CallbackQuery: &telego.CallbackQuery{
+			ID:   "cb-groups-pick",
+			Data: creatorGroupPickCallback(-1001),
+			From: telego.User{
+				ID:           77,
+				LanguageCode: "en",
+			},
+			Message: &telego.Message{
+				MessageID: 90,
+				Chat: telego.Chat{
+					ID:   77,
+					Type: telego.ChatTypePrivate,
+				},
+			},
+		},
+	})
+
+	body = h.caller.lastEditMessageBody()
+	h.assertEditMessageHasCallback(t, body, creatorGroupExecuteCallback(-1001))
+	h.assertEditMessageHasCallback(t, body, creatorGroupBackCallback())
+	h.assertEditMessageTextContains(t, body, "VIP One")
+
+	h.handleUpdate(t, telego.Update{
+		UpdateID: 36,
+		CallbackQuery: &telego.CallbackQuery{
+			ID:   "cb-groups-exec",
+			Data: creatorGroupExecuteCallback(-1001),
+			From: telego.User{
+				ID:           77,
+				LanguageCode: "en",
+			},
+			Message: &telego.Message{
+				MessageID: 90,
+				Chat: telego.Chat{
+					ID:   77,
+					Type: telego.ChatTypePrivate,
+				},
+			},
+		},
+	})
+
+	body = h.caller.lastEditMessageBody()
+	h.assertEditMessageLacksCallback(t, body, creatorGroupPickCallback(-1001))
+	h.assertEditMessageHasCallback(t, body, creatorGroupExecuteCallback(-1002))
+	h.assertEditMessageHasCallback(t, body, creatorMenuCallback())
+	h.assertEditMessageTextContains(t, body, "VIP Two")
+	if h.store.hasManagedGroup(-1001) {
+		t.Fatal("managed group -1001 still present after creator menu unregister")
+	}
+}
+
+func TestRegisterTelegramHandlersCreatorSingleGroupGoesStraightToConfirm(t *testing.T) {
+	t.Parallel()
+
+	h := newRouteTestHarness(t)
+	h.store.setOwnedCreator(core.Creator{
+		ID:              "creator-1",
+		Name:            "streamer",
+		OwnerTelegramID: 77,
+	})
+	h.store.setManagedGroup(core.ManagedGroup{
+		ChatID:    -1001,
+		CreatorID: "creator-1",
+		GroupName: "VIP One",
+	})
+
+	h.handleUpdate(t, telego.Update{
+		UpdateID: 37,
+		CallbackQuery: &telego.CallbackQuery{
+			ID:   "cb-single-group-open",
+			Data: creatorManageGroupsCallback(),
+			From: telego.User{
+				ID:           77,
+				LanguageCode: "en",
+			},
+			Message: &telego.Message{
+				MessageID: 91,
+				Chat: telego.Chat{
+					ID:   77,
+					Type: telego.ChatTypePrivate,
+				},
+			},
+		},
+	})
+
+	body := h.caller.lastEditMessageBody()
+	h.assertEditMessageHasCallback(t, body, creatorGroupExecuteCallback(-1001))
+	h.assertEditMessageHasCallback(t, body, creatorMenuCallback())
+	h.assertEditMessageLacksCallback(t, body, creatorGroupPickCallback(-1001))
+	h.assertEditMessageTextContains(t, body, "VIP One")
+}
+
 func TestRegisterTelegramHandlersResetViewerOriginBackReturnsViewerMenu(t *testing.T) {
 	t.Parallel()
 

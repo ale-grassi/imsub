@@ -1,8 +1,6 @@
-version: '3.8'
-
 services:
   app:
-    image: mcr.microsoft.com/devcontainers/go
+    image: mcr.microsoft.com/devcontainers/base:ubuntu-22.04
     volumes:
       - ..:/workspace:cached
     # Overrides default command so things don't shut down after the process ends.
@@ -11,6 +9,7 @@ services:
       - ../.env.example
     environment:
       - IMSUB_REDIS_URL=redis://default:@redis:6379/0
+      - SSH_AUTH_SOCK=/home/vscode/.1password/agent.sock
     depends_on:
       - redis
 

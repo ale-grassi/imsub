@@ -102,7 +102,18 @@ func viewerMainMenuMarkup(lang string) *telego.InlineKeyboardMarkup {
 	return telegramui.MainMenuMarkup(lang, viewerMainMenuCallbacks())
 }
 
-func creatorMenuCallbacks() telegramui.CreatorMenuCallbacks {
+func creatorStatusMenuCallbacks(hasGroups bool) telegramui.CreatorMenuCallbacks {
+	callbacks := telegramui.CreatorMenuCallbacks{
+		Refresh: creatorRefreshCallback(),
+		Reset:   resetOpenCallback(resetOriginCreator),
+	}
+	if hasGroups {
+		callbacks.ManageGroups = creatorManageGroupsCallback()
+	}
+	return callbacks
+}
+
+func creatorMainMenuCallbacks() telegramui.CreatorMenuCallbacks {
 	return telegramui.CreatorMenuCallbacks{
 		Refresh: creatorRefreshCallback(),
 		Reset:   resetOpenCallback(resetOriginCreator),
@@ -110,7 +121,7 @@ func creatorMenuCallbacks() telegramui.CreatorMenuCallbacks {
 }
 
 func creatorMainMenuMarkup(lang string) *telego.InlineKeyboardMarkup {
-	return telegramui.CreatorMainMenuMarkup(lang, creatorMenuCallbacks())
+	return telegramui.CreatorMainMenuMarkup(lang, creatorMainMenuCallbacks())
 }
 
 // --- OAuth state ---

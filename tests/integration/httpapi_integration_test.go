@@ -95,7 +95,7 @@ func TestHTTPAPITwitchCallbackViewerConsumesState(t *testing.T) {
 		},
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/auth/callback?state="+state+"&code=code-123", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/auth/callback?state="+state+"&code=code-123", nil)
 	rec := httptest.NewRecorder()
 	api.TwitchCallback(rec, req)
 
@@ -155,7 +155,7 @@ func TestHTTPAPIEventSubSubscribeDedupesAndWritesStore(t *testing.T) {
 	}
 
 	reqWith := func(messageID string) *http.Request {
-		req := httptest.NewRequest(http.MethodPost, "/webhooks/twitch", strings.NewReader(string(raw)))
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/webhooks/twitch", strings.NewReader(string(raw)))
 		req.Header.Set("Twitch-Eventsub-Message-Type", "notification")
 		req.Header.Set("Twitch-Eventsub-Message-Id", messageID)
 		ts := time.Now().UTC().Format(time.RFC3339)
@@ -203,7 +203,7 @@ func TestHTTPAPITelegramWebhookEnqueuesUpdate(t *testing.T) {
 	})
 
 	payload, _ := json.Marshal(telego.Update{UpdateID: 777})
-	req := httptest.NewRequest(http.MethodPost, "/webhooks/telegram", strings.NewReader(string(payload)))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/webhooks/telegram", strings.NewReader(string(payload)))
 	req.Header.Set("X-Telegram-Bot-Api-Secret-Token", "tg-secret")
 	rec := httptest.NewRecorder()
 

@@ -1,0 +1,159 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "make fmt",
+      "type": "shell",
+      "command": "make",
+      "args": [
+        "fmt"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "make fmt-check",
+      "type": "shell",
+      "command": "make",
+      "args": [
+        "fmt-check"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make build",
+      "type": "shell",
+      "command": "make",
+      "args": [
+        "build"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [
+        "$go"
+      ]
+    },
+    {
+      "label": "make test",
+      "type": "shell",
+      "command": "make",
+      "args": [
+        "test"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": [
+        "$go"
+      ]
+    },
+    {
+      "label": "make test-integration",
+      "type": "shell",
+      "command": "make",
+      "args": [
+        "test-integration"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "test",
+      "problemMatcher": [
+        "$go"
+      ]
+    },
+    {
+      "label": "make lint",
+      "type": "shell",
+      "command": "make",
+      "args": [
+        "lint"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        "$go"
+      ]
+    },
+    {
+      "label": "make cover",
+      "type": "shell",
+      "command": "make",
+      "args": [
+        "cover"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "test",
+      "problemMatcher": [
+        "$go"
+      ]
+    },
+    {
+      "label": "make cover-open",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "make cover"
+      ],
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-lc",
+        "if command -v code >/dev/null 2>&1; then code -r \"${workspaceFolder}/coverage.html\"; elif command -v xdg-open >/dev/null 2>&1; then xdg-open \"${workspaceFolder}/coverage.html\"; else echo \"No opener available for coverage.html\" >&2; exit 1; fi"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "make ci-check",
+      "type": "shell",
+      "command": "make",
+      "args": [
+        "ci-check"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        "$go"
+      ]
+    },
+    {
+      "label": "make redis-proxy",
+      "type": "shell",
+      "command": "make",
+      "args": [
+        "redis-proxy"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always",
+        "focus": true
+      },
+      "problemMatcher": []
+    }
+  ]
+}
