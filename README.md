@@ -473,7 +473,6 @@ Planned improvements and open design questions, roughly ordered by impact.
 ### UX polish
 
 - **`/help` command**: add a `/help` command that explains what the bot does, lists available commands, and provides a way to reach support (e.g. a link to a support channel, a contact username, or an inline form to submit issues). Could later evolve into an FAQ or guided troubleshooting flow.
-- **Welcome message on group join**: send a greeting when a user actually joins the group via an invite link, confirming their access.
 - **Localization**: add more languages beyond English and Italian.
 - **Inline status refresh**: let viewers check their subscription status without going through the full `/start` flow again.
 

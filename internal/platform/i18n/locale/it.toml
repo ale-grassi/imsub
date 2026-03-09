@@ -16,6 +16,12 @@ other = "Aggiorna"
 [btn_reconnect_creator]
 other = "Ricollega account creator"
 
+[btn_manage_groups]
+other = "Gestisci gruppi"
+
+[btn_manage_group]
+other = "Gestisci Gruppo - %s"
+
 [btn_register_creator_open]
 other = "Collega account creator"
 
@@ -76,6 +82,12 @@ other = "⚠️ <b>Setup creator non completato</b>\nL'autorizzazione Twitch e' 
 [creator_groups_none]
 other = "• Nessun gruppo collegato al momento."
 
+[creator_manage_groups_html]
+other = "🗂️ <b>Gestisci gruppi collegati</b>\n\nIl tuo account creator <b>%s</b> puo' gestire i gruppi qui sotto.\nSeleziona un gruppo per scollegarlo."
+
+[creator_manage_groups_empty_html]
+other = "🗂️ <b>Gestisci gruppi collegati</b>\n\nNon hai gruppi collegati al momento."
+
 [creator_register_info]
 other = "🎙️ <b>Setup Creator</b>\n\nCollega il tuo account creator Twitch cosi' ImSub puo' verificare i subscriber e gestire l'accesso al tuo gruppo Telegram.\n\n<b>❔ Passaggi</b>\n1. Tocca <b>Collega account creator</b>\n2. Approva l'accesso su Twitch\n3. Esegui /registergroup nel tuo gruppo Telegram\n\n⚠️ Devi essere <b>admin</b> in quel gruppo.\n\nSe il pulsante non apre Twitch, usa <b>Copia link</b> qui sotto."
 
@@ -96,6 +108,15 @@ other = "⚠️ <b>Account creator Twitch errato</b>\nIl ricollegamento e' stato
 
 [creator_reconnect_needed]
 other = "⚠️ <b>Ricollegamento creator richiesto</b>\n\nImSub non e' riuscito ad aggiornare l'accesso del tuo account creator Twitch, quindi la sincronizzazione dei subscriber non e' piu' aggiornata.\n\nUsa il pulsante qui sotto per ricollegare l'account creator."
+
+[creator_unregister_confirm_html]
+other = "⚠️ <b>Scollega gruppo</b>\n\nVuoi davvero scollegare <b>%s</b> dal creator <b>%s</b>?\n\nI membri attuali resteranno nel gruppo Telegram."
+
+[creator_group_unregistered_html]
+other = "✅ <b>Gruppo scollegato</b>\n<b>%s</b> e' stato rimosso dal tuo account creator."
+
+[creator_group_unavailable_html]
+other = "⚠️ Questo gruppo non e' piu' collegato al tuo account creator."
 
 [creator_last_sync_at]
 other = "• Ultima sincronizzazione riuscita: <b>%s</b>"
@@ -237,3 +258,6 @@ other = "🎉 <b>Gruppo sono stati Scollegati</b>"
 
 [group_unregister_not_owner]
 other = "Solo il creator che ha collegato questo gruppo può scollegarlo."
+
+[btn_unregister_group]
+other = "Scollega gruppo"

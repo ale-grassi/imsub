@@ -43,8 +43,8 @@ type Creator struct {
 	ID              string
 	Name            string
 	OwnerTelegramID int64
-	AccessToken     string `json:"access_token"`  //nolint:gosec
-	RefreshToken    string `json:"refresh_token"` //nolint:gosec
+	AccessToken     string `json:"access_token"`
+	RefreshToken    string `json:"refresh_token"`
 	UpdatedAt       time.Time
 	AuthStatus      CreatorAuthStatus
 	AuthErrorCode   string

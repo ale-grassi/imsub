@@ -26,6 +26,7 @@ import (
 var errUnexpectedTelegramMethod = errors.New("unexpected Telegram method")
 
 type editMessageRequest struct {
+	Text        string `json:"text"`
 	ReplyMarkup struct {
 		InlineKeyboard [][]struct {
 			CallbackData string `json:"callback_data"`
@@ -144,6 +145,15 @@ func (h routeTestHarness) assertEditMessageLacksCallback(t *testing.T, body json
 				t.Fatalf("editMessageText callback data = %+v, did not expect %q", got.ReplyMarkup.InlineKeyboard, unwanted)
 			}
 		}
+	}
+}
+
+func (h routeTestHarness) assertEditMessageTextContains(t *testing.T, body json.RawMessage, want string) {
+	t.Helper()
+
+	got := parseEditMessageRequest(t, body)
+	if !strings.Contains(got.Text, want) {
+		t.Fatalf("editMessageText text = %q, want substring %q", got.Text, want)
 	}
 }
 
@@ -384,6 +394,13 @@ func (s *routeTestStore) setManagedGroup(group core.ManagedGroup) {
 	s.managedGroupsByChatID[group.ChatID] = group
 }
 
+func (s *routeTestStore) hasManagedGroup(chatID int64) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, ok := s.managedGroupsByChatID[chatID]
+	return ok
+}
+
 func (s *routeTestStore) lastUntrackedMemberUpsert() routeTestUntrackedUpsert {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -452,6 +469,25 @@ func (s *routeTestStore) ManagedGroupByChatID(_ context.Context, chatID int64) (
 	defer s.mu.Unlock()
 	group, ok := s.managedGroupsByChatID[chatID]
 	return group, ok, nil
+}
+
+func (s *routeTestStore) ListManagedGroupsByCreator(_ context.Context, creatorID string) ([]core.ManagedGroup, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	groups := make([]core.ManagedGroup, 0, len(s.managedGroupsByChatID))
+	for _, group := range s.managedGroupsByChatID {
+		if group.CreatorID == creatorID {
+			groups = append(groups, group)
+		}
+	}
+	return groups, nil
+}
+
+func (s *routeTestStore) DeleteManagedGroup(_ context.Context, chatID int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.managedGroupsByChatID, chatID)
+	return nil
 }
 
 func (s *routeTestStore) IsTrackedGroupMember(_ context.Context, chatID, telegramUserID int64) (bool, error) {

@@ -82,7 +82,7 @@ func TestTwitchCallbackMissingParams(t *testing.T) {
 
 	obs := &callbacksFakeObserver{}
 	c := newController(&callbacksFakeStore{}, obs, nil, nil, nil)
-	req := httptest.NewRequest(http.MethodGet, "/auth/callback", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/auth/callback", nil)
 	rec := httptest.NewRecorder()
 
 	c.TwitchCallback(rec, req)
@@ -127,7 +127,7 @@ func TestTwitchCallbackRoutesViewer(t *testing.T) {
 		nil,
 		nil,
 	)
-	req := httptest.NewRequest(http.MethodGet, "/auth/callback?state=s1&code=abc", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/auth/callback?state=s1&code=abc", nil)
 	rec := httptest.NewRecorder()
 
 	c.TwitchCallback(rec, req)
@@ -303,7 +303,7 @@ func signedEventSubRequest(t *testing.T, secret, messageID, ts, messageType stri
 	_, _ = mac.Write([]byte(messageID + ts + string(body)))
 	sig := "sha256=" + hex.EncodeToString(mac.Sum(nil))
 
-	req := httptest.NewRequest(http.MethodPost, "/webhooks/twitch", strings.NewReader(string(body)))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/webhooks/twitch", strings.NewReader(string(body)))
 	req.Header.Set("Twitch-Eventsub-Message-Id", messageID)
 	req.Header.Set("Twitch-Eventsub-Message-Timestamp", ts)
 	req.Header.Set("Twitch-Eventsub-Message-Signature", sig)

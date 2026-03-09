@@ -33,9 +33,9 @@ type EventSubSubscription struct {
 
 // TokenResponse represents a Twitch OAuth token exchange or refresh response.
 type TokenResponse struct {
-	AccessToken  string   `json:"access_token"` //nolint:gosec // Not a secret literal, just a struct field
+	AccessToken  string   `json:"access_token"`
 	TokenType    string   `json:"token_type"`
-	RefreshToken string   `json:"refresh_token"` //nolint:gosec // Not a secret literal, just a struct field
+	RefreshToken string   `json:"refresh_token"`
 	ExpiresIn    int      `json:"expires_in"`
 	Scope        []string `json:"scope"`
 }

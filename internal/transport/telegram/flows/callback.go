@@ -1,6 +1,9 @@
 package flows
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 type callbackDomain string
 
@@ -45,6 +48,8 @@ type callbackAction struct {
 	verb   callbackVerb
 	origin resetOrigin
 	scope  resetScope
+	target string
+	chatID int64
 }
 
 func (a callbackAction) String() string {
@@ -54,6 +59,12 @@ func (a callbackAction) String() string {
 	}
 	if a.scope != "" {
 		parts = append(parts, string(a.scope))
+	}
+	if a.target != "" {
+		parts = append(parts, a.target)
+	}
+	if a.chatID != 0 {
+		parts = append(parts, strconv.FormatInt(a.chatID, 10))
 	}
 	return strings.Join(parts, ":")
 }
@@ -75,13 +86,41 @@ func parseCallbackAction(data string) (callbackAction, bool) {
 		}
 		return action, true
 	case callbackDomainCreator:
-		if len(parts) != 2 {
-			return callbackAction{}, false
-		}
 		switch action.verb {
 		case callbackVerbRefresh, callbackVerbRegister, callbackVerbReconnect:
+			if len(parts) != 2 {
+				return callbackAction{}, false
+			}
 			return action, true
-		case callbackVerbOpen, callbackVerbPick, callbackVerbBack, callbackVerbMenu, callbackVerbCancel, callbackVerbExecute:
+		case callbackVerbMenu:
+			if len(parts) != 2 {
+				return callbackAction{}, false
+			}
+			return action, true
+		case callbackVerbOpen, callbackVerbBack:
+			if len(parts) != 3 {
+				return callbackAction{}, false
+			}
+			action.target = parts[2]
+			if !action.validCreatorTarget() {
+				return callbackAction{}, false
+			}
+			return action, true
+		case callbackVerbPick, callbackVerbExecute:
+			if len(parts) != 4 {
+				return callbackAction{}, false
+			}
+			action.target = parts[2]
+			if action.target != creatorCallbackTargetGroup {
+				return callbackAction{}, false
+			}
+			chatID, err := strconv.ParseInt(parts[3], 10, 64)
+			if err != nil || chatID == 0 {
+				return callbackAction{}, false
+			}
+			action.chatID = chatID
+			return action, true
+		case callbackVerbCancel:
 			return callbackAction{}, false
 		default:
 			return callbackAction{}, false
@@ -117,6 +156,15 @@ func parseCallbackAction(data string) (callbackAction, bool) {
 	}
 }
 
+const (
+	creatorCallbackTargetGroups = "groups"
+	creatorCallbackTargetGroup  = "group"
+)
+
+func (a callbackAction) validCreatorTarget() bool {
+	return a.target == creatorCallbackTargetGroups
+}
+
 func (o resetOrigin) valid() bool {
 	switch o {
 	case resetOriginViewer, resetOriginCreator, resetOriginCommand:
@@ -145,6 +193,26 @@ func creatorRefreshCallback() string {
 
 func creatorReconnectCallback() string {
 	return callbackAction{domain: callbackDomainCreator, verb: callbackVerbReconnect}.String()
+}
+
+func creatorManageGroupsCallback() string {
+	return callbackAction{domain: callbackDomainCreator, verb: callbackVerbOpen, target: creatorCallbackTargetGroups}.String()
+}
+
+func creatorGroupPickCallback(chatID int64) string {
+	return callbackAction{domain: callbackDomainCreator, verb: callbackVerbPick, target: creatorCallbackTargetGroup, chatID: chatID}.String()
+}
+
+func creatorGroupBackCallback() string {
+	return callbackAction{domain: callbackDomainCreator, verb: callbackVerbBack, target: creatorCallbackTargetGroups}.String()
+}
+
+func creatorMenuCallback() string {
+	return callbackAction{domain: callbackDomainCreator, verb: callbackVerbMenu}.String()
+}
+
+func creatorGroupExecuteCallback(chatID int64) string {
+	return callbackAction{domain: callbackDomainCreator, verb: callbackVerbExecute, target: creatorCallbackTargetGroup, chatID: chatID}.String()
 }
 
 func resetOpenCallback(origin resetOrigin) string {

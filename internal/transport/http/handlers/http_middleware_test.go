@@ -13,19 +13,19 @@ import (
 func TestClientIPResolution(t *testing.T) {
 	t.Parallel()
 
-	req := httptest.NewRequest(http.MethodGet, "/x", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/x", nil)
 	req.RemoteAddr = "198.51.100.7:1234"
 	if got := httputil.ClientIP(req); got != "198.51.100.7" {
 		t.Fatalf("expected remote host ip, got %q", got)
 	}
 
-	req2 := httptest.NewRequest(http.MethodGet, "/x", nil)
+	req2 := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/x", nil)
 	req2.Header.Set("X-Forwarded-For", " 203.0.113.10 , 198.51.100.3")
 	if got := httputil.ClientIP(req2); got != "203.0.113.10" {
 		t.Fatalf("expected XFF first ip, got %q", got)
 	}
 
-	req3 := httptest.NewRequest(http.MethodGet, "/x", nil)
+	req3 := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/x", nil)
 	req3.Header.Set("Fly-Client-Ip", "192.0.2.44")
 	req3.Header.Set("X-Forwarded-For", "203.0.113.10")
 	if got := httputil.ClientIP(req3); got != "192.0.2.44" {
@@ -62,7 +62,7 @@ func TestSecurityHeaders(t *testing.T) {
 	h := SecurityHeaders(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
-	req := httptest.NewRequest(http.MethodGet, "/x", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/x", nil)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
 
@@ -90,7 +90,7 @@ func TestRateLimit(t *testing.T) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 
-	req1 := httptest.NewRequest(http.MethodGet, "/x", nil)
+	req1 := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/x", nil)
 	req1.RemoteAddr = "192.0.2.1:1111"
 	rec1 := httptest.NewRecorder()
 	h.ServeHTTP(rec1, req1)
@@ -98,7 +98,7 @@ func TestRateLimit(t *testing.T) {
 		t.Fatalf("unexpected first status: %d", rec1.Code)
 	}
 
-	req2 := httptest.NewRequest(http.MethodGet, "/x", nil)
+	req2 := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/x", nil)
 	req2.RemoteAddr = "192.0.2.2:2222"
 	rec2 := httptest.NewRecorder()
 	h.ServeHTTP(rec2, req2)
@@ -166,7 +166,7 @@ func TestRouteLabel(t *testing.T) {
 	if httputil.RouteLabel(nil) != "unknown" {
 		t.Fatal("nil request should yield UNKNOWN")
 	}
-	req := httptest.NewRequest(http.MethodGet, "/foo", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/foo", nil)
 	if got := httputil.RouteLabel(req); got != "/foo" {
 		t.Fatalf("expected /foo, got %q", got)
 	}
@@ -197,7 +197,7 @@ func TestRequestIDMiddleware(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	req := httptest.NewRequest(http.MethodGet, "/x", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/x", nil)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 	if rec.Header().Get("X-Request-Id") == "" {

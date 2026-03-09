@@ -16,6 +16,12 @@ other = "Refresh"
 [btn_reconnect_creator]
 other = "Reconnect Creator Account"
 
+[btn_manage_groups]
+other = "Manage groups"
+
+[btn_manage_group]
+other = "Manage Group - %s"
+
 [btn_register_creator_open]
 other = "Connect Creator Account"
 
@@ -76,6 +82,12 @@ other = "⚠️ <b>Creator setup did not finish</b>\nTwitch authorization was in
 [creator_groups_none]
 other = "• No groups linked yet."
 
+[creator_manage_groups_html]
+other = "🗂️ <b>Manage linked groups</b>\n\nYour creator account <b>%s</b> can currently manage the groups below.\nSelect one group to unregister it."
+
+[creator_manage_groups_empty_html]
+other = "🗂️ <b>Manage linked groups</b>\n\nYou do not have any linked groups right now."
+
 [creator_register_info]
 other = "🎙️ <b>Creator Setup</b>\n\nConnect your Twitch creator account so ImSub can verify subscribers and manage access to your Telegram group.\n\n<b>❔ Setup steps</b>\n1. Tap <b>Connect Creator Account</b>\n2. Approve access on Twitch\n3. Run /registergroup in your Telegram group\n\n⚠️ You must be an <b>admin</b> in that group.\n\nIf the button does not open Twitch, use <b>Copy link</b> below."
 
@@ -96,6 +108,15 @@ other = "⚠️ <b>Wrong Twitch creator account</b>\nThe reconnect finished with
 
 [creator_reconnect_needed]
 other = "⚠️ <b>Creator reconnect required</b>\n\nImSub could not refresh your Twitch creator access, so subscriber syncing is currently stale.\n\nUse the button below to reconnect your creator account."
+
+[creator_unregister_confirm_html]
+other = "⚠️ <b>Unregister group</b>\n\nAre you sure you want to unlink <b>%s</b> from creator <b>%s</b>?\n\nCurrent members will stay in the Telegram group."
+
+[creator_group_unregistered_html]
+other = "✅ <b>Group unregistered</b>\n<b>%s</b> was removed from your creator account."
+
+[creator_group_unavailable_html]
+other = "⚠️ That group is no longer linked to your creator account."
 
 [creator_last_sync_at]
 other = "• Last successful sync: <b>%s</b>"
@@ -237,3 +258,6 @@ other = "🎉 <b>Group has been Unregistered</b>"
 
 [group_unregister_not_owner]
 other = "⚠️ Only the creator who linked this group can unregister it."
+
+[btn_unregister_group]
+other = "Unregister group"
