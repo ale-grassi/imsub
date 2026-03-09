@@ -161,6 +161,33 @@ func TestTelegramWebhookEnqueueSuccess(t *testing.T) {
 	}
 }
 
+func TestTelegramWebhookUnauthorized(t *testing.T) {
+	t.Parallel()
+
+	obs := &oauthFakeObserver{}
+	updates := make(chan telego.Update, 1)
+	c := testController(&oauthFakeStore{}, obs, updates)
+
+	updateBody, _ := json.Marshal(telego.Update{UpdateID: 456})
+	req := httptest.NewRequest(http.MethodPost, "/webhooks/telegram", strings.NewReader(string(updateBody)))
+	req.Header.Set("X-Telegram-Bot-Api-Secret-Token", "wrong")
+	rec := httptest.NewRecorder()
+
+	c.TelegramWebhook(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("TelegramWebhook(wrong secret).StatusCode = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+	select {
+	case <-updates:
+		t.Fatal("TelegramWebhook(wrong secret) should not enqueue update")
+	default:
+	}
+	if len(obs.events) != 1 || obs.events[0].Name != events.NameTelegramWebhook || obs.events[0].Outcome != "unauthorized" {
+		t.Errorf("telegram events = %+v, want unauthorized", obs.events)
+	}
+}
+
 func TestOAuthStartViewerNoScope(t *testing.T) {
 	t.Parallel()
 

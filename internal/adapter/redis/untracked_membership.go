@@ -39,8 +39,11 @@ func (s *Store) UpsertUntrackedGroupMember(ctx context.Context, chatID, telegram
 
 // RemoveUntrackedGroupMember removes telegramUserID from the untracked set for chatID.
 func (s *Store) RemoveUntrackedGroupMember(ctx context.Context, chatID, telegramUserID int64) error {
-	if err := s.rdb.SRem(ctx, keyUntrackedGroupMembers(chatID), strconv.FormatInt(telegramUserID, 10)).Err(); err != nil {
-		return fmt.Errorf("redis srem untracked group member: %w", err)
+	pipe := s.rdb.TxPipeline()
+	pipe.SRem(ctx, keyUntrackedGroupMembers(chatID), strconv.FormatInt(telegramUserID, 10))
+	pipe.Del(ctx, keyTrackedGroupMemberMeta(chatID, telegramUserID))
+	if _, err := pipe.Exec(ctx); err != nil {
+		return fmt.Errorf("redis exec remove untracked group member: %w", err)
 	}
 	return nil
 }

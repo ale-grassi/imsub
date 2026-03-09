@@ -32,8 +32,9 @@ func (s *Store) RepairTrackedGroupReverseIndex(ctx context.Context) (indexUsers 
 	slices.Sort(groupIDs)
 
 	processedKey := keyIntegrityTrackedReverseIndexProcessed(strconv.FormatInt(time.Now().UnixNano(), 10))
+	cleanupCtx := context.WithoutCancel(ctx)
 	defer func() {
-		if delErr := s.rdb.Del(ctx, processedKey).Err(); delErr != nil {
+		if delErr := s.rdb.Del(cleanupCtx, processedKey).Err(); delErr != nil {
 			s.log().Warn("integrity audit cleanup processed users key failed", "key", processedKey, "error", delErr)
 		}
 	}()

@@ -109,6 +109,10 @@ func TestDeleteAllUserDataRemovesTrackedGroupLinks(t *testing.T) {
 	if err := s.AddTrackedGroupMember(ctx, 500, 42, "test", time.Now().UTC()); err != nil {
 		t.Fatalf("seed tracked group failed: %v", err)
 	}
+	metaKey := keyTrackedGroupMemberMeta(500, 42)
+	if exists, err := s.rdb.Exists(ctx, metaKey).Result(); err != nil || exists != 1 {
+		t.Fatalf("tracked member meta key should exist before delete, exists=%d err=%v", exists, err)
+	}
 
 	if err := s.DeleteAllUserData(ctx, 42); err != nil {
 		t.Fatalf("DeleteAllUserData failed: %v", err)
@@ -125,6 +129,38 @@ func TestDeleteAllUserDataRemovesTrackedGroupLinks(t *testing.T) {
 	}
 	if members, _ := s.rdb.SMembers(ctx, keyTrackedGroupMembers(500)).Result(); slices.Contains(members, "42") {
 		t.Fatalf("tracked group members should not contain 42, got %v", members)
+	}
+	if exists, err := s.rdb.Exists(ctx, metaKey).Result(); err != nil || exists != 0 {
+		t.Fatalf("tracked member meta key should be deleted, exists=%d err=%v", exists, err)
+	}
+}
+
+func TestRemoveMembershipCleanupDeletesMetaKey(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	ctx := t.Context()
+
+	if err := s.AddTrackedGroupMember(ctx, 111, 7, "test", time.Now().UTC()); err != nil {
+		t.Fatalf("AddTrackedGroupMember failed: %v", err)
+	}
+	trackedMetaKey := keyTrackedGroupMemberMeta(111, 7)
+	if err := s.RemoveTrackedGroupMember(ctx, 111, 7); err != nil {
+		t.Fatalf("RemoveTrackedGroupMember failed: %v", err)
+	}
+	if exists, err := s.rdb.Exists(ctx, trackedMetaKey).Result(); err != nil || exists != 0 {
+		t.Fatalf("tracked meta key should be deleted, exists=%d err=%v", exists, err)
+	}
+
+	if err := s.UpsertUntrackedGroupMember(ctx, 222, 8, "test", "member", time.Now().UTC()); err != nil {
+		t.Fatalf("UpsertUntrackedGroupMember failed: %v", err)
+	}
+	untrackedMetaKey := keyTrackedGroupMemberMeta(222, 8)
+	if err := s.RemoveUntrackedGroupMember(ctx, 222, 8); err != nil {
+		t.Fatalf("RemoveUntrackedGroupMember failed: %v", err)
+	}
+	if exists, err := s.rdb.Exists(ctx, untrackedMetaKey).Result(); err != nil || exists != 0 {
+		t.Fatalf("untracked meta key should be deleted, exists=%d err=%v", exists, err)
 	}
 }
 

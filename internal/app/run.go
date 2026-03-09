@@ -170,6 +170,15 @@ func Run() error {
 		return nil
 	})
 	g.Go(func() error {
+		<-gctx.Done()
+		stopCtx, stopCancel := context.WithTimeout(context.WithoutCancel(gctx), 5*time.Second)
+		defer stopCancel()
+		if err := flowController.WaitBackground(stopCtx); err != nil {
+			logger.Warn("telegram background work wait failed", "err", err)
+		}
+		return nil
+	})
+	g.Go(func() error {
 		return server.Run(gctx, server.Dependencies{
 			Config:  cfg,
 			Store:   s,

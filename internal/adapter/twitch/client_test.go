@@ -131,6 +131,9 @@ func TestEnabledEventSubTypesPagination(t *testing.T) {
 			if req.URL.Host != "api.twitch.tv" || req.URL.Path != "/helix/eventsub/subscriptions" {
 				t.Errorf("EnabledEventSubTypes request URL = %q, want host=%q path=%q", req.URL.String(), "api.twitch.tv", "/helix/eventsub/subscriptions")
 			}
+			if req.URL.Query().Get("user_id") != "111" {
+				t.Errorf("EnabledEventSubTypes request user_id = %q, want %q", req.URL.Query().Get("user_id"), "111")
+			}
 			switch call {
 			case 1:
 				return response(http.StatusOK, `{

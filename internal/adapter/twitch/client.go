@@ -345,6 +345,7 @@ func (c *Client) EnabledEventSubTypes(ctx context.Context, creatorID string) (ma
 	var cursor string
 	for {
 		endpoint := "https://api.twitch.tv/helix/eventsub/subscriptions?status=enabled&first=100"
+		endpoint += "&user_id=" + url.QueryEscape(creatorID)
 		if cursor != "" {
 			endpoint += "&after=" + url.QueryEscape(cursor)
 		}

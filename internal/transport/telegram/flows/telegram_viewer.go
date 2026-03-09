@@ -52,11 +52,13 @@ func (c *Controller) handleViewerStartForUser(ctx context.Context, telegramUserI
 			return ""
 		}
 		messageID := c.sendMsg(ctx, telegramUserID, view.text, &view.opts)
-		if messageID != 0 {
-			payload.PromptMessageID = messageID
-			if err := c.store.SaveOAuthState(ctx, state, payload, 10*time.Minute); err != nil {
-				c.log().Warn("saveOAuthState prompt message update failed", "error", err)
-			}
+		if messageID == 0 {
+			c.invalidateOAuthState(ctx, state)
+			return ""
+		}
+		payload.PromptMessageID = messageID
+		if err := c.store.SaveOAuthState(ctx, state, payload, 10*time.Minute); err != nil {
+			c.log().Warn("saveOAuthState prompt message update failed", "error", err)
 		}
 		return ""
 	}

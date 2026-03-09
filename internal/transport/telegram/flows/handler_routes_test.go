@@ -1,6 +1,7 @@
 package flows
 
 import (
+	"errors"
 	"testing"
 
 	"imsub/internal/core"
@@ -56,6 +57,38 @@ func TestRegisterTelegramHandlersCreatorCommand(t *testing.T) {
 	})
 
 	h.assertOAuthPromptSaved(t, 2, core.OAuthModeCreator, 77, 101)
+	h.caller.assertExactMethods(t, "sendMessage")
+}
+
+func TestRegisterTelegramHandlersStartCommandSendFailureInvalidatesOAuthState(t *testing.T) {
+	t.Parallel()
+
+	h := newRouteTestHarness(t)
+	h.caller.setMethodError("sendMessage", errors.New("telegram down"))
+
+	h.handleUpdate(t, telego.Update{
+		UpdateID: 100,
+		Message: &telego.Message{
+			MessageID: 10,
+			Text:      "/start",
+			Chat: telego.Chat{
+				ID:   42,
+				Type: telego.ChatTypePrivate,
+			},
+			From: &telego.User{
+				ID:           42,
+				FirstName:    "Viewer",
+				LanguageCode: "en",
+			},
+		},
+	})
+
+	if got := h.store.saveOAuthStateCallCount(); got != 1 {
+		t.Fatalf("SaveOAuthState call count = %d, want 1", got)
+	}
+	if got := h.store.deleteOAuthStateCallCount(); got != 1 {
+		t.Fatalf("DeleteOAuthState call count = %d, want 1", got)
+	}
 	h.caller.assertExactMethods(t, "sendMessage")
 }
 

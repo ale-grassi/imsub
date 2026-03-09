@@ -161,6 +161,7 @@ type routeTestCaller struct {
 	mu                  sync.Mutex
 	methods             []string
 	requestBodies       map[string][]json.RawMessage
+	errByMethod         map[string]error
 	botUserID           int64
 	chatMembersByUserID map[int64]json.RawMessage
 	getChatResult       json.RawMessage
@@ -209,6 +210,15 @@ func (c *routeTestCaller) setChatAdminsResult(raw json.RawMessage) {
 	c.getChatAdminsResult = raw
 }
 
+func (c *routeTestCaller) setMethodError(method string, err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.errByMethod == nil {
+		c.errByMethod = make(map[string]error)
+	}
+	c.errByMethod[method] = err
+}
+
 func (c *routeTestCaller) Call(_ context.Context, url string, data *telegoapi.RequestData) (*telegoapi.Response, error) {
 	method := url[strings.LastIndex(url, "/")+1:]
 
@@ -223,7 +233,12 @@ func (c *routeTestCaller) Call(_ context.Context, url string, data *telegoapi.Re
 	getChatResult := c.getChatResult
 	getChatMemberCount := c.getChatMemberCount
 	getChatAdminsResult := c.getChatAdminsResult
+	methodErr := c.errByMethod[method]
 	c.mu.Unlock()
+
+	if methodErr != nil {
+		return nil, methodErr
+	}
 
 	switch method {
 	case "sendMessage", "editMessageText":
@@ -329,6 +344,7 @@ type routeTestStore struct {
 	mu                    sync.Mutex
 	saveOAuthStateCalls   int
 	savedOAuthStateCalls  []core.OAuthStatePayload
+	deleteOAuthStateCalls int
 	viewerIdentity        core.UserIdentity
 	viewerIdentityOK      bool
 	ownedCreator          core.Creator
@@ -383,6 +399,12 @@ func (s *routeTestStore) saveOAuthStateCallCount() int {
 	return s.saveOAuthStateCalls
 }
 
+func (s *routeTestStore) deleteOAuthStateCallCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.deleteOAuthStateCalls
+}
+
 func (s *routeTestStore) lastSavedStatePayload() core.OAuthStatePayload {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -398,6 +420,13 @@ func (s *routeTestStore) SaveOAuthState(_ context.Context, _ string, payload cor
 	s.saveOAuthStateCalls++
 	s.savedOAuthStateCalls = append(s.savedOAuthStateCalls, payload)
 	return nil
+}
+
+func (s *routeTestStore) DeleteOAuthState(_ context.Context, _ string) (core.OAuthStatePayload, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.deleteOAuthStateCalls++
+	return core.OAuthStatePayload{}, nil
 }
 
 func (s *routeTestStore) UserIdentity(_ context.Context, telegramUserID int64) (core.UserIdentity, bool, error) {

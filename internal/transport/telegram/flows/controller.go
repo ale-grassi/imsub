@@ -2,7 +2,9 @@ package flows
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"imsub/internal/application"
@@ -67,6 +69,7 @@ type Dependencies struct {
 type controllerStore interface {
 	UserIdentity(ctx context.Context, telegramUserID int64) (core.UserIdentity, bool, error)
 	SaveOAuthState(ctx context.Context, state string, payload core.OAuthStatePayload, ttl time.Duration) error
+	DeleteOAuthState(ctx context.Context, state string) (core.OAuthStatePayload, error)
 	Creator(ctx context.Context, creatorID string) (core.Creator, bool, error)
 	OwnedCreatorForUser(ctx context.Context, ownerTelegramID int64) (core.Creator, bool, error)
 	ManagedGroupByChatID(ctx context.Context, chatID int64) (core.ManagedGroup, bool, error)
@@ -93,6 +96,8 @@ type Controller struct {
 	telegramGroupOps *groupops.Client
 
 	app *application.TelegramRuntime
+
+	backgroundWG sync.WaitGroup
 }
 
 // New creates a Telegram flows Controller from dependencies.
@@ -120,6 +125,33 @@ func (c *Controller) log() *slog.Logger {
 		return slog.Default()
 	}
 	return c.logger
+}
+
+func (c *Controller) runBackground(ctx context.Context, fn func(context.Context)) {
+	if c == nil || fn == nil {
+		return
+	}
+	c.backgroundWG.Go(func() {
+		fn(ctx)
+	})
+}
+
+// WaitBackground blocks until detached Telegram follow-up work completes or ctx ends.
+func (c *Controller) WaitBackground(ctx context.Context) error {
+	if c == nil {
+		return nil
+	}
+	done := make(chan struct{})
+	go func() {
+		c.backgroundWG.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("context done: %w", ctx.Err())
+	}
 }
 
 type viewerGroupOps struct {

@@ -178,7 +178,9 @@ func (c *Controller) onMyChatMemberUpdated(ctx *tghandler.Context, update telego
 		view := buildGroupBotStatusChangedView(lang)
 		groupMsgID := c.sendMsg(ctx, update.Chat.ID, view.text, &view.opts)
 		if groupMsgID != 0 {
-			go c.sendPostRegistrationSettingsCheck(context.WithoutCancel(ctx), update.Chat.ID, groupMsgID, lang, view.text)
+			c.runBackground(context.WithoutCancel(ctx), func(bg context.Context) {
+				c.sendPostRegistrationSettingsCheck(bg, update.Chat.ID, groupMsgID, lang, view.text)
+			})
 		}
 	case telego.MemberStatusLeft, telego.MemberStatusBanned:
 		if c.groupMatchesActiveCreator(ctx, update.Chat.ID) {

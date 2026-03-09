@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -24,7 +25,8 @@ func (c *Controller) TelegramWebhook(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	if c.cfg.TelegramWebhookSecret != "" {
-		if r.Header.Get("X-Telegram-Bot-Api-Secret-Token") != c.cfg.TelegramWebhookSecret {
+		headerToken := r.Header.Get("X-Telegram-Bot-Api-Secret-Token")
+		if subtle.ConstantTimeCompare([]byte(headerToken), []byte(c.cfg.TelegramWebhookSecret)) != 1 {
 			result = "unauthorized"
 			WriteHTTPError(w, UnauthorizedError("invalid telegram secret token", nil))
 			return

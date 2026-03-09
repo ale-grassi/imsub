@@ -22,7 +22,13 @@ type RateLimiter struct {
 
 	mu          sync.Mutex
 	perChatNext map[int64]time.Time
+	lastPrune   time.Time
 }
+
+const (
+	perChatPruneThreshold = 1000
+	perChatPruneInterval  = time.Minute
+)
 
 // NewRateLimiter constructs a RateLimiter with sane defaults.
 func NewRateLimiter(globalRPS int, perChatInterval time.Duration) *RateLimiter {
@@ -89,6 +95,14 @@ func (l *RateLimiter) reserveChatDelay(chatID int64) time.Duration {
 	defer l.mu.Unlock()
 	if l.perChatNext == nil {
 		l.perChatNext = make(map[int64]time.Time)
+	}
+	if len(l.perChatNext) > perChatPruneThreshold && (l.lastPrune.IsZero() || now.Sub(l.lastPrune) >= perChatPruneInterval) {
+		for id, t := range l.perChatNext {
+			if t.Before(now) {
+				delete(l.perChatNext, id)
+			}
+		}
+		l.lastPrune = now
 	}
 
 	next := l.perChatNext[chatID]

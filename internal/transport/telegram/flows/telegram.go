@@ -126,6 +126,16 @@ func (c *Controller) createOAuthState(ctx context.Context, payload core.OAuthSta
 	return state, nil
 }
 
+func (c *Controller) invalidateOAuthState(ctx context.Context, state string) {
+	if state == "" {
+		return
+	}
+	cleanupCtx := context.WithoutCancel(ctx)
+	if _, err := c.store.DeleteOAuthState(cleanupCtx, state); err != nil {
+		c.log().Warn("deleteOAuthState cleanup failed", "state", state, "error", err)
+	}
+}
+
 func (c *Controller) tgClient() *client.Client {
 	if c == nil {
 		return client.New(nil, nil, nil)

@@ -65,24 +65,30 @@ func (c *Controller) dispatchGroupRegistrationFollowUp(ctx context.Context, msg 
 		//  - the 3-minute timeout in activateCreatorOnFirstGroupRegistration fires.
 		// context.WithoutCancel is used so the work survives the parent
 		// request context being canceled.
-		go c.activateCreatorOnFirstGroupRegistration(context.WithoutCancel(ctx), regRes.Creator, msg.Chat.ID, lang)
+		c.runBackground(context.WithoutCancel(ctx), func(bg context.Context) {
+			c.activateCreatorOnFirstGroupRegistration(bg, regRes.Creator, msg.Chat.ID, lang)
+		})
 	}
 
 	if !regRes.FollowUp.NeedsSettingsCheck {
 		return
 	}
 	if regRes.FollowUp.NotifyOwner {
-		go c.sendPostRegistrationMessages(context.WithoutCancel(ctx), postRegistrationMessageOptions{
-			groupChatID:   msg.Chat.ID,
-			groupMsgID:    groupMsgID,
-			ownerUserID:   msg.From.ID,
-			groupName:     msg.Chat.Title,
-			creatorName:   regRes.Creator.Name,
-			lang:          lang,
-			groupBaseText: view.groupBaseText,
+		c.runBackground(context.WithoutCancel(ctx), func(bg context.Context) {
+			c.sendPostRegistrationMessages(bg, postRegistrationMessageOptions{
+				groupChatID:   msg.Chat.ID,
+				groupMsgID:    groupMsgID,
+				ownerUserID:   msg.From.ID,
+				groupName:     msg.Chat.Title,
+				creatorName:   regRes.Creator.Name,
+				lang:          lang,
+				groupBaseText: view.groupBaseText,
+			})
 		})
 		return
 	}
 
-	go c.sendPostRegistrationSettingsCheck(context.WithoutCancel(ctx), msg.Chat.ID, groupMsgID, lang, view.groupBaseText)
+	c.runBackground(context.WithoutCancel(ctx), func(bg context.Context) {
+		c.sendPostRegistrationSettingsCheck(bg, msg.Chat.ID, groupMsgID, lang, view.groupBaseText)
+	})
 }

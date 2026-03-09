@@ -41,6 +41,7 @@ func (s *Store) RemoveTrackedGroupMember(ctx context.Context, chatID, telegramUs
 	pipe := s.rdb.TxPipeline()
 	pipe.SRem(ctx, keyTrackedGroupMembers(chatID), tgStr)
 	pipe.SRem(ctx, keyUserTrackedGroups(telegramUserID), strconv.FormatInt(chatID, 10))
+	pipe.Del(ctx, keyTrackedGroupMemberMeta(chatID, telegramUserID))
 	if _, err := pipe.Exec(ctx); err != nil {
 		return fmt.Errorf("redis exec remove tracked group member: %w", err)
 	}

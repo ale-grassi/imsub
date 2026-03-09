@@ -93,11 +93,13 @@ func (c *Controller) replyCreatorOAuthPrompt(ctx context.Context, telegramUserID
 		return ""
 	}
 	messageID := c.sendMsg(ctx, telegramUserID, view.text, &view.opts)
-	if messageID != 0 {
-		payload.PromptMessageID = messageID
-		if err := c.store.SaveOAuthState(ctx, state, payload, 10*time.Minute); err != nil {
-			c.log().Warn("saveOAuthState creator prompt message update failed", "error", err)
-		}
+	if messageID == 0 {
+		c.invalidateOAuthState(ctx, state)
+		return ""
+	}
+	payload.PromptMessageID = messageID
+	if err := c.store.SaveOAuthState(ctx, state, payload, 10*time.Minute); err != nil {
+		c.log().Warn("saveOAuthState creator prompt message update failed", "error", err)
 	}
 	return ""
 }

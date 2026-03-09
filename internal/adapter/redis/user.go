@@ -163,6 +163,7 @@ func (s *Store) DeleteAllUserData(ctx context.Context, telegramUserID int64) err
 			continue
 		}
 		pipe.SRem(ctx, keyTrackedGroupMembers(chatID), tgStr)
+		pipe.Del(ctx, keyTrackedGroupMemberMeta(chatID, telegramUserID))
 	}
 	pipe.Del(ctx, keyUserTrackedGroups(telegramUserID))
 	pipe.Del(ctx, keyUserIdentity(telegramUserID))
