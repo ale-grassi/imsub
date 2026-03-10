@@ -140,10 +140,16 @@ other = "⚠️ <b>Wrong Twitch creator account</b>\nThe reconnect finished with
 other = "⚠️ <b>Creator reconnect required</b>\n\nImSub could not refresh your Twitch creator access, so subscriber syncing is currently stale.\n\nUse the button below to reconnect your creator account."
 
 [creator_unregister_confirm_html]
-other = "⚠️ <b>Unregister group</b>\n\nAre you sure you want to unlink <b>%s</b> from creator <b>%s</b>?\n\nCurrent members will stay in the Telegram group."
+other = "⚠️ <b>Unregister group</b>\n\nChoose what to do with tracked members before unlinking <b>%s</b> from creator <b>%s</b>.\n\nIf you keep members, they will stay in the Telegram group after unregistration.\nIf you kick tracked members, ImSub will try to remove currently tracked members before the group is unregistered."
 
 [creator_group_unregistered_html]
 other = "✅ <b>Group unregistered</b>\n<b>%s</b> was removed from your creator account."
+
+[creator_group_unregistered_kicked_html]
+other = "✅ <b>Group unregistered</b>\n<b>%s</b> was removed from your creator account.\n\n• Tracked memberships targeted for kick: %d\n• Kick attempts that failed: %d"
+
+[creator_group_unregistered_kick_all_failed_html]
+other = "⚠️ <b>Group unregistered</b>\n<b>%s</b> was removed from your creator account, but ImSub could not kick any of the tracked memberships it targeted.\n\n• Tracked memberships targeted for kick: %d\n• Kick attempts that failed: %d"
 
 [creator_group_unavailable_html]
 other = "⚠️ That group is no longer linked to your creator account."
@@ -369,6 +375,15 @@ other = "there"
 
 [group_unregistered]
 other = "🎉 <b>Group has been Unregistered</b>"
+
+[group_unregister_prompt_html]
+other = "⚠️ <b>Unregister group</b>\n\nChoose what to do with tracked members before this group is unregistered.\n\nIf you keep members, they will stay in the Telegram group after unregistration.\nIf you kick tracked members, ImSub will try to remove currently tracked members before the group is unregistered."
+
+[group_unregistered_kicked_html]
+other = "🎉 <b>Group has been Unregistered</b>\n\n• Tracked memberships targeted for kick: %d\n• Kick attempts that failed: %d"
+
+[group_unregistered_kick_all_failed_html]
+other = "⚠️ <b>Group has been Unregistered</b>\n\nImSub could not kick any of the tracked memberships it targeted.\n\n• Tracked memberships targeted for kick: %d\n• Kick attempts that failed: %d"
 
 [group_unregister_not_owner]
 other = "⚠️ Only the creator who linked this group can unregister it."

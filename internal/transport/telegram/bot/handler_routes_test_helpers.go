@@ -37,8 +37,14 @@ type editMessageRequest struct {
 }
 
 type sendMessageRequest struct {
-	ChatID int64  `json:"chat_id"`
-	Text   string `json:"text"`
+	ChatID      int64  `json:"chat_id"`
+	Text        string `json:"text"`
+	ReplyMarkup struct {
+		InlineKeyboard [][]struct {
+			CallbackData string `json:"callback_data"`
+			URL          string `json:"url"`
+		} `json:"inline_keyboard"`
+	} `json:"reply_markup"`
 }
 
 type routeTestHarness struct {
@@ -101,7 +107,7 @@ func newRouteTestHarnessWithCleaner(t *testing.T, cleaner usecaseGroupUnregistra
 		TelegramGroups:      tgGroups,
 		CreatorStatus:       usecase.NewCreatorStatusUseCase(core.NewCreatorService(store, routeTestEventSubChecker{}, nil), nil),
 		GroupRegistration:   usecase.NewGroupRegistrationUseCase(store, nil),
-		GroupUnregistration: usecase.NewGroupUnregistrationUseCase(store, cleaner, nil),
+		GroupUnregistration: usecase.NewGroupUnregistrationUseCase(store, cleaner, tgGroups.KickFromGroup, nil),
 		GroupPolicyUpdate:   usecase.NewGroupPolicyUpdateUseCase(store, nil),
 	})
 	controller.SetViewerAccessUseCase(usecase.NewViewerAccessUseCase(core.NewViewerService(store, controller.ViewerGroupOps(), nil, nil), nil))
@@ -181,6 +187,20 @@ func (h routeTestHarness) assertEditMessageTextContains(t *testing.T, body json.
 	if !strings.Contains(got.Text, want) {
 		t.Fatalf("editMessageText text = %q, want substring %q", got.Text, want)
 	}
+}
+
+func (h routeTestHarness) assertSendMessageHasCallback(t *testing.T, body json.RawMessage, want string) {
+	t.Helper()
+
+	got := parseSendMessageRequest(t, body)
+	for _, row := range got.ReplyMarkup.InlineKeyboard {
+		for _, button := range row {
+			if button.CallbackData == want {
+				return
+			}
+		}
+	}
+	t.Fatalf("sendMessage callback data = %+v, want %q", got.ReplyMarkup.InlineKeyboard, want)
 }
 
 func parseEditMessageRequest(t *testing.T, body json.RawMessage) editMessageRequest {

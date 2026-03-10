@@ -103,19 +103,10 @@ func (c *Bot) onRegisterGroup(ctx *tghandler.Context, msg telego.Message) error 
 }
 
 func (c *Bot) handleGroupCallback(ctx context.Context, userID, chatID int64, chatTitle string, messageThreadID, editMsgID int, lang string, action callbackAction) string {
-	if action.verb != callbackVerbPick || action.policy == "" || action.chatID == 0 {
-		c.log().Warn("unsupported group callback action", "telegram_user_id", userID, "verb", action.verb, "policy", action.policy, "chat_id", action.chatID)
-		return ""
-	}
-	if chatID == 0 || action.chatID != chatID {
+	if chatID == 0 || action.chatID == 0 || action.chatID != chatID {
 		c.log().Warn("group callback chat mismatch", "telegram_user_id", userID, "callback_chat_id", action.chatID, "message_chat_id", chatID)
 		return ""
 	}
-	if c.groupRegistration == nil {
-		c.log().Warn("group registration use case unavailable for group callback", "chat_id", chatID)
-		return ""
-	}
-
 	if !c.userCanRegisterGroup(ctx, userID, chatID) {
 		return i18n.Translate(lang, msgGroupNotAdmin)
 	}
@@ -127,35 +118,70 @@ func (c *Bot) handleGroupCallback(ctx context.Context, userID, chatID int64, cha
 	if !ok {
 		return i18n.Translate(lang, msgGroupNotCreator)
 	}
-	if eval := c.evaluateBotGroupCapabilities(ctx, chatID); len(eval.issues(lang)) > 0 {
-		return formatGroupSettingWarnings(lang, eval.issues(lang))
-	}
-
-	regRes, err := c.groupRegistration.RegisterGroup(ctx, userID, chatID, chatTitle, action.policy, action.threadID)
-	if err != nil {
-		c.log().Warn("RegisterGroup from callback failed", "chat_id", chatID, "owner_telegram_id", userID, "policy", action.policy, "error", err)
+	switch action.verb {
+	case callbackVerbPick:
+		if action.policy == "" || c.groupRegistration == nil {
+			c.log().Warn("unsupported group registration callback action", "telegram_user_id", userID, "verb", action.verb, "policy", action.policy, "chat_id", action.chatID)
+			return ""
+		}
+		if eval := c.evaluateBotGroupCapabilities(ctx, chatID); len(eval.issues(lang)) > 0 {
+			return formatGroupSettingWarnings(lang, eval.issues(lang))
+		}
+		regRes, err := c.groupRegistration.RegisterGroup(ctx, userID, chatID, chatTitle, action.policy, action.threadID)
+		if err != nil {
+			c.log().Warn("RegisterGroup from callback failed", "chat_id", chatID, "owner_telegram_id", userID, "policy", action.policy, "error", err)
+			return ""
+		}
+		view, ok := buildGroupRegistrationView(lang, editMsgID, regRes)
+		if !ok {
+			c.log().Warn("unsupported group registration outcome from callback", "chat_id", chatID, "outcome", regRes.Outcome)
+			return ""
+		}
+		c.reply(ctx, chatID, editMsgID, view.text, &view.opts)
+		if view.dispatchFollowUp {
+			c.dispatchGroupRegistrationFollowUp(ctx, telego.Message{
+				MessageID:       editMsgID,
+				MessageThreadID: messageThreadID,
+				IsTopicMessage:  messageThreadID > 0,
+				Chat: telego.Chat{
+					ID:    chatID,
+					Type:  telego.ChatTypeSupergroup,
+					Title: chatTitle,
+				},
+				From: &telego.User{ID: userID, LanguageCode: lang},
+			}, lang, regRes, view, editMsgID, messageThreadID)
+		}
+		return ""
+	case callbackVerbExecute:
+		if action.resetAction == "" || c.groupUnregistration == nil {
+			c.log().Warn("unsupported group unregister callback action", "telegram_user_id", userID, "verb", action.verb, "action", action.resetAction, "chat_id", action.chatID)
+			return ""
+		}
+		res, err := c.groupUnregistration.UnregisterGroup(ctx, userID, chatID, action.resetAction)
+		if err != nil {
+			c.log().Warn("UnregisterGroup from group callback failed", "chat_id", chatID, "owner_telegram_id", userID, "action", action.resetAction, "error", err)
+			return ""
+		}
+		switch res.Outcome {
+		case usecase.UnregisterGroupOutcomeNotManaged:
+			return ""
+		case usecase.UnregisterGroupOutcomeNotOwner:
+			return i18n.Translate(lang, msgGroupUnregisterNotOwner)
+		case usecase.UnregisterGroupOutcomeUnregistered, usecase.UnregisterGroupOutcomeUnregisteredCleanupLag:
+		default:
+			c.log().Warn("unsupported group unregistration outcome from callback", "chat_id", chatID, "outcome", res.Outcome)
+			return ""
+		}
+		view := buildGroupUnregisteredView(lang, editMsgID, res)
+		c.reply(ctx, chatID, editMsgID, view.text, &view.opts)
+		return ""
+	case callbackVerbRefresh, callbackVerbRegister, callbackVerbReconnect, callbackVerbOpen, callbackVerbBack, callbackVerbMenu, callbackVerbCancel:
+		c.log().Warn("known but unsupported group callback verb", "telegram_user_id", userID, "verb", action.verb, "chat_id", action.chatID)
+		return ""
+	default:
+		c.log().Warn("unknown group callback action", "telegram_user_id", userID, "verb", action.verb, "chat_id", action.chatID)
 		return ""
 	}
-	view, ok := buildGroupRegistrationView(lang, editMsgID, regRes)
-	if !ok {
-		c.log().Warn("unsupported group registration outcome from callback", "chat_id", chatID, "outcome", regRes.Outcome)
-		return ""
-	}
-	c.reply(ctx, chatID, editMsgID, view.text, &view.opts)
-	if view.dispatchFollowUp {
-		c.dispatchGroupRegistrationFollowUp(ctx, telego.Message{
-			MessageID:       editMsgID,
-			MessageThreadID: messageThreadID,
-			IsTopicMessage:  messageThreadID > 0,
-			Chat: telego.Chat{
-				ID:    chatID,
-				Type:  telego.ChatTypeSupergroup,
-				Title: chatTitle,
-			},
-			From: &telego.User{ID: userID, LanguageCode: lang},
-		}, lang, regRes, view, editMsgID, messageThreadID)
-	}
-	return ""
 }
 
 func (c *Bot) userCanRegisterGroup(ctx context.Context, userID, chatID int64) bool {
@@ -194,27 +220,27 @@ func (c *Bot) onUnregisterCommand(ctx *tghandler.Context, msg telego.Message) er
 		return nil
 	}
 
-	res, err := c.groupUnregistration.UnregisterGroup(ctx, msg.From.ID, msg.Chat.ID)
+	group, managed, err := c.store.ManagedGroupByChatID(ctx, msg.Chat.ID)
 	if err != nil {
-		c.log().Warn("UnregisterGroup failed", "chat_id", msg.Chat.ID, "owner_telegram_id", msg.From.ID, "error", err)
+		c.log().Warn("ManagedGroupByChatID failed before unregister prompt", "chat_id", msg.Chat.ID, "error", err)
 		return nil
 	}
-	switch res.Outcome {
-	case usecase.UnregisterGroupOutcomeNotManaged:
+	if !managed {
 		return nil
-	case usecase.UnregisterGroupOutcomeNotOwner:
+	}
+	creator, ok, err := c.store.OwnedCreatorForUser(ctx, msg.From.ID)
+	if err != nil {
+		c.log().Warn("OwnedCreatorForUser failed before unregister prompt", "chat_id", msg.Chat.ID, "owner_telegram_id", msg.From.ID, "error", err)
+		return nil
+	}
+	if !ok || group.CreatorID != creator.ID {
 		c.sendMsg(ctx, msg.Chat.ID, view.text, &view.opts)
 		return nil
-	case usecase.UnregisterGroupOutcomeUnregistered, usecase.UnregisterGroupOutcomeUnregisteredCleanupLag:
-	}
-	if res.CleanupFailed {
-		c.log().Warn("group unregistered but eventsub cleanup deferred to reconciliation", "creator_id", res.Creator.ID, "chat_id", msg.Chat.ID)
 	}
 
-	success := buildTextView(lang, msgGroupUnregistered)
-	success.opts.ReplyToMessageID = msg.MessageID
-	success.opts.MessageThreadID = threadID
-	c.sendMsg(ctx, msg.Chat.ID, success.text, &success.opts)
+	prompt := buildGroupUnregisterPromptView(lang, msg.MessageID, msg.Chat.ID)
+	prompt.opts.MessageThreadID = threadID
+	c.sendMsg(ctx, msg.Chat.ID, prompt.text, &prompt.opts)
 	return nil
 }
 
@@ -291,7 +317,7 @@ func (c *Bot) handleBotRemovedFromManagedGroup(ctx context.Context, chatID int64
 		return
 	}
 
-	res, err := c.groupUnregistration.UnregisterGroup(ctx, creator.OwnerTelegramID, chatID)
+	res, err := c.groupUnregistration.UnregisterGroup(ctx, creator.OwnerTelegramID, chatID, core.CreatorResetKeepMembers)
 	if err != nil {
 		c.log().Warn("auto-unregister after bot removal failed", "chat_id", chatID, "creator_id", creator.ID, "owner_telegram_id", creator.OwnerTelegramID, "new_status", newStatus, "error", err)
 		return
@@ -800,6 +826,37 @@ func buildGroupBotStatusChangedView(lang string) sharedView {
 
 func buildGroupUntrackedJoinWarningView(lang string) sharedView {
 	return buildTextView(lang, msgGroupUntrackedJoinWarning)
+}
+
+func buildGroupUnregisterPromptView(lang string, replyToMessageID int, chatID int64) sharedView {
+	return sharedView{
+		text: i18n.Translate(lang, msgGroupUnregisterPrompt),
+		opts: client.MessageOptions{
+			ReplyToMessageID: replyToMessageID,
+			Markup: telegoutil.InlineKeyboard(
+				telegoutil.InlineKeyboardRow(telegramui.CallbackButton(i18n.Translate(lang, btnResetKeepMembers), groupUnregisterExecuteCallback(chatID, core.CreatorResetKeepMembers))),
+				telegoutil.InlineKeyboardRow(telegramui.IconCallbackButton(i18n.Translate(lang, btnResetKickTrackedMembers), groupUnregisterExecuteCallback(chatID, core.CreatorResetKickTrackedMembers), "5258318620722733379").WithStyle("danger")),
+			),
+		},
+	}
+}
+
+func buildGroupUnregisteredView(lang string, replyToMessageID int, res usecase.UnregisterGroupResult) sharedView {
+	key := msgGroupUnregistered
+	text := i18n.Translate(lang, key)
+	if res.MemberAction == core.CreatorResetKickTrackedMembers {
+		key = msgGroupUnregisteredKicked
+		if res.TargetedMembershipCount > 0 && res.KickFailureCount == res.TargetedMembershipCount {
+			key = msgGroupUnregisteredKickAllFailed
+		}
+		text = fmt.Sprintf(i18n.Translate(lang, key), res.TargetedMembershipCount, res.KickFailureCount)
+	}
+	view := sharedView{text: text}
+	if key == msgGroupUnregistered {
+		view = buildTextView(lang, key)
+	}
+	view.opts.ReplyToMessageID = replyToMessageID
+	return view
 }
 
 func formatGroupPolicyLine(lang string, policy core.GroupPolicy) string {

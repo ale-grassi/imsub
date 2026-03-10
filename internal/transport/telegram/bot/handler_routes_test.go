@@ -272,7 +272,8 @@ func TestRegisterTelegramHandlersCreatorManageGroupsFlow(t *testing.T) {
 	})
 
 	body = h.caller.lastEditMessageBody()
-	h.assertEditMessageHasCallback(t, body, creatorGroupExecuteCallback(-1001))
+	h.assertEditMessageHasCallback(t, body, creatorGroupExecuteWithActionCallback(-1001, core.CreatorResetKeepMembers))
+	h.assertEditMessageHasCallback(t, body, creatorGroupExecuteWithActionCallback(-1001, core.CreatorResetKickTrackedMembers))
 	h.assertEditMessageHasCallback(t, body, creatorGroupPickCallback(-1001))
 	h.assertEditMessageTextContains(t, body, "Unregister group")
 
@@ -280,7 +281,7 @@ func TestRegisterTelegramHandlersCreatorManageGroupsFlow(t *testing.T) {
 		UpdateID: 38,
 		CallbackQuery: &telego.CallbackQuery{
 			ID:   "cb-groups-exec",
-			Data: creatorGroupExecuteCallback(-1001),
+			Data: creatorGroupExecuteWithActionCallback(-1001, core.CreatorResetKeepMembers),
 			From: telego.User{
 				ID:           77,
 				LanguageCode: "en",
@@ -1085,6 +1086,9 @@ func TestRegisterTelegramHandlersUnregisterGroupCommand(t *testing.T) {
 	})
 
 	h.caller.assertExactMethods(t, "sendMessage")
+	body := h.caller.lastSendMessageBody()
+	h.assertSendMessageHasCallback(t, body, groupUnregisterExecuteCallback(-10077, core.CreatorResetKeepMembers))
+	h.assertSendMessageHasCallback(t, body, groupUnregisterExecuteCallback(-10077, core.CreatorResetKickTrackedMembers))
 }
 
 func TestRegisterTelegramHandlersChatMemberJoinTracksUntrackedUser(t *testing.T) {

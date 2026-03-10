@@ -21,41 +21,43 @@ import (
 )
 
 const (
-	msgErrCreatorLink            = "err_creator_link"
-	msgCreatorRegisterInfo       = "creator_register_info"
-	msgCreatorRegisteredNoGroup  = "creator_registered_no_group_html"
-	msgCreatorRegistered         = "creator_registered_html"
-	msgCreatorEventSubActive     = "creator_eventsub_active"
-	msgCreatorEventSubInactive   = "creator_eventsub_inactive"
-	msgCreatorEventSubUnknown    = "creator_eventsub_unknown"
-	msgCreatorEventSubFail       = "creator_eventsub_fail"
-	msgCreatorAuthHealthy        = "creator_auth_healthy"
-	msgCreatorAuthReconnect      = "creator_auth_reconnect_required"
-	msgCreatorSubscribersPending = "creator_subscribers_pending"
-	msgCreatorSubscribersReady   = "creator_subscribers_ready"
-	msgCreatorGroupsNone         = "creator_groups_none"
-	msgCreatorExchangeFail       = "creator_exchange_fail"
-	msgCreatorReconnectInfo      = "creator_reconnect_info"
-	msgCreatorReconnectMismatch  = "creator_reconnect_mismatch"
-	msgCreatorReconnectNeeded    = "creator_reconnect_needed"
-	msgCreatorScopeMissing       = "creator_scope_missing"
-	msgCreatorUserInfoFail       = "creator_userinfo_fail"
-	msgCreatorStoreFail          = "creator_store_fail"
-	msgCreatorManageGroupsHTML   = "creator_manage_groups_html"
-	msgCreatorManageGroupsEmpty  = "creator_manage_groups_empty_html"
-	msgCreatorGroupSettingsHTML  = "creator_group_settings_html"
-	msgCreatorGroupPolicyHTML    = "creator_group_policy_picker_html"
-	msgCreatorGroupPolicyConfirm = "creator_group_policy_confirm_html"
-	msgCreatorUnregisterConfirm  = "creator_unregister_confirm_html"
-	msgCreatorGroupUnregistered  = "creator_group_unregistered_html"
-	msgCreatorGroupUnavailable   = "creator_group_unavailable_html"
-	msgCreatorGroupPolicyUpdated = "creator_group_policy_updated_html"
-	msgCreatorGroupPolicySame    = "creator_group_policy_same_html"
-	msgCreatorGroupPolicyDenied  = "creator_group_policy_not_owner"
-	msgCreatorBlocklistEnabled   = "creator_blocklist_enabled"
-	msgCreatorBlocklistDisabled  = "creator_blocklist_disabled"
-	msgCreatorBlocklistOnNotice  = "creator_blocklist_on_notice"
-	msgCreatorBlocklistOffNotice = "creator_blocklist_off_notice"
+	msgErrCreatorLink                        = "err_creator_link"
+	msgCreatorRegisterInfo                   = "creator_register_info"
+	msgCreatorRegisteredNoGroup              = "creator_registered_no_group_html"
+	msgCreatorRegistered                     = "creator_registered_html"
+	msgCreatorEventSubActive                 = "creator_eventsub_active"
+	msgCreatorEventSubInactive               = "creator_eventsub_inactive"
+	msgCreatorEventSubUnknown                = "creator_eventsub_unknown"
+	msgCreatorEventSubFail                   = "creator_eventsub_fail"
+	msgCreatorAuthHealthy                    = "creator_auth_healthy"
+	msgCreatorAuthReconnect                  = "creator_auth_reconnect_required"
+	msgCreatorSubscribersPending             = "creator_subscribers_pending"
+	msgCreatorSubscribersReady               = "creator_subscribers_ready"
+	msgCreatorGroupsNone                     = "creator_groups_none"
+	msgCreatorExchangeFail                   = "creator_exchange_fail"
+	msgCreatorReconnectInfo                  = "creator_reconnect_info"
+	msgCreatorReconnectMismatch              = "creator_reconnect_mismatch"
+	msgCreatorReconnectNeeded                = "creator_reconnect_needed"
+	msgCreatorScopeMissing                   = "creator_scope_missing"
+	msgCreatorUserInfoFail                   = "creator_userinfo_fail"
+	msgCreatorStoreFail                      = "creator_store_fail"
+	msgCreatorManageGroupsHTML               = "creator_manage_groups_html"
+	msgCreatorManageGroupsEmpty              = "creator_manage_groups_empty_html"
+	msgCreatorGroupSettingsHTML              = "creator_group_settings_html"
+	msgCreatorGroupPolicyHTML                = "creator_group_policy_picker_html"
+	msgCreatorGroupPolicyConfirm             = "creator_group_policy_confirm_html"
+	msgCreatorUnregisterConfirm              = "creator_unregister_confirm_html"
+	msgCreatorGroupUnregistered              = "creator_group_unregistered_html"
+	msgCreatorGroupUnregisteredKicked        = "creator_group_unregistered_kicked_html"
+	msgCreatorGroupUnregisteredKickAllFailed = "creator_group_unregistered_kick_all_failed_html"
+	msgCreatorGroupUnavailable               = "creator_group_unavailable_html"
+	msgCreatorGroupPolicyUpdated             = "creator_group_policy_updated_html"
+	msgCreatorGroupPolicySame                = "creator_group_policy_same_html"
+	msgCreatorGroupPolicyDenied              = "creator_group_policy_not_owner"
+	msgCreatorBlocklistEnabled               = "creator_blocklist_enabled"
+	msgCreatorBlocklistDisabled              = "creator_blocklist_disabled"
+	msgCreatorBlocklistOnNotice              = "creator_blocklist_on_notice"
+	msgCreatorBlocklistOffNotice             = "creator_blocklist_off_notice"
 
 	btnRegisterCreatorOpen = "btn_register_creator_open"
 	btnReconnectCreator    = "btn_reconnect_creator"
@@ -106,7 +108,11 @@ func (c *Bot) handleCreatorCallback(ctx context.Context, userID int64, editMsgID
 		return c.handleCreatorStart(ctx, userID, editMsgID, lang)
 	case callbackVerbExecute:
 		if action.target == creatorCallbackTargetGroup {
-			return c.executeCreatorGroupUnregister(ctx, userID, editMsgID, lang, action.chatID)
+			memberAction := action.resetAction
+			if memberAction == "" {
+				memberAction = core.CreatorResetKeepMembers
+			}
+			return c.executeCreatorGroupUnregister(ctx, userID, editMsgID, lang, action.chatID, memberAction)
 		}
 		if action.target == creatorCallbackTargetPolicy {
 			return c.executeCreatorGroupPolicyUpdate(ctx, userID, editMsgID, lang, action.chatID, action.policy)
@@ -501,13 +507,13 @@ func (c *Bot) replyCreatorGroupUnregisterConfirmForResult(
 	return ""
 }
 
-func (c *Bot) executeCreatorGroupUnregister(ctx context.Context, telegramUserID int64, editMsgID int, lang string, groupChatID int64) string {
+func (c *Bot) executeCreatorGroupUnregister(ctx context.Context, telegramUserID int64, editMsgID int, lang string, groupChatID int64, action core.CreatorResetGroupAction) string {
 	if c.groupUnregistration == nil {
 		c.log().Warn("group unregistration use case unavailable")
 		return ""
 	}
 
-	res, err := c.groupUnregistration.UnregisterGroup(ctx, telegramUserID, groupChatID)
+	res, err := c.groupUnregistration.UnregisterGroup(ctx, telegramUserID, groupChatID, action)
 	if err != nil {
 		c.log().Warn("UnregisterGroup from creator menu failed", "chat_id", groupChatID, "owner_telegram_id", telegramUserID, "error", err)
 		view := buildCreatorStatusErrorView(lang)
@@ -525,7 +531,16 @@ func (c *Bot) executeCreatorGroupUnregister(ctx context.Context, telegramUserID 
 			c.log().Warn("group unregistered from creator menu but eventsub cleanup deferred to reconciliation", "creator_id", res.Creator.ID, "chat_id", groupChatID)
 		}
 		groupName := singleManagedGroupLabel(res.Group)
-		notice := fmt.Sprintf(i18n.Translate(lang, msgCreatorGroupUnregistered), html.EscapeString(groupName))
+		noticeKey := msgCreatorGroupUnregistered
+		args := []any{html.EscapeString(groupName)}
+		if res.MemberAction == core.CreatorResetKickTrackedMembers {
+			noticeKey = msgCreatorGroupUnregisteredKicked
+			if res.TargetedMembershipCount > 0 && res.KickFailureCount == res.TargetedMembershipCount {
+				noticeKey = msgCreatorGroupUnregisteredKickAllFailed
+			}
+			args = append(args, res.TargetedMembershipCount, res.KickFailureCount)
+		}
+		notice := fmt.Sprintf(i18n.Translate(lang, noticeKey), args...)
 		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, notice)
 	default:
 		c.log().Warn("unsupported group unregistration outcome", "chat_id", groupChatID, "outcome", res.Outcome)
@@ -834,7 +849,8 @@ func buildCreatorGroupUnregisterConfirmView(lang string, creator core.Creator, g
 		),
 		opts: client.MessageOptions{
 			Markup: tu.InlineKeyboard(
-				tu.InlineKeyboardRow(ui.UnregisterButton(i18n.Translate(lang, btnUnregisterGroup), creatorGroupExecuteCallback(group.ChatID))),
+				tu.InlineKeyboardRow(ui.CallbackButton(i18n.Translate(lang, btnResetKeepMembers), creatorGroupExecuteWithActionCallback(group.ChatID, core.CreatorResetKeepMembers))),
+				tu.InlineKeyboardRow(ui.IconCallbackButton(i18n.Translate(lang, btnResetKickTrackedMembers), creatorGroupExecuteWithActionCallback(group.ChatID, core.CreatorResetKickTrackedMembers), "5258318620722733379").WithStyle("danger")),
 				tu.InlineKeyboardRow(ui.BackButton(i18n.Translate(lang, btnBack), backCallback)),
 			),
 		},

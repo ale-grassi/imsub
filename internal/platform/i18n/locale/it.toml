@@ -140,10 +140,16 @@ other = "⚠️ <b>Account creator Twitch errato</b>\nIl ricollegamento e' stato
 other = "⚠️ <b>Ricollegamento creator richiesto</b>\n\nImSub non e' riuscito ad aggiornare l'accesso del tuo account creator Twitch, quindi la sincronizzazione dei subscriber non e' piu' aggiornata.\n\nUsa il pulsante qui sotto per ricollegare l'account creator."
 
 [creator_unregister_confirm_html]
-other = "⚠️ <b>Scollega gruppo</b>\n\nVuoi davvero scollegare <b>%s</b> dal creator <b>%s</b>?\n\nI membri attuali resteranno nel gruppo Telegram."
+other = "⚠️ <b>Scollega gruppo</b>\n\nScegli cosa fare con i membri tracciati prima di scollegare <b>%s</b> dal creator <b>%s</b>.\n\nSe mantieni i membri, resteranno nel gruppo Telegram dopo lo scollegamento.\nSe espelli i membri tracciati, ImSub proverà a rimuovere i membri attualmente tracciati prima che il gruppo venga scollegato."
 
 [creator_group_unregistered_html]
 other = "✅ <b>Gruppo scollegato</b>\n<b>%s</b> e' stato rimosso dal tuo account creator."
+
+[creator_group_unregistered_kicked_html]
+other = "✅ <b>Gruppo scollegato</b>\n<b>%s</b> e' stato rimosso dal tuo account creator.\n\n• Membri tracciati presi di mira per l'espulsione: %d\n• Tentativi di espulsione falliti: %d"
+
+[creator_group_unregistered_kick_all_failed_html]
+other = "⚠️ <b>Gruppo scollegato</b>\n<b>%s</b> e' stato rimosso dal tuo account creator, ma ImSub non e' riuscito a espellere nessuno dei membri tracciati presi di mira.\n\n• Membri tracciati presi di mira per l'espulsione: %d\n• Tentativi di espulsione falliti: %d"
 
 [creator_group_unavailable_html]
 other = "⚠️ Questo gruppo non e' piu' collegato al tuo account creator."
@@ -368,7 +374,16 @@ other = "🎉 <b>Abbonamento attivo</b>\n\nIl tuo abbonamento a <b>%s</b> e' att
 other = "amico"
 
 [group_unregistered]
-other = "🎉 <b>Gruppo sono stati Scollegati</b>"
+other = "🎉 <b>Gruppo scollegato</b>"
+
+[group_unregister_prompt_html]
+other = "⚠️ <b>Scollega gruppo</b>\n\nScegli cosa fare con i membri tracciati prima che questo gruppo venga scollegato.\n\nSe mantieni i membri, resteranno nel gruppo Telegram dopo lo scollegamento.\nSe espelli i membri tracciati, ImSub proverà a rimuovere i membri attualmente tracciati prima che il gruppo venga scollegato."
+
+[group_unregistered_kicked_html]
+other = "🎉 <b>Gruppo scollegato</b>\n\n• Membri tracciati presi di mira per l'espulsione: %d\n• Tentativi di espulsione falliti: %d"
+
+[group_unregistered_kick_all_failed_html]
+other = "⚠️ <b>Gruppo scollegato</b>\n\nImSub non e' riuscito a espellere nessuno dei membri tracciati presi di mira.\n\n• Membri tracciati presi di mira per l'espulsione: %d\n• Tentativi di espulsione falliti: %d"
 
 [group_unregister_not_owner]
 other = "Solo il creator che ha collegato questo gruppo può scollegarlo."
