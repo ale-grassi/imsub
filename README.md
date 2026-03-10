@@ -271,7 +271,9 @@ Key metrics include:
 
 Fly.io's managed Prometheus can scrape this endpoint for Grafana dashboards.
 
-The repo includes an overview dashboard definition at `notes/grafana/imsub-overview-dashboard.json`. The `Product & Telegram` row covers DAU, linked accounts, managed groups, command usage, viewer access checks, subscriber reconciliation runs, registration churn, and kick activity.
+The canonical committed dashboard is:
+
+- `grafana/imsub-canonical-dashboard.json` for product, Telegram, application health, Fly runtime, and log context in one board
 
 ---
 
