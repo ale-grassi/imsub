@@ -14,19 +14,29 @@ import (
 
 	"github.com/mymmrac/telego"
 	tghandler "github.com/mymmrac/telego/telegohandler"
+	tu "github.com/mymmrac/telego/telegoutil"
 )
 
 const (
-	msgErrReset                = "err_reset"
-	msgResetNothingHTML        = "reset_nothing_html"
-	msgResetDoneViewerHTML     = "reset_done_viewer_html"
-	msgResetDoneCreatorHTML    = "reset_done_creator_html"
-	msgResetDoneBothHTML       = "reset_done_both_html"
-	msgResetChooseScopeHTML    = "reset_choose_scope_html"
-	msgResetConfirmViewerHTML  = "reset_confirm_viewer_html"
-	msgResetConfirmCreatorHTML = "reset_confirm_creator_html"
-	msgResetConfirmBothHTML    = "reset_confirm_both_html"
-	msgResetExitHTML           = "reset_exit_html"
+	msgErrReset                        = "err_reset"
+	msgResetNothingHTML                = "reset_nothing_html"
+	msgResetDoneViewerHTML             = "reset_done_viewer_html"
+	msgResetDoneCreatorHTML            = "reset_done_creator_html"
+	msgResetDoneBothHTML               = "reset_done_both_html"
+	msgResetChooseScopeHTML            = "reset_choose_scope_html"
+	msgResetChooseCreatorActionCreator = "reset_choose_creator_action_creator_html"
+	msgResetChooseCreatorActionBoth    = "reset_choose_creator_action_both_html"
+	msgResetConfirmViewerHTML          = "reset_confirm_viewer_html"
+	msgResetConfirmCreatorHTML         = "reset_confirm_creator_html"
+	msgResetConfirmBothHTML            = "reset_confirm_both_html"
+	msgResetExitHTML                   = "reset_exit_html"
+	msgResetActionKeepLine             = "reset_action_keep_line"
+	msgResetActionKickLine             = "reset_action_kick_line"
+	msgResetCreatorGroupsLine          = "reset_creator_groups_line"
+	msgResetCreatorKickTargetsLine     = "reset_creator_kick_targets_line"
+	msgResetCreatorKickFailuresLine    = "reset_creator_kick_failures_line"
+	btnResetKeepMembers                = "btn_reset_keep_members"
+	btnResetKickTrackedMembers         = "btn_reset_kick_tracked_members"
 )
 
 type resetConfirmView struct{ text string }
@@ -43,7 +53,10 @@ func (c *Bot) handleResetAction(ctx context.Context, telegramUserID int64, editM
 	case callbackVerbOpen:
 		return c.renderResetPrompt(ctx, telegramUserID, editMsgID, lang, action.origin)
 	case callbackVerbPick:
-		return c.renderResetConfirm(ctx, telegramUserID, editMsgID, lang, action.origin, action.scope)
+		if action.resetAction != "" {
+			return c.renderResetConfirm(ctx, telegramUserID, editMsgID, lang, action.origin, action.scope, action.resetAction)
+		}
+		return c.renderResetPickedScope(ctx, telegramUserID, editMsgID, lang, action.origin, action.scope)
 	case callbackVerbBack:
 		return c.handleResetBack(ctx, telegramUserID, editMsgID, lang, action.origin)
 	case callbackVerbMenu:
@@ -51,7 +64,7 @@ func (c *Bot) handleResetAction(ctx context.Context, telegramUserID int64, editM
 	case callbackVerbCancel:
 		return c.handleResetCancel(ctx, telegramUserID, editMsgID, lang)
 	case callbackVerbExecute:
-		return c.executeReset(ctx, telegramUserID, editMsgID, lang, action.scope)
+		return c.executeReset(ctx, telegramUserID, editMsgID, lang, action.scope, action.resetAction)
 	case callbackVerbRefresh, callbackVerbRegister, callbackVerbReconnect:
 		c.log().Warn("unsupported reset callback verb", "telegram_user_id", telegramUserID, "verb", action.verb)
 		return ""
@@ -75,12 +88,27 @@ func (c *Bot) renderResetPrompt(ctx context.Context, telegramUserID int64, editM
 	}
 
 	if scopes.HasIdentity {
-		return c.renderResetConfirm(ctx, telegramUserID, editMsgID, lang, origin, resetScopeViewer)
+		return c.renderResetPickedScope(ctx, telegramUserID, editMsgID, lang, origin, resetScopeViewer)
 	}
-	return c.renderResetConfirm(ctx, telegramUserID, editMsgID, lang, origin, resetScopeCreator)
+	return c.renderResetPickedScope(ctx, telegramUserID, editMsgID, lang, origin, resetScopeCreator)
 }
 
-func (c *Bot) renderResetConfirm(ctx context.Context, telegramUserID int64, editMsgID int, lang string, origin resetOrigin, scope resetScope) string {
+func (c *Bot) renderResetPickedScope(ctx context.Context, telegramUserID int64, editMsgID int, lang string, origin resetOrigin, scope resetScope) string {
+	scopes, err := c.reset.LoadScopes(ctx, telegramUserID)
+	if err != nil {
+		view := buildResetErrorView(lang)
+		c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
+		return view.text
+	}
+	if c.scopeNeedsCreatorAction(ctx, telegramUserID, scope, scopes) {
+		view := c.buildResetCreatorActionView(ctx, telegramUserID, lang, scopes, origin, scope)
+		c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
+		return ""
+	}
+	return c.renderResetConfirm(ctx, telegramUserID, editMsgID, lang, origin, scope, core.CreatorResetKeepMembers)
+}
+
+func (c *Bot) renderResetConfirm(ctx context.Context, telegramUserID int64, editMsgID int, lang string, origin resetOrigin, scope resetScope, action core.CreatorResetGroupAction) string {
 	scopes, err := c.reset.LoadScopes(ctx, telegramUserID)
 	if err != nil {
 		view := buildResetErrorView(lang)
@@ -88,13 +116,13 @@ func (c *Bot) renderResetConfirm(ctx context.Context, telegramUserID int64, edit
 		return view.text
 	}
 
-	view := c.buildResetConfirmView(ctx, telegramUserID, lang, scopes, scope)
+	view := c.buildResetConfirmView(ctx, telegramUserID, lang, scopes, scope, action)
 	if view.text == "" {
 		emptyView := buildResetEmptyView(lang)
 		c.reply(ctx, telegramUserID, editMsgID, emptyView.text, &emptyView.opts)
 		return ""
 	}
-	replyView := buildResetConfirmReply(lang, view, origin, scope)
+	replyView := c.buildResetConfirmReply(ctx, telegramUserID, lang, scopes, view, origin, scope, action)
 	c.reply(ctx, telegramUserID, editMsgID, replyView.text, &replyView.opts)
 	return ""
 }
@@ -140,14 +168,14 @@ func (c *Bot) handleResetCancel(ctx context.Context, telegramUserID int64, editM
 	return ""
 }
 
-func (c *Bot) executeReset(ctx context.Context, telegramUserID int64, editMsgID int, lang string, scope resetScope) string {
+func (c *Bot) executeReset(ctx context.Context, telegramUserID int64, editMsgID int, lang string, scope resetScope, action core.CreatorResetGroupAction) string {
 	switch scope {
 	case resetScopeViewer:
 		return c.handleResetViewerCommand(ctx, telegramUserID, editMsgID, lang)
 	case resetScopeCreator:
-		return c.handleResetCreatorCommand(ctx, telegramUserID, editMsgID, lang)
+		return c.handleResetCreatorCommand(ctx, telegramUserID, editMsgID, lang, action)
 	case resetScopeBoth:
-		return c.handleResetBothCommand(ctx, telegramUserID, editMsgID, lang)
+		return c.handleResetBothCommand(ctx, telegramUserID, editMsgID, lang, action)
 	default:
 		c.log().Warn("unsupported reset execute scope", "telegram_user_id", telegramUserID, "scope", scope)
 		return ""
@@ -155,19 +183,19 @@ func (c *Bot) executeReset(ctx context.Context, telegramUserID int64, editMsgID 
 }
 
 func (c *Bot) handleResetViewerCommand(ctx context.Context, telegramUserID int64, editMsgID int, lang string) string {
-	return c.executeResetScope(ctx, telegramUserID, editMsgID, lang, usecase.ResetScopeViewer)
+	return c.executeResetScope(ctx, telegramUserID, editMsgID, lang, usecase.ResetScopeViewer, "")
 }
 
-func (c *Bot) handleResetCreatorCommand(ctx context.Context, telegramUserID int64, editMsgID int, lang string) string {
-	return c.executeResetScope(ctx, telegramUserID, editMsgID, lang, usecase.ResetScopeCreator)
+func (c *Bot) handleResetCreatorCommand(ctx context.Context, telegramUserID int64, editMsgID int, lang string, action core.CreatorResetGroupAction) string {
+	return c.executeResetScope(ctx, telegramUserID, editMsgID, lang, usecase.ResetScopeCreator, action)
 }
 
-func (c *Bot) handleResetBothCommand(ctx context.Context, telegramUserID int64, editMsgID int, lang string) string {
-	return c.executeResetScope(ctx, telegramUserID, editMsgID, lang, usecase.ResetScopeBoth)
+func (c *Bot) handleResetBothCommand(ctx context.Context, telegramUserID int64, editMsgID int, lang string, action core.CreatorResetGroupAction) string {
+	return c.executeResetScope(ctx, telegramUserID, editMsgID, lang, usecase.ResetScopeBoth, action)
 }
 
-func (c *Bot) executeResetScope(ctx context.Context, telegramUserID int64, editMsgID int, lang string, scope usecase.ResetScope) string {
-	res, err := c.reset.Execute(ctx, telegramUserID, scope)
+func (c *Bot) executeResetScope(ctx context.Context, telegramUserID int64, editMsgID int, lang string, scope usecase.ResetScope, action core.CreatorResetGroupAction) string {
+	res, err := c.reset.Execute(ctx, telegramUserID, scope, action)
 	if err != nil {
 		view := buildResetErrorView(lang)
 		c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
@@ -191,7 +219,7 @@ func resetChooseScopeText(lang string, scopes core.ScopeState) string {
 	)
 }
 
-func (c *Bot) buildResetConfirmView(ctx context.Context, telegramUserID int64, lang string, scopes core.ScopeState, scope resetScope) resetConfirmView {
+func (c *Bot) buildResetConfirmView(ctx context.Context, telegramUserID int64, lang string, scopes core.ScopeState, scope resetScope, action core.CreatorResetGroupAction) resetConfirmView {
 	switch scope {
 	case resetScopeViewer:
 		if !scopes.HasIdentity {
@@ -208,7 +236,13 @@ func (c *Bot) buildResetConfirmView(ctx context.Context, telegramUserID int64, l
 		if !scopes.HasCreator {
 			return resetConfirmView{}
 		}
-		return resetConfirmView{text: fmt.Sprintf(i18n.Translate(lang, msgResetConfirmCreatorHTML), html.EscapeString(scopes.Creator.TwitchLogin), 1)}
+		return resetConfirmView{text: fmt.Sprintf(
+			i18n.Translate(lang, msgResetConfirmCreatorHTML),
+			html.EscapeString(scopes.Creator.TwitchLogin),
+			1,
+			c.resetCreatorGroupCount(ctx, telegramUserID),
+			resetActionSummaryText(lang, action),
+		)}
 	case resetScopeBoth:
 		if !scopes.HasIdentity && !scopes.HasCreator {
 			return resetConfirmView{}
@@ -230,6 +264,8 @@ func (c *Bot) buildResetConfirmView(ctx context.Context, telegramUserID int64, l
 				creatorName,
 				creatorCount,
 				c.resetViewerGroupCount(ctx, telegramUserID),
+				c.resetCreatorGroupCount(ctx, telegramUserID),
+				resetActionSummaryText(lang, action),
 			),
 		}
 	default:
@@ -242,6 +278,15 @@ func (c *Bot) resetViewerGroupCount(ctx context.Context, telegramUserID int64) i
 	groupCount, err := c.reset.CountViewerGroups(ctx, telegramUserID)
 	if err != nil {
 		c.log().Warn("count viewer groups failed", "telegram_user_id", telegramUserID, "error", err)
+		return 0
+	}
+	return groupCount
+}
+
+func (c *Bot) resetCreatorGroupCount(ctx context.Context, telegramUserID int64) int {
+	groupCount, err := c.reset.CountCreatorGroups(ctx, telegramUserID)
+	if err != nil {
+		c.log().Warn("count creator groups failed", "telegram_user_id", telegramUserID, "error", err)
 		return 0
 	}
 	return groupCount
@@ -268,11 +313,17 @@ func buildResetPromptView(lang string, scopes core.ScopeState, origin resetOrigi
 	}, true
 }
 
-func buildResetConfirmReply(lang string, view resetConfirmView, origin resetOrigin, scope resetScope) sharedView {
+func (c *Bot) buildResetConfirmReply(ctx context.Context, telegramUserID int64, lang string, scopes core.ScopeState, view resetConfirmView, origin resetOrigin, scope resetScope, action core.CreatorResetGroupAction) sharedView {
+	confirmCallback := resetExecuteCallback(origin, scope)
+	backCallback := resetBackCallback(origin)
+	if c.scopeNeedsCreatorAction(ctx, telegramUserID, scope, scopes) {
+		confirmCallback = resetExecuteWithActionCallback(origin, scope, action)
+		backCallback = resetPickCallback(origin, scope)
+	}
 	return sharedView{
 		text: view.text,
 		opts: client.MessageOptions{
-			Markup: ui.ResetConfirmMarkup(lang, resetExecuteCallback(origin, scope), resetBackCallback(origin)),
+			Markup: ui.ResetConfirmMarkup(lang, confirmCallback, backCallback),
 		},
 	}
 }
@@ -298,6 +349,47 @@ func buildResetExecutionView(lang string, res usecase.ResetResult) sharedView {
 	}
 }
 
+func (c *Bot) scopeNeedsCreatorAction(ctx context.Context, telegramUserID int64, scope resetScope, scopes core.ScopeState) bool {
+	if scope != resetScopeCreator && scope != resetScopeBoth {
+		return false
+	}
+	if !scopes.HasCreator {
+		return false
+	}
+	return c.resetCreatorGroupCount(ctx, telegramUserID) > 0
+}
+
+func (c *Bot) buildResetCreatorActionView(ctx context.Context, telegramUserID int64, lang string, scopes core.ScopeState, origin resetOrigin, scope resetScope) sharedView {
+	groupCount := c.resetCreatorGroupCount(ctx, telegramUserID)
+	textKey := msgResetChooseCreatorActionCreator
+	args := []any{
+		html.EscapeString(scopes.Creator.TwitchLogin),
+		groupCount,
+	}
+	if scope == resetScopeBoth {
+		textKey = msgResetChooseCreatorActionBoth
+		viewerName := "-"
+		if scopes.HasIdentity {
+			viewerName = html.EscapeString(scopes.Identity.TwitchLogin)
+		}
+		args = []any{
+			viewerName,
+			html.EscapeString(scopes.Creator.TwitchLogin),
+			groupCount,
+		}
+	}
+	return sharedView{
+		text: fmt.Sprintf(i18n.Translate(lang, textKey), args...),
+		opts: client.MessageOptions{
+			Markup: tu.InlineKeyboard(
+				tu.InlineKeyboardRow(ui.CallbackButton(i18n.Translate(lang, btnResetKeepMembers), resetActionPickCallback(origin, scope, core.CreatorResetKeepMembers))),
+				tu.InlineKeyboardRow(ui.IconCallbackButton(i18n.Translate(lang, btnResetKickTrackedMembers), resetActionPickCallback(origin, scope, core.CreatorResetKickTrackedMembers), "5258318620722733379").WithStyle("danger")),
+				tu.InlineKeyboardRow(ui.BackButton(i18n.Translate(lang, btnBack), resetBackCallback(origin))),
+			),
+		},
+	}
+}
+
 func resetPromptBackCallback(origin resetOrigin) string {
 	switch origin {
 	case resetOriginViewer, resetOriginCreator:
@@ -313,7 +405,13 @@ func renderResetExecutionResult(lang string, res usecase.ResetResult) string {
 	case usecase.ResetScopeViewer:
 		return fmt.Sprintf(i18n.Translate(lang, msgResetDoneViewerHTML), html.EscapeString(res.ViewerLogin), res.GroupCount)
 	case usecase.ResetScopeCreator:
-		return fmt.Sprintf(i18n.Translate(lang, msgResetDoneCreatorHTML), html.EscapeString(strings.Join(res.DeletedNames, ", ")), res.DeletedCount)
+		return fmt.Sprintf(
+			i18n.Translate(lang, msgResetDoneCreatorHTML),
+			html.EscapeString(strings.Join(res.DeletedNames, ", ")),
+			res.DeletedCount,
+			res.CreatorCleanup.ManagedGroupCount,
+			renderResetCreatorCleanupResult(lang, res.CreatorCleanup),
+		)
 	case usecase.ResetScopeBoth:
 		viewerName := "-"
 		if res.ViewerLogin != "" {
@@ -325,8 +423,32 @@ func renderResetExecutionResult(lang string, res usecase.ResetResult) string {
 			res.GroupCount,
 			html.EscapeString(strings.Join(res.DeletedNames, ", ")),
 			res.DeletedCount,
+			res.CreatorCleanup.ManagedGroupCount,
+			renderResetCreatorCleanupResult(lang, res.CreatorCleanup),
 		)
 	default:
 		return i18n.Translate(lang, msgErrReset)
 	}
+}
+
+func resetActionSummaryText(lang string, action core.CreatorResetGroupAction) string {
+	if action == core.CreatorResetKickTrackedMembers {
+		return i18n.Translate(lang, msgResetActionKickLine)
+	}
+	return i18n.Translate(lang, msgResetActionKeepLine)
+}
+
+func renderResetCreatorCleanupResult(lang string, cleanup core.CreatorGroupCleanupSummary) string {
+	lines := []string{
+		fmt.Sprintf(i18n.Translate(lang, msgResetCreatorGroupsLine), cleanup.ManagedGroupCount),
+	}
+	if cleanup.Action == core.CreatorResetKickTrackedMembers {
+		lines = append(lines, fmt.Sprintf(i18n.Translate(lang, msgResetCreatorKickTargetsLine), cleanup.TargetedMembershipCount))
+		if cleanup.KickFailureCount > 0 {
+			lines = append(lines, fmt.Sprintf(i18n.Translate(lang, msgResetCreatorKickFailuresLine), cleanup.KickFailureCount))
+		}
+	} else {
+		lines = append(lines, i18n.Translate(lang, msgResetActionKeepLine))
+	}
+	return strings.Join(lines, "\n")
 }

@@ -574,6 +574,19 @@ func (s *routeTestStore) ListManagedGroupsByCreator(_ context.Context, creatorID
 	return groups, nil
 }
 
+func (s *routeTestStore) ListTrackedGroupMemberIDs(_ context.Context, chatID int64) ([]int64, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.trackedMembersByGroup == nil || s.trackedMembersByGroup[chatID] == nil {
+		return nil, nil
+	}
+	out := make([]int64, 0, len(s.trackedMembersByGroup[chatID]))
+	for telegramUserID := range s.trackedMembersByGroup[chatID] {
+		out = append(out, telegramUserID)
+	}
+	return out, nil
+}
+
 func (s *routeTestStore) CreatorBlockedUserCount(_ context.Context, creatorID string) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -743,6 +756,9 @@ func (routeTestStoreStub) ListManagedGroupsByCreator(context.Context, string) ([
 	return nil, nil
 }
 func (routeTestStoreStub) ListTrackedGroupIDsForUser(context.Context, int64) ([]int64, error) {
+	return nil, nil
+}
+func (routeTestStoreStub) ListTrackedGroupMemberIDs(context.Context, int64) ([]int64, error) {
 	return nil, nil
 }
 func (routeTestStoreStub) UpsertManagedGroup(context.Context, core.ManagedGroup) error { return nil }

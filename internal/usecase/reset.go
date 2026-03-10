@@ -28,9 +28,10 @@ var errUnsupportedResetScope = errors.New("unsupported reset scope")
 type resetService interface {
 	LoadScopes(ctx context.Context, telegramUserID int64) (core.ScopeState, error)
 	CountViewerGroups(ctx context.Context, telegramUserID int64) (int, error)
+	CountCreatorGroups(ctx context.Context, telegramUserID int64) (int, error)
 	ExecuteViewerReset(ctx context.Context, telegramUserID int64) (core.ViewerResetResult, error)
-	ExecuteCreatorReset(ctx context.Context, telegramUserID int64) (core.CreatorResetResult, error)
-	ExecuteBothReset(ctx context.Context, telegramUserID int64) (core.BothResetResult, error)
+	ExecuteCreatorReset(ctx context.Context, telegramUserID int64, action core.CreatorResetGroupAction) (core.CreatorResetResult, error)
+	ExecuteBothReset(ctx context.Context, telegramUserID int64, action core.CreatorResetGroupAction) (core.BothResetResult, error)
 }
 
 // ResetResult is a transport-friendly summary of a reset execution.
@@ -42,6 +43,7 @@ type ResetResult struct {
 	GroupResolution core.GroupResolutionStats
 	DeletedCount    int
 	DeletedNames    []string
+	CreatorCleanup  core.CreatorGroupCleanupSummary
 }
 
 // ResetUseCase coordinates reset execution and observability.
@@ -73,15 +75,24 @@ func (u *ResetUseCase) CountViewerGroups(ctx context.Context, telegramUserID int
 	return count, nil
 }
 
+// CountCreatorGroups returns the managed-group count for creator-owned groups.
+func (u *ResetUseCase) CountCreatorGroups(ctx context.Context, telegramUserID int64) (int, error) {
+	count, err := u.svc.CountCreatorGroups(ctx, telegramUserID)
+	if err != nil {
+		return 0, fmt.Errorf("count creator groups: %w", err)
+	}
+	return count, nil
+}
+
 // Execute runs the requested reset scope and records reset metrics.
-func (u *ResetUseCase) Execute(ctx context.Context, telegramUserID int64, scope ResetScope) (ResetResult, error) {
+func (u *ResetUseCase) Execute(ctx context.Context, telegramUserID int64, scope ResetScope, action core.CreatorResetGroupAction) (ResetResult, error) {
 	switch scope {
 	case ResetScopeViewer:
 		return u.executeViewer(ctx, telegramUserID)
 	case ResetScopeCreator:
-		return u.executeCreator(ctx, telegramUserID)
+		return u.executeCreator(ctx, telegramUserID, action)
 	case ResetScopeBoth:
-		return u.executeBoth(ctx, telegramUserID)
+		return u.executeBoth(ctx, telegramUserID, action)
 	default:
 		return ResetResult{}, fmt.Errorf("%w: %s", errUnsupportedResetScope, scope)
 	}
@@ -107,8 +118,8 @@ func (u *ResetUseCase) executeViewer(ctx context.Context, telegramUserID int64) 
 	}, nil
 }
 
-func (u *ResetUseCase) executeCreator(ctx context.Context, telegramUserID int64) (ResetResult, error) {
-	res, err := u.svc.ExecuteCreatorReset(ctx, telegramUserID)
+func (u *ResetUseCase) executeCreator(ctx context.Context, telegramUserID int64, action core.CreatorResetGroupAction) (ResetResult, error) {
+	res, err := u.svc.ExecuteCreatorReset(ctx, telegramUserID, action)
 	if err != nil {
 		u.recordExecution(ctx, ResetScopeCreator, "failed")
 		return ResetResult{}, fmt.Errorf("execute creator reset: %w", err)
@@ -117,16 +128,18 @@ func (u *ResetUseCase) executeCreator(ctx context.Context, telegramUserID int64)
 		u.recordExecution(ctx, ResetScopeCreator, "empty")
 		return ResetResult{Scope: ResetScopeCreator, Empty: true}, nil
 	}
+	u.recordCreatorCleanup(ctx, res.CreatorCleanup)
 	u.recordExecution(ctx, ResetScopeCreator, "ok")
 	return ResetResult{
-		Scope:        ResetScopeCreator,
-		DeletedCount: res.DeletedCount,
-		DeletedNames: append([]string(nil), res.DeletedNames...),
+		Scope:          ResetScopeCreator,
+		DeletedCount:   res.DeletedCount,
+		DeletedNames:   append([]string(nil), res.DeletedNames...),
+		CreatorCleanup: res.CreatorCleanup,
 	}, nil
 }
 
-func (u *ResetUseCase) executeBoth(ctx context.Context, telegramUserID int64) (ResetResult, error) {
-	res, err := u.svc.ExecuteBothReset(ctx, telegramUserID)
+func (u *ResetUseCase) executeBoth(ctx context.Context, telegramUserID int64, action core.CreatorResetGroupAction) (ResetResult, error) {
+	res, err := u.svc.ExecuteBothReset(ctx, telegramUserID, action)
 	if err != nil {
 		u.recordExecution(ctx, ResetScopeBoth, "failed")
 		return ResetResult{}, fmt.Errorf("execute both reset: %w", err)
@@ -136,6 +149,7 @@ func (u *ResetUseCase) executeBoth(ctx context.Context, telegramUserID int64) (R
 		return ResetResult{Scope: ResetScopeBoth, Empty: true}, nil
 	}
 	u.recordResolution(ctx, res.GroupResolution)
+	u.recordCreatorCleanup(ctx, res.CreatorCleanup)
 	u.recordExecution(ctx, ResetScopeBoth, "ok")
 	out := ResetResult{
 		Scope:           ResetScopeBoth,
@@ -143,6 +157,7 @@ func (u *ResetUseCase) executeBoth(ctx context.Context, telegramUserID int64) (R
 		GroupResolution: res.GroupResolution,
 		DeletedCount:    res.DeletedCount,
 		DeletedNames:    append([]string(nil), res.DeletedNames...),
+		CreatorCleanup:  res.CreatorCleanup,
 	}
 	if res.HasIdentity {
 		out.ViewerLogin = res.Identity.TwitchLogin
@@ -178,4 +193,10 @@ func (u *ResetUseCase) emitTargetCount(ctx context.Context, source string, count
 		},
 		Count: count,
 	})
+}
+
+func (u *ResetUseCase) recordCreatorCleanup(ctx context.Context, cleanup core.CreatorGroupCleanupSummary) {
+	u.emitTargetCount(ctx, "creator_groups", cleanup.ManagedGroupCount)
+	u.emitTargetCount(ctx, "creator_tracked_memberships", cleanup.TargetedMembershipCount)
+	u.emitTargetCount(ctx, "creator_kick_failures", cleanup.KickFailureCount)
 }

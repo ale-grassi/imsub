@@ -9,6 +9,19 @@ import (
 
 type kickFunc func(ctx context.Context, groupChatID int64, telegramUserID int64) error
 
+// CreatorResetGroupAction describes what a creator reset should do with tracked
+// members of the creator's managed groups.
+type CreatorResetGroupAction string
+
+const (
+	// CreatorResetKeepMembers deletes creator data without kicking tracked
+	// members from the creator's managed groups.
+	CreatorResetKeepMembers CreatorResetGroupAction = "keep_members"
+	// CreatorResetKickTrackedMembers kicks tracked members from the creator's
+	// managed groups before deleting creator data.
+	CreatorResetKickTrackedMembers CreatorResetGroupAction = "kick_tracked_members"
+)
+
 type eventSubCleaner interface {
 	DeleteEventSubsForCreator(ctx context.Context, creatorID string) error
 }
@@ -17,6 +30,7 @@ type resetStore interface {
 	UserIdentity(ctx context.Context, telegramUserID int64) (UserIdentity, bool, error)
 	OwnedCreatorForUser(ctx context.Context, ownerTelegramID int64) (Creator, bool, error)
 	ListTrackedGroupIDsForUser(ctx context.Context, telegramUserID int64) ([]int64, error)
+	ListTrackedGroupMemberIDs(ctx context.Context, chatID int64) ([]int64, error)
 	ListActiveCreators(ctx context.Context) ([]Creator, error)
 	ListManagedGroupsByCreator(ctx context.Context, creatorID string) ([]ManagedGroup, error)
 	IsCreatorSubscriber(ctx context.Context, creatorID, twitchUserID string) (bool, error)
@@ -48,6 +62,15 @@ type ScopeState struct {
 	HasCreator  bool
 }
 
+// CreatorGroupCleanupSummary describes creator-group cleanup performed during
+// creator-involving reset scopes.
+type CreatorGroupCleanupSummary struct {
+	Action                  CreatorResetGroupAction
+	ManagedGroupCount       int
+	TargetedMembershipCount int
+	KickFailureCount        int
+}
+
 // ViewerResetResult contains the outcome of a viewer reset.
 type ViewerResetResult struct {
 	HasIdentity     bool
@@ -58,8 +81,9 @@ type ViewerResetResult struct {
 
 // CreatorResetResult contains the outcome of a creator reset.
 type CreatorResetResult struct {
-	DeletedCount int
-	DeletedNames []string
+	DeletedCount   int
+	DeletedNames   []string
+	CreatorCleanup CreatorGroupCleanupSummary
 }
 
 // BothResetResult contains the outcome of running both reset scopes.
@@ -70,6 +94,7 @@ type BothResetResult struct {
 	GroupResolution GroupResolutionStats
 	DeletedCount    int
 	DeletedNames    []string
+	CreatorCleanup  CreatorGroupCleanupSummary
 }
 
 // NewResetService creates a reset service with optional logger fallback.
@@ -112,6 +137,22 @@ func (r *ResetService) CountViewerGroups(ctx context.Context, telegramUserID int
 	return r.CountSubLinkedGroupsForUser(ctx, telegramUserID)
 }
 
+// CountCreatorGroups returns how many managed groups are owned by the creator.
+func (r *ResetService) CountCreatorGroups(ctx context.Context, telegramUserID int64) (int, error) {
+	creator, hasCreator, err := r.store.OwnedCreatorForUser(ctx, telegramUserID)
+	if err != nil {
+		return 0, fmt.Errorf("load owned creator: %w", err)
+	}
+	if !hasCreator {
+		return 0, nil
+	}
+	groups, err := r.store.ListManagedGroupsByCreator(ctx, creator.ID)
+	if err != nil {
+		return 0, fmt.Errorf("list managed groups by creator %s: %w", creator.ID, err)
+	}
+	return len(groups), nil
+}
+
 // ExecuteViewerReset removes viewer-linked data and group access.
 func (r *ResetService) ExecuteViewerReset(ctx context.Context, telegramUserID int64) (ViewerResetResult, error) {
 	identity, hasIdentity, err := r.store.UserIdentity(ctx, telegramUserID)
@@ -134,19 +175,24 @@ func (r *ResetService) ExecuteViewerReset(ctx context.Context, telegramUserID in
 }
 
 // ExecuteCreatorReset removes creator-owned data.
-func (r *ResetService) ExecuteCreatorReset(ctx context.Context, telegramUserID int64) (CreatorResetResult, error) {
+func (r *ResetService) ExecuteCreatorReset(ctx context.Context, telegramUserID int64, action CreatorResetGroupAction) (CreatorResetResult, error) {
+	cleanup, err := r.cleanupCreatorGroupsForReset(ctx, telegramUserID, action)
+	if err != nil {
+		return CreatorResetResult{}, fmt.Errorf("cleanup creator groups for reset: %w", err)
+	}
 	deletedCount, deletedNames, err := r.DeleteCreatorData(ctx, telegramUserID)
 	if err != nil {
 		return CreatorResetResult{}, fmt.Errorf("delete creator data: %w", err)
 	}
 	return CreatorResetResult{
-		DeletedCount: deletedCount,
-		DeletedNames: deletedNames,
+		DeletedCount:   deletedCount,
+		DeletedNames:   deletedNames,
+		CreatorCleanup: cleanup,
 	}, nil
 }
 
 // ExecuteBothReset performs viewer and creator reset scopes together.
-func (r *ResetService) ExecuteBothReset(ctx context.Context, telegramUserID int64) (BothResetResult, error) {
+func (r *ResetService) ExecuteBothReset(ctx context.Context, telegramUserID int64, action CreatorResetGroupAction) (BothResetResult, error) {
 	identity, hasIdentity, err := r.store.UserIdentity(ctx, telegramUserID)
 	if err != nil {
 		return BothResetResult{}, fmt.Errorf("load user identity: %w", err)
@@ -161,6 +207,11 @@ func (r *ResetService) ExecuteBothReset(ctx context.Context, telegramUserID int6
 		}
 	}
 
+	cleanup, err := r.cleanupCreatorGroupsForReset(ctx, telegramUserID, action)
+	if err != nil {
+		return BothResetResult{}, fmt.Errorf("cleanup creator groups for reset: %w", err)
+	}
+
 	deletedCount, deletedNames, err := r.DeleteCreatorData(ctx, telegramUserID)
 	if err != nil {
 		return BothResetResult{}, fmt.Errorf("delete creator data: %w", err)
@@ -173,6 +224,7 @@ func (r *ResetService) ExecuteBothReset(ctx context.Context, telegramUserID int6
 		GroupResolution: resolution,
 		DeletedCount:    deletedCount,
 		DeletedNames:    deletedNames,
+		CreatorCleanup:  cleanup,
 	}, nil
 }
 
@@ -294,4 +346,46 @@ func (r *ResetService) DeleteCreatorData(ctx context.Context, ownerTelegramID in
 		return 0, nil, fmt.Errorf("delete creator data: %w", err)
 	}
 	return deletedCount, deletedNames, nil
+}
+
+func (r *ResetService) cleanupCreatorGroupsForReset(ctx context.Context, ownerTelegramID int64, action CreatorResetGroupAction) (CreatorGroupCleanupSummary, error) {
+	if action == "" {
+		action = CreatorResetKeepMembers
+	}
+
+	creator, hasCreator, err := r.store.OwnedCreatorForUser(ctx, ownerTelegramID)
+	if err != nil {
+		return CreatorGroupCleanupSummary{}, fmt.Errorf("load owned creator: %w", err)
+	}
+	if !hasCreator {
+		return CreatorGroupCleanupSummary{Action: action}, nil
+	}
+
+	groups, err := r.store.ListManagedGroupsByCreator(ctx, creator.ID)
+	if err != nil {
+		return CreatorGroupCleanupSummary{}, fmt.Errorf("list managed groups by creator %s: %w", creator.ID, err)
+	}
+	summary := CreatorGroupCleanupSummary{
+		Action:            action,
+		ManagedGroupCount: len(groups),
+	}
+	if action != CreatorResetKickTrackedMembers {
+		return summary, nil
+	}
+
+	for _, group := range groups {
+		memberIDs, err := r.store.ListTrackedGroupMemberIDs(ctx, group.ChatID)
+		if err != nil {
+			return CreatorGroupCleanupSummary{}, fmt.Errorf("list tracked group member ids for %d: %w", group.ChatID, err)
+		}
+		summary.TargetedMembershipCount += len(memberIDs)
+		for _, telegramUserID := range memberIDs {
+			if err := r.kick(ctx, group.ChatID, telegramUserID); err != nil {
+				summary.KickFailureCount++
+				r.log.Warn("kickFromGroup during creator reset failed", "group_id", group.ChatID, "telegram_user_id", telegramUserID, "error", err)
+			}
+		}
+	}
+
+	return summary, nil
 }

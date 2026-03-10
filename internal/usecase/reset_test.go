@@ -11,11 +11,12 @@ import (
 )
 
 type resetServiceStub struct {
-	loadScopesFn  func(context.Context, int64) (core.ScopeState, error)
-	countViewerFn func(context.Context, int64) (int, error)
-	viewerFn      func(context.Context, int64) (core.ViewerResetResult, error)
-	creatorFn     func(context.Context, int64) (core.CreatorResetResult, error)
-	bothFn        func(context.Context, int64) (core.BothResetResult, error)
+	loadScopesFn   func(context.Context, int64) (core.ScopeState, error)
+	countViewerFn  func(context.Context, int64) (int, error)
+	countCreatorFn func(context.Context, int64) (int, error)
+	viewerFn       func(context.Context, int64) (core.ViewerResetResult, error)
+	creatorFn      func(context.Context, int64, core.CreatorResetGroupAction) (core.CreatorResetResult, error)
+	bothFn         func(context.Context, int64, core.CreatorResetGroupAction) (core.BothResetResult, error)
 }
 
 func (s resetServiceStub) LoadScopes(ctx context.Context, telegramUserID int64) (core.ScopeState, error) {
@@ -24,14 +25,17 @@ func (s resetServiceStub) LoadScopes(ctx context.Context, telegramUserID int64) 
 func (s resetServiceStub) CountViewerGroups(ctx context.Context, telegramUserID int64) (int, error) {
 	return s.countViewerFn(ctx, telegramUserID)
 }
+func (s resetServiceStub) CountCreatorGroups(ctx context.Context, telegramUserID int64) (int, error) {
+	return s.countCreatorFn(ctx, telegramUserID)
+}
 func (s resetServiceStub) ExecuteViewerReset(ctx context.Context, telegramUserID int64) (core.ViewerResetResult, error) {
 	return s.viewerFn(ctx, telegramUserID)
 }
-func (s resetServiceStub) ExecuteCreatorReset(ctx context.Context, telegramUserID int64) (core.CreatorResetResult, error) {
-	return s.creatorFn(ctx, telegramUserID)
+func (s resetServiceStub) ExecuteCreatorReset(ctx context.Context, telegramUserID int64, action core.CreatorResetGroupAction) (core.CreatorResetResult, error) {
+	return s.creatorFn(ctx, telegramUserID, action)
 }
-func (s resetServiceStub) ExecuteBothReset(ctx context.Context, telegramUserID int64) (core.BothResetResult, error) {
-	return s.bothFn(ctx, telegramUserID)
+func (s resetServiceStub) ExecuteBothReset(ctx context.Context, telegramUserID int64, action core.CreatorResetGroupAction) (core.BothResetResult, error) {
+	return s.bothFn(ctx, telegramUserID, action)
 }
 
 type resetObserverStub struct {
@@ -62,7 +66,7 @@ func TestExecuteViewerRecordsMetrics(t *testing.T) {
 		},
 	}, obs)
 
-	got, err := uc.Execute(t.Context(), 7, ResetScopeViewer)
+	got, err := uc.Execute(t.Context(), 7, ResetScopeViewer, "")
 	if err != nil {
 		t.Fatalf("Execute(viewer) error = %v", err)
 	}
@@ -88,12 +92,12 @@ func TestExecuteCreatorEmpty(t *testing.T) {
 
 	obs := &resetObserverStub{}
 	uc := NewResetUseCase(resetServiceStub{
-		creatorFn: func(context.Context, int64) (core.CreatorResetResult, error) {
+		creatorFn: func(context.Context, int64, core.CreatorResetGroupAction) (core.CreatorResetResult, error) {
 			return core.CreatorResetResult{}, nil
 		},
 	}, obs)
 
-	got, err := uc.Execute(t.Context(), 7, ResetScopeCreator)
+	got, err := uc.Execute(t.Context(), 7, ResetScopeCreator, core.CreatorResetKeepMembers)
 	if err != nil {
 		t.Fatalf("Execute(creator) error = %v", err)
 	}
@@ -108,17 +112,54 @@ func TestExecuteCreatorEmpty(t *testing.T) {
 	}
 }
 
+func TestExecuteCreatorRecordsCleanupMetrics(t *testing.T) {
+	t.Parallel()
+
+	obs := &resetObserverStub{}
+	uc := NewResetUseCase(resetServiceStub{
+		creatorFn: func(context.Context, int64, core.CreatorResetGroupAction) (core.CreatorResetResult, error) {
+			return core.CreatorResetResult{
+				DeletedCount: 1,
+				DeletedNames: []string{"creator1"},
+				CreatorCleanup: core.CreatorGroupCleanupSummary{
+					Action:                  core.CreatorResetKickTrackedMembers,
+					ManagedGroupCount:       2,
+					TargetedMembershipCount: 5,
+					KickFailureCount:        1,
+				},
+			}, nil
+		},
+	}, obs)
+
+	got, err := uc.Execute(t.Context(), 7, ResetScopeCreator, core.CreatorResetKickTrackedMembers)
+	if err != nil {
+		t.Fatalf("Execute(creator) error = %v", err)
+	}
+	if got.DeletedCount != 1 || got.CreatorCleanup.ManagedGroupCount != 2 {
+		t.Fatalf("Execute(creator) = %+v, want deleted_count=1 groups=2", got)
+	}
+	want := []events.Event{
+		{Name: events.NameResetGroupTarget, Fields: map[string]string{"source": "creator_groups"}, Count: 2},
+		{Name: events.NameResetGroupTarget, Fields: map[string]string{"source": "creator_tracked_memberships"}, Count: 5},
+		{Name: events.NameResetGroupTarget, Fields: map[string]string{"source": "creator_kick_failures"}, Count: 1},
+		{Name: events.NameResetExecuted, Outcome: "ok", Fields: map[string]string{"scope": "creator"}},
+	}
+	if !slices.EqualFunc(obs.events, want, equalEvents) {
+		t.Fatalf("events = %+v, want %+v", obs.events, want)
+	}
+}
+
 func TestExecuteBothFailure(t *testing.T) {
 	t.Parallel()
 
 	obs := &resetObserverStub{}
 	uc := NewResetUseCase(resetServiceStub{
-		bothFn: func(context.Context, int64) (core.BothResetResult, error) {
+		bothFn: func(context.Context, int64, core.CreatorResetGroupAction) (core.BothResetResult, error) {
 			return core.BothResetResult{}, errors.New("boom")
 		},
 	}, obs)
 
-	_, err := uc.Execute(t.Context(), 7, ResetScopeBoth)
+	_, err := uc.Execute(t.Context(), 7, ResetScopeBoth, core.CreatorResetKeepMembers)
 	if err == nil {
 		t.Fatal("Execute(both) error = nil, want non-nil")
 	}

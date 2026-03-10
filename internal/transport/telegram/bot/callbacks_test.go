@@ -25,10 +25,13 @@ func TestParseCallbackAction(t *testing.T) {
 		{name: "creator execute group policy", in: "creator:exec:policy:grace_7d:123", want: callbackAction{domain: callbackDomainCreator, verb: callbackVerbExecute, target: creatorCallbackTargetPolicy, policy: core.GroupPolicyGraceWeek, chatID: 123}, ok: true},
 		{name: "group pick policy", in: "group:pick:observe_warn:-100:321", want: callbackAction{domain: callbackDomainGroup, verb: callbackVerbPick, policy: core.GroupPolicyObserveWarn, chatID: -100, threadID: 321}, ok: true},
 		{name: "reset pick both", in: "reset:pick:viewer:both", want: callbackAction{domain: callbackDomainReset, verb: callbackVerbPick, origin: resetOriginViewer, scope: resetScopeBoth}, ok: true},
+		{name: "reset pick creator action", in: "reset:pick:creator:creator:kick_tracked_members", want: callbackAction{domain: callbackDomainReset, verb: callbackVerbPick, origin: resetOriginCreator, scope: resetScopeCreator, resetAction: core.CreatorResetKickTrackedMembers}, ok: true},
+		{name: "reset execute creator action", in: "reset:exec:creator:both:keep_members", want: callbackAction{domain: callbackDomainReset, verb: callbackVerbExecute, origin: resetOriginCreator, scope: resetScopeBoth, resetAction: core.CreatorResetKeepMembers}, ok: true},
 		{name: "invalid domain", in: "other:refresh", ok: false},
 		{name: "invalid creator target", in: "creator:open:other", ok: false},
 		{name: "invalid creator policy", in: "creator:pick:policy:nope:123", ok: false},
 		{name: "invalid reset scope", in: "reset:pick:viewer:nope", ok: false},
+		{name: "invalid reset action", in: "reset:pick:viewer:creator:nope", ok: false},
 	}
 
 	for _, tt := range tests {

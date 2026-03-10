@@ -308,19 +308,19 @@ other = "⚠️ <b>Impossibile leggere i dati dell'account Twitch</b>\nTorna su 
 other = "🗑️ <b>Scegli cosa eliminare</b>\n\nAl momento hai sia dati viewer sia dati creator collegati a questo account Telegram.\n\n🔗 <b>Account viewer:</b> %s\n🎙️ <b>Account creator:</b> %s\n\nSeleziona qui sotto i dati che vuoi rimuovere."
 
 [reset_confirm_both_html]
-other = "🗑️ <b>Elimina tutti i dati collegati</b>\n\n🔗 <b>Account viewer:</b> %s\n🎙️ <b>Account creator:</b> %s\n🗑️ <b>Record creator da eliminare:</b> %d\n🚫 <b>Gruppi che potrebbero revocare l'accesso:</b> %d\n\nSe continui:\n• verranno eliminati sia i dati viewer sia quelli creator\n• potresti perdere l'accesso ai gruppi Telegram collegati\n\n➡️ Per collegarti di nuovo in seguito, usa /start o /creator."
+other = "🗑️ <b>Elimina tutti i dati collegati</b>\n\n🔗 <b>Account viewer:</b> %s\n🎙️ <b>Account creator:</b> %s\n🗑️ <b>Record creator da eliminare:</b> %d\n🚫 <b>Gruppi che potrebbero revocare l'accesso:</b> %d\n👥 <b>Gruppi gestiti:</b> %d\n%s\n\nSe continui:\n• verranno eliminati sia i dati viewer sia quelli creator\n• le registrazioni creator dei gruppi verranno rimosse\n• i membri tracciati verranno gestiti secondo l'opzione selezionata qui sopra\n\n➡️ Per collegarti di nuovo in seguito, usa /start o /creator."
 
 [reset_confirm_creator_html]
-other = "❗️ <b>Elimina dati creator</b>\n\n🎙️ <b>Account creator:</b> %s\n🗑️ <b>Record creator da eliminare:</b> %d\n\nSe continui:\n• il setup creator verra' eliminato\n• le registrazioni creator collegate verranno rimosse\n\n➡️ Per configurarlo di nuovo, usa /creator."
+other = "❗️ <b>Elimina dati creator</b>\n\n🎙️ <b>Account creator:</b> %s\n🗑️ <b>Record creator da eliminare:</b> %d\n👥 <b>Gruppi gestiti:</b> %d\n%s\n\nSe continui:\n• il setup creator verra' eliminato\n• le registrazioni creator collegate verranno rimosse\n• i membri tracciati verranno gestiti secondo l'opzione selezionata qui sopra\n\n➡️ Per configurarlo di nuovo, usa /creator."
 
 [reset_confirm_viewer_html]
 other = "🗑️ <b>Elimina dati viewer</b>\n\n🔗 <b>Account Twitch:</b> %s\n🚫 <b>Gruppi che potrebbero revocare l'accesso:</b> %d\n\nSe continui:\n• i dati del tuo account viewer collegato verranno eliminati\n• potresti perdere l'accesso a quei gruppi Telegram\n\n➡️ Per collegarti di nuovo, usa /start."
 
 [reset_done_both_html]
-other = "✅ <b>Dati collegati eliminati</b>\n\n🔗 <b>Account viewer rimosso:</b> %s\n🚫 <b>Gruppi processati:</b> %d\n🎙️ <b>Account creator rimosso:</b> %s\n🗑️ <b>Record creator eliminati:</b> %d\n\nSe vuoi configurare tutto di nuovo:\n• usa /start per l'accesso viewer\n• usa /creator per il setup creator"
+other = "✅ <b>Dati collegati eliminati</b>\n\n🔗 <b>Account viewer rimosso:</b> %s\n🚫 <b>Gruppi processati:</b> %d\n🎙️ <b>Account creator rimosso:</b> %s\n🗑️ <b>Record creator eliminati:</b> %d\n👥 <b>Gruppi gestiti ripuliti:</b> %d\n%s\n\nSe vuoi configurare tutto di nuovo:\n• usa /start per l'accesso viewer\n• usa /creator per il setup creator"
 
 [reset_done_creator_html]
-other = "✅ <b>Dati creator eliminati</b>\n\n🎙️ <b>Account creator rimosso:</b> %s\n🗑️ <b>Record creator eliminati:</b> %d\n\n➡️ Per configurarlo di nuovo, usa /creator."
+other = "✅ <b>Dati creator eliminati</b>\n\n🎙️ <b>Account creator rimosso:</b> %s\n🗑️ <b>Record creator eliminati:</b> %d\n👥 <b>Gruppi gestiti ripuliti:</b> %d\n%s\n\n➡️ Per configurarlo di nuovo, usa /creator."
 
 [reset_done_viewer_html]
 other = "✅ <b>Dati viewer eliminati</b>\n\n🔗 <b>Account Twitch rimosso:</b> %s\n🚫 <b>Gruppi processati:</b> %d\n\n➡️ Per collegarti di nuovo, usa /start."
@@ -330,6 +330,33 @@ other = "❗️ <b>Nessuna modifica effettuata</b>\n\nI tuoi dati collegati sono
 
 [reset_nothing_html]
 other = "✅ <b>Niente da reimpostare al momento.</b>\n\nNon ho trovato dati viewer o creator collegati al tuo account."
+
+[reset_choose_creator_action_creator_html]
+other = "🗑️ <b>Scegli cosa fare con i membri dei gruppi</b>\n\n🎙️ <b>Account creator:</b> %s\n👥 <b>Gruppi gestiti:</b> %d\n\nScegli come ImSub deve gestire i membri tracciati in quei gruppi quando i dati creator vengono eliminati."
+
+[reset_choose_creator_action_both_html]
+other = "🗑️ <b>Scegli cosa fare con i membri dei gruppi</b>\n\n🔗 <b>Account viewer:</b> %s\n🎙️ <b>Account creator:</b> %s\n👥 <b>Gruppi gestiti:</b> %d\n\nScegli come ImSub deve gestire i membri tracciati in quei gruppi quando i dati creator vengono eliminati."
+
+[reset_action_keep_line]
+other = "• i membri tracciati resteranno nei loro gruppi"
+
+[reset_action_kick_line]
+other = "• i membri tracciati verranno espulsi dai gruppi gestiti prima che i dati creator vengano eliminati"
+
+[reset_creator_groups_line]
+other = "• Gruppi gestiti ripuliti: %d"
+
+[reset_creator_kick_targets_line]
+other = "• Membri tracciati presi di mira per l'espulsione: %d"
+
+[reset_creator_kick_failures_line]
+other = "• Tentativi di espulsione falliti: %d"
+
+[btn_reset_keep_members]
+other = "Mantieni membri"
+
+[btn_reset_kick_tracked_members]
+other = "Espelli membri tracciati"
 
 [sub_end_partial]
 other = "⚠️ <b>Abbonamento terminato</b>\n\nIl tuo abbonamento a <b>%s</b> non e' piu' attivo, quindi l'accesso al gruppo Telegram e' stato rimosso.\n\n➡️ Dopo esserti riabbonato su Twitch, torna qui e usa /start per ottenere un nuovo link."

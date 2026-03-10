@@ -5,11 +5,13 @@ import (
 	"errors"
 	"log/slog"
 	"slices"
+	"sort"
 	"testing"
 )
 
 type resetFakeStore struct {
 	trackedGroupIDs      map[int64][]int64
+	trackedMemberIDs     map[int64][]int64
 	activeCreators       []Creator
 	creatorGroups        map[string][]ManagedGroup
 	subscriberByCreator  map[string]map[string]bool
@@ -24,8 +26,27 @@ type resetFakeStore struct {
 	deleteAllCalledWith int64
 }
 
+type resetKickRecorder struct {
+	calls    [][2]int64
+	failChat map[int64]error
+}
+
+func (r *resetKickRecorder) kick(_ context.Context, groupChatID int64, telegramUserID int64) error {
+	r.calls = append(r.calls, [2]int64{groupChatID, telegramUserID})
+	if r.failChat != nil {
+		if err, ok := r.failChat[groupChatID]; ok {
+			return err
+		}
+	}
+	return nil
+}
+
 func (f *resetFakeStore) ListTrackedGroupIDsForUser(_ context.Context, telegramUserID int64) ([]int64, error) {
 	return append([]int64(nil), f.trackedGroupIDs[telegramUserID]...), nil
+}
+
+func (f *resetFakeStore) ListTrackedGroupMemberIDs(_ context.Context, chatID int64) ([]int64, error) {
+	return append([]int64(nil), f.trackedMemberIDs[chatID]...), nil
 }
 
 func (f *resetFakeStore) ListActiveCreators(context.Context) ([]Creator, error) {
@@ -225,7 +246,7 @@ func TestExecuteBothReset(t *testing.T) {
 		deleteCreatorNames: []string{"c1", "c2"},
 	}
 
-	got, err := svc.ExecuteBothReset(t.Context(), 7)
+	got, err := svc.ExecuteBothReset(t.Context(), 7, CreatorResetKeepMembers)
 	if err != nil {
 		t.Fatalf("ExecuteBothReset(%d) returned error %v, want nil", 7, err)
 	}
@@ -268,6 +289,102 @@ func TestExecuteViewerResetNoIdentity(t *testing.T) {
 	}
 	if got.HasIdentity {
 		t.Errorf("ExecuteViewerReset(%d).HasIdentity = %t, want %t", 1, got.HasIdentity, false)
+	}
+}
+
+func TestExecuteCreatorResetKeepMembersSkipsKicks(t *testing.T) {
+	t.Parallel()
+
+	rec := &resetKickRecorder{}
+	svc := NewResetService(&resetFakeStore{
+		getCreatorFn: func(context.Context, int64) (Creator, bool, error) {
+			return Creator{ID: "c1", OwnerTelegramID: 7}, true, nil
+		},
+		creatorGroups: map[string][]ManagedGroup{
+			"c1": {{ChatID: 1001}, {ChatID: 1002}},
+		},
+		deleteCreatorCount: 1,
+		deleteCreatorNames: []string{"creator-a"},
+	}, rec.kick, nil)
+
+	got, err := svc.ExecuteCreatorReset(t.Context(), 7, CreatorResetKeepMembers)
+	if err != nil {
+		t.Fatalf("ExecuteCreatorReset keep returned error %v, want nil", err)
+	}
+	if len(rec.calls) != 0 {
+		t.Fatalf("kick calls = %v, want none", rec.calls)
+	}
+	if got.CreatorCleanup.ManagedGroupCount != 2 || got.CreatorCleanup.Action != CreatorResetKeepMembers {
+		t.Fatalf("cleanup = %+v, want groups=2 action=keep_members", got.CreatorCleanup)
+	}
+}
+
+func TestExecuteCreatorResetKickTrackedMembers(t *testing.T) {
+	t.Parallel()
+
+	rec := &resetKickRecorder{}
+	svc := NewResetService(&resetFakeStore{
+		getCreatorFn: func(context.Context, int64) (Creator, bool, error) {
+			return Creator{ID: "c1", OwnerTelegramID: 7}, true, nil
+		},
+		creatorGroups: map[string][]ManagedGroup{
+			"c1": {{ChatID: 1001}, {ChatID: 1002}},
+		},
+		trackedMemberIDs: map[int64][]int64{
+			1001: {11, 12},
+			1002: {13},
+		},
+		deleteCreatorCount: 1,
+		deleteCreatorNames: []string{"creator-a"},
+	}, rec.kick, nil)
+
+	got, err := svc.ExecuteCreatorReset(t.Context(), 7, CreatorResetKickTrackedMembers)
+	if err != nil {
+		t.Fatalf("ExecuteCreatorReset kick returned error %v, want nil", err)
+	}
+	sort.Slice(rec.calls, func(i, j int) bool {
+		if rec.calls[i][0] == rec.calls[j][0] {
+			return rec.calls[i][1] < rec.calls[j][1]
+		}
+		return rec.calls[i][0] < rec.calls[j][0]
+	})
+	wantCalls := [][2]int64{{1001, 11}, {1001, 12}, {1002, 13}}
+	if !slices.Equal(rec.calls, wantCalls) {
+		t.Fatalf("kick calls = %v, want %v", rec.calls, wantCalls)
+	}
+	if got.CreatorCleanup.TargetedMembershipCount != 3 || got.CreatorCleanup.KickFailureCount != 0 {
+		t.Fatalf("cleanup = %+v, want targets=3 failures=0", got.CreatorCleanup)
+	}
+}
+
+func TestExecuteCreatorResetKickTrackedMembersContinuesOnFailures(t *testing.T) {
+	t.Parallel()
+
+	rec := &resetKickRecorder{failChat: map[int64]error{1001: errors.New("telegram failure")}}
+	svc := NewResetService(&resetFakeStore{
+		getCreatorFn: func(context.Context, int64) (Creator, bool, error) {
+			return Creator{ID: "c1", OwnerTelegramID: 7}, true, nil
+		},
+		creatorGroups: map[string][]ManagedGroup{
+			"c1": {{ChatID: 1001}, {ChatID: 1002}},
+		},
+		trackedMemberIDs: map[int64][]int64{
+			1001: {11},
+			1002: {12},
+		},
+		deleteCreatorCount: 1,
+		deleteCreatorNames: []string{"creator-a"},
+	}, rec.kick, nil)
+
+	got, err := svc.ExecuteCreatorReset(t.Context(), 7, CreatorResetKickTrackedMembers)
+	if err != nil {
+		t.Fatalf("ExecuteCreatorReset kick returned error %v, want nil", err)
+	}
+	if len(rec.calls) != 2 {
+		t.Fatalf("kick calls = %v, want 2", rec.calls)
+	}
+	if got.CreatorCleanup.KickFailureCount != 1 || got.CreatorCleanup.TargetedMembershipCount != 2 {
+		t.Fatalf("cleanup = %+v, want failures=1 targets=2", got.CreatorCleanup)
 	}
 }
 

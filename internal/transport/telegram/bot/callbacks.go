@@ -47,14 +47,15 @@ const (
 )
 
 type callbackAction struct {
-	domain   callbackDomain
-	verb     callbackVerb
-	origin   resetOrigin
-	scope    resetScope
-	target   string
-	policy   core.GroupPolicy
-	chatID   int64
-	threadID int
+	domain      callbackDomain
+	verb        callbackVerb
+	origin      resetOrigin
+	scope       resetScope
+	target      string
+	policy      core.GroupPolicy
+	resetAction core.CreatorResetGroupAction
+	chatID      int64
+	threadID    int
 }
 
 func (a callbackAction) String() string {
@@ -64,6 +65,9 @@ func (a callbackAction) String() string {
 	}
 	if a.scope != "" {
 		parts = append(parts, string(a.scope))
+	}
+	if a.resetAction != "" {
+		parts = append(parts, string(a.resetAction))
 	}
 	if a.target != "" {
 		parts = append(parts, a.target)
@@ -138,13 +142,19 @@ func parseCallbackAction(data string) (callbackAction, bool) {
 			}
 			return action, true
 		case callbackVerbPick, callbackVerbExecute:
-			if len(parts) != 4 {
+			if len(parts) != 4 && len(parts) != 5 {
 				return callbackAction{}, false
 			}
 			action.origin = resetOrigin(parts[2])
 			action.scope = resetScope(parts[3])
 			if !action.origin.valid() || !action.scope.valid() {
 				return callbackAction{}, false
+			}
+			if len(parts) == 5 {
+				action.resetAction = core.CreatorResetGroupAction(parts[4])
+				if !validResetAction(action.resetAction) {
+					return callbackAction{}, false
+				}
 			}
 			return action, true
 		case callbackVerbRefresh, callbackVerbRegister, callbackVerbReconnect:
@@ -269,6 +279,15 @@ func (s resetScope) valid() bool {
 	}
 }
 
+func validResetAction(a core.CreatorResetGroupAction) bool {
+	switch a {
+	case core.CreatorResetKeepMembers, core.CreatorResetKickTrackedMembers:
+		return true
+	default:
+		return false
+	}
+}
+
 func validGroupPolicy(p core.GroupPolicy) bool {
 	switch p {
 	case core.GroupPolicyObserve, core.GroupPolicyObserveWarn, core.GroupPolicyKick, core.GroupPolicyGraceWeek:
@@ -342,6 +361,10 @@ func resetPickCallback(origin resetOrigin, scope resetScope) string {
 	return callbackAction{domain: callbackDomainReset, verb: callbackVerbPick, origin: origin, scope: scope}.String()
 }
 
+func resetActionPickCallback(origin resetOrigin, scope resetScope, action core.CreatorResetGroupAction) string {
+	return callbackAction{domain: callbackDomainReset, verb: callbackVerbPick, origin: origin, scope: scope, resetAction: action}.String()
+}
+
 func resetBackCallback(origin resetOrigin) string {
 	return callbackAction{domain: callbackDomainReset, verb: callbackVerbBack, origin: origin}.String()
 }
@@ -356,4 +379,8 @@ func resetCancelCallback(origin resetOrigin) string {
 
 func resetExecuteCallback(origin resetOrigin, scope resetScope) string {
 	return callbackAction{domain: callbackDomainReset, verb: callbackVerbExecute, origin: origin, scope: scope}.String()
+}
+
+func resetExecuteWithActionCallback(origin resetOrigin, scope resetScope, action core.CreatorResetGroupAction) string {
+	return callbackAction{domain: callbackDomainReset, verb: callbackVerbExecute, origin: origin, scope: scope, resetAction: action}.String()
 }

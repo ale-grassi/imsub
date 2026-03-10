@@ -666,6 +666,79 @@ func TestRegisterTelegramHandlersResetCreatorOriginBackReturnsCreatorMenu(t *tes
 	h.assertEditMessageLacksCallback(t, body, viewerRefreshCallback())
 }
 
+func TestRegisterTelegramHandlersResetCreatorShowsMemberActionPickerWhenManagedGroupsExist(t *testing.T) {
+	t.Parallel()
+
+	h := newRouteTestHarness(t)
+	h.store.setOwnedCreator(core.Creator{
+		ID:              "creator-1",
+		TwitchLogin:     "streamer",
+		OwnerTelegramID: 77,
+	})
+	h.store.setManagedGroup(core.ManagedGroup{
+		ChatID:    -1001,
+		CreatorID: "creator-1",
+		GroupName: "VIP",
+	})
+
+	h.handleUpdate(t, telego.Update{
+		UpdateID: 38,
+		CallbackQuery: &telego.CallbackQuery{
+			ID:   "cb-reset-creator-pick",
+			Data: resetPickCallback(resetOriginCreator, resetScopeCreator),
+			From: telego.User{
+				ID:           77,
+				LanguageCode: "en",
+			},
+			Message: &telego.Message{
+				MessageID: 92,
+				Chat: telego.Chat{
+					ID:   77,
+					Type: telego.ChatTypePrivate,
+				},
+			},
+		},
+	})
+
+	body := h.caller.lastEditMessageBody()
+	h.assertEditMessageHasCallback(t, body, resetActionPickCallback(resetOriginCreator, resetScopeCreator, core.CreatorResetKeepMembers))
+	h.assertEditMessageHasCallback(t, body, resetActionPickCallback(resetOriginCreator, resetScopeCreator, core.CreatorResetKickTrackedMembers))
+}
+
+func TestRegisterTelegramHandlersResetCreatorWithoutGroupsSkipsMemberActionPicker(t *testing.T) {
+	t.Parallel()
+
+	h := newRouteTestHarness(t)
+	h.store.setOwnedCreator(core.Creator{
+		ID:              "creator-1",
+		TwitchLogin:     "streamer",
+		OwnerTelegramID: 77,
+	})
+
+	h.handleUpdate(t, telego.Update{
+		UpdateID: 39,
+		CallbackQuery: &telego.CallbackQuery{
+			ID:   "cb-reset-creator-pick-no-groups",
+			Data: resetPickCallback(resetOriginCreator, resetScopeCreator),
+			From: telego.User{
+				ID:           77,
+				LanguageCode: "en",
+			},
+			Message: &telego.Message{
+				MessageID: 93,
+				Chat: telego.Chat{
+					ID:   77,
+					Type: telego.ChatTypePrivate,
+				},
+			},
+		},
+	})
+
+	body := h.caller.lastEditMessageBody()
+	h.assertEditMessageHasCallback(t, body, resetExecuteCallback(resetOriginCreator, resetScopeCreator))
+	h.assertEditMessageLacksCallback(t, body, resetActionPickCallback(resetOriginCreator, resetScopeCreator, core.CreatorResetKeepMembers))
+}
+
 func TestRegisterTelegramHandlersApprovesJoinRequest(t *testing.T) {
 	t.Parallel()
 

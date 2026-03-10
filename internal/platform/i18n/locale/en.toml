@@ -308,19 +308,19 @@ other = "⚠️ <b>Could not read Twitch account details</b>\nReturn to Telegram
 other = "🗑️ <b>Choose What to Delete</b>\n\nYou currently have both viewer and creator data linked to this Telegram account.\n\n🔗 <b>Viewer account:</b> %s\n🎙️ <b>Creator account:</b> %s\n\nSelect the data you want to remove below."
 
 [reset_confirm_both_html]
-other = "🗑️ <b>Delete All Linked Data</b>\n\n🔗 <b>Viewer account:</b> %s\n🎙️ <b>Creator account:</b> %s\n🗑️ <b>Creator records to delete:</b> %d\n🚫 <b>Groups that may remove access:</b> %d\n\nIf you continue:\n• both viewer and creator data will be deleted\n• you may lose access to linked Telegram groups\n\n➡️ To connect again later, use /start or /creator."
+other = "🗑️ <b>Delete All Linked Data</b>\n\n🔗 <b>Viewer account:</b> %s\n🎙️ <b>Creator account:</b> %s\n🗑️ <b>Creator records to delete:</b> %d\n🚫 <b>Groups that may remove access:</b> %d\n👥 <b>Managed groups owned:</b> %d\n%s\n\nIf you continue:\n• both viewer and creator data will be deleted\n• your creator group registrations will be removed\n• tracked members will be handled according to the selected option above\n\n➡️ To connect again later, use /start or /creator."
 
 [reset_confirm_creator_html]
-other = "❗️ <b>Delete Creator Data</b>\n\n🎙️ <b>Creator account:</b> %s\n🗑️ <b>Creator records to delete:</b> %d\n\nIf you continue:\n• your creator setup will be deleted\n• linked creator registrations will be removed\n\n➡️ To set it up again later, use /creator."
+other = "❗️ <b>Delete Creator Data</b>\n\n🎙️ <b>Creator account:</b> %s\n🗑️ <b>Creator records to delete:</b> %d\n👥 <b>Managed groups owned:</b> %d\n%s\n\nIf you continue:\n• your creator setup will be deleted\n• linked creator registrations will be removed\n• tracked members will be handled according to the selected option above\n\n➡️ To set it up again later, use /creator."
 
 [reset_confirm_viewer_html]
 other = "🗑️ <b>Delete Viewer Data</b>\n\n🔗 <b>Twitch account:</b> %s\n🚫 <b>Groups that may remove access:</b> %d\n\nIf you continue:\n• your linked viewer account data will be deleted\n• you may lose access to those Telegram groups\n\n➡️ To connect again later, use /start."
 
 [reset_done_both_html]
-other = "✅ <b>Linked data deleted</b>\n\n🔗 <b>Removed viewer account:</b> %s\n🚫 <b>Groups processed:</b> %d\n🎙️ <b>Removed creator account:</b> %s\n🗑️ <b>Creator records deleted:</b> %d\n\nIf you want to set things up again:\n• use /start for viewer access\n• use /creator for creator setup"
+other = "✅ <b>Linked data deleted</b>\n\n🔗 <b>Removed viewer account:</b> %s\n🚫 <b>Groups processed:</b> %d\n🎙️ <b>Removed creator account:</b> %s\n🗑️ <b>Creator records deleted:</b> %d\n👥 <b>Managed groups cleaned up:</b> %d\n%s\n\nIf you want to set things up again:\n• use /start for viewer access\n• use /creator for creator setup"
 
 [reset_done_creator_html]
-other = "✅ <b>Creator data deleted</b>\n\n🎙️ <b>Removed creator account:</b> %s\n🗑️ <b>Creator records deleted:</b> %d\n\n➡️ To set it up again, use /creator."
+other = "✅ <b>Creator data deleted</b>\n\n🎙️ <b>Removed creator account:</b> %s\n🗑️ <b>Creator records deleted:</b> %d\n👥 <b>Managed groups cleaned up:</b> %d\n%s\n\n➡️ To set it up again, use /creator."
 
 [reset_done_viewer_html]
 other = "✅ <b>Viewer data deleted</b>\n\n🔗 <b>Removed Twitch account:</b> %s\n🚫 <b>Groups processed:</b> %d\n\n➡️ To connect again, use /start."
@@ -330,6 +330,33 @@ other = "❗️ <b>No changes made</b>\n\nYour linked data is safe and remains u
 
 [reset_nothing_html]
 other = "✅ <b>Nothing to reset right now.</b>\n\nI couldn't find linked viewer or creator data for your account."
+
+[reset_choose_creator_action_creator_html]
+other = "🗑️ <b>Choose What To Do With Group Members</b>\n\n🎙️ <b>Creator account:</b> %s\n👥 <b>Managed groups owned:</b> %d\n\nChoose how ImSub should handle tracked members in those groups when your creator data is deleted."
+
+[reset_choose_creator_action_both_html]
+other = "🗑️ <b>Choose What To Do With Group Members</b>\n\n🔗 <b>Viewer account:</b> %s\n🎙️ <b>Creator account:</b> %s\n👥 <b>Managed groups owned:</b> %d\n\nChoose how ImSub should handle tracked members in those groups when your creator data is deleted."
+
+[reset_action_keep_line]
+other = "• tracked members will stay in their groups"
+
+[reset_action_kick_line]
+other = "• tracked members will be kicked from managed groups before creator data is deleted"
+
+[reset_creator_groups_line]
+other = "• Managed groups cleaned up: %d"
+
+[reset_creator_kick_targets_line]
+other = "• Tracked memberships targeted for kick: %d"
+
+[reset_creator_kick_failures_line]
+other = "• Kick attempts that failed: %d"
+
+[btn_reset_keep_members]
+other = "Keep members"
+
+[btn_reset_kick_tracked_members]
+other = "Kick tracked members"
 
 [sub_end_partial]
 other = "⚠️ <b>Subscription ended</b>\n\nYour subscription to <b>%s</b> is no longer active, so your Telegram group access was removed.\n\n➡️ After you resubscribe on Twitch, come back here and use /start to get a new join link."

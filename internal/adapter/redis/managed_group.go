@@ -130,6 +130,27 @@ func (s *Store) ListTrackedGroupIDsForUser(ctx context.Context, telegramUserID i
 	return out, nil
 }
 
+// ListTrackedGroupMemberIDs returns tracked Telegram user IDs for a managed group.
+func (s *Store) ListTrackedGroupMemberIDs(ctx context.Context, chatID int64) ([]int64, error) {
+	rawIDs, err := s.rdb.SMembers(ctx, keyTrackedGroupMembers(chatID)).Result()
+	if err != nil {
+		return nil, fmt.Errorf("redis smembers tracked group members: %w", err)
+	}
+	if len(rawIDs) == 0 {
+		return nil, nil
+	}
+	out := make([]int64, 0, len(rawIDs))
+	for _, raw := range rawIDs {
+		telegramUserID, parseErr := strconv.ParseInt(raw, 10, 64)
+		if parseErr != nil {
+			s.log().Warn("ListTrackedGroupMemberIDs invalid telegram user id, skipping", "chat_id", chatID, "telegram_user_id_raw", raw, "error", parseErr)
+			continue
+		}
+		out = append(out, telegramUserID)
+	}
+	return out, nil
+}
+
 // UpsertManagedGroup creates or updates a managed group record and its indices.
 func (s *Store) UpsertManagedGroup(ctx context.Context, group core.ManagedGroup) error {
 	if group.Policy == "" {
