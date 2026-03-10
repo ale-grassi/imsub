@@ -21,6 +21,8 @@ const (
 	NameViewerInviteLink            = "viewer_invite_link"
 	NameCreatorOAuth                = "creator_oauth"
 	NameCreatorStatus               = "creator_status"
+	NameTelegramCommand             = "telegram_command"
+	NameTelegramKickAction          = "telegram_kick_action"
 	NameCreatorTokenRefresh         = "creator_token_refresh"
 	NameCreatorBlocklistSync        = "creator_blocklist_sync"
 	NameCreatorBlocklistEnforcement = "creator_blocklist_enforcement"

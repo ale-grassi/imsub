@@ -250,6 +250,10 @@ Key metrics include:
 | `imsub_oauth_callbacks_total` | Counter | OAuth callback invocations |
 | `imsub_eventsub_messages_total` | Counter | EventSub messages processed |
 | `imsub_telegram_webhook_updates_total` | Counter | Telegram webhook updates received |
+| `imsub_telegram_daily_active_users` | Gauge | Rolling 24h unique Telegram users with direct bot activity |
+| `imsub_linked_viewer_accounts` | Gauge | Current linked viewer accounts |
+| `imsub_linked_creator_accounts` | Gauge | Current linked creator accounts |
+| `imsub_managed_groups` | Gauge | Current managed Telegram groups |
 | `imsub_background_jobs_total` | Counter | Background job executions |
 | `imsub_background_job_duration_seconds` | Histogram | Background job latency |
 | `imsub_creator_token_refresh_total` | Counter | Creator token refresh attempts |
@@ -262,8 +266,12 @@ Key metrics include:
 | `imsub_creator_oauth_total` | Counter | Creator OAuth completion results |
 | `imsub_viewer_access_total` | Counter | Viewer access workflow results |
 | `imsub_reconciliation_repairs_total` | Counter | Integrity and repair counts |
+| `imsub_telegram_commands_total` | Counter | Telegram slash command usage by command and chat type |
+| `imsub_telegram_kick_actions_total` | Counter | Telegram kick actions by reason and result |
 
 Fly.io's managed Prometheus can scrape this endpoint for Grafana dashboards.
+
+The repo includes an overview dashboard definition at `notes/grafana/imsub-overview-dashboard.json`. The `Product & Telegram` row covers DAU, linked accounts, managed groups, command usage, viewer access checks, subscriber reconciliation runs, registration churn, and kick activity.
 
 ---
 

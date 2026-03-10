@@ -127,7 +127,7 @@ func Run() error {
 	subscriberTask := jobs.NewSubscriberTask(reconcileSvc)
 	eventSubTask := jobs.NewEventSubTask(eventSubSvc)
 	tgClient := telegramclient.New(tgBot, tgLimiter, logger)
-	tgGroups := telegramgroups.New(tgBot, tgLimiter, logger, s)
+	tgGroups := telegramgroups.New(tgBot, tgLimiter, logger, s, eventSink)
 	groupUnregistrationUC := usecase.NewGroupUnregistrationUseCase(s, eventSubSvc, eventSink)
 	gracePolicyTask := jobs.NewGracePolicyTask(s, tgGroups, logger)
 	integrityTask := jobs.NewIntegrityAuditTask(s, logger, eventSink)
@@ -151,6 +151,7 @@ func Run() error {
 		GroupPolicyUpdate:   groupPolicyUpdateUC,
 		CreatorActivation:   creatorActivationUC,
 		SubscriptionEnd:     subscriptionEndUC,
+		Events:              eventSink,
 	})
 	viewerAccessUC := usecase.NewViewerAccessUseCase(core.NewViewerService(s, flowController.ViewerGroupOps(), logger, eventSink), eventSink)
 	resetSvc := core.NewResetService(s, flowController.KickFromGroup, logger)
@@ -159,6 +160,7 @@ func Run() error {
 	flowController.SetResetUseCase(usecase.NewResetUseCase(resetSvc, eventSink))
 	subscriptionGraceTask := jobs.NewSubscriptionGraceTask(s, tgGroups, flowController, logger)
 	memberCleanupTask := jobs.NewMemberCleanupTask(s, tgGroups, flowController, logger)
+	productMetricsTask := jobs.NewProductMetricsSnapshotTask(s, metrics)
 	eventSubSvc.SetObserver(eventSink)
 	blocklistSvc.SetObserver(eventSink)
 	eventSubSvc.SetNotifier(flowController)
@@ -255,6 +257,12 @@ func Run() error {
 		return jobRunner.RunScheduled(gctx, jobs.Schedule{
 			Task:     memberCleanupTask,
 			Interval: 1 * time.Minute,
+		})
+	})
+	g.Go(func() error {
+		return jobRunner.RunScheduled(gctx, jobs.Schedule{
+			Task:     productMetricsTask,
+			Interval: 5 * time.Minute,
 		})
 	})
 

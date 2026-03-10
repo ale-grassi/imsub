@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"imsub/internal/core"
+	"imsub/internal/events"
 	"imsub/internal/platform/config"
 	"imsub/internal/platform/i18n"
 	"imsub/internal/platform/ratelimit"
@@ -53,6 +54,7 @@ type routeTestHarness struct {
 	baseGroup  *telegohandler.HandlerGroup
 	store      *routeTestStore
 	caller     *routeTestCaller
+	events     *routeEventSink
 }
 
 func newRouteTestHarness(t *testing.T) routeTestHarness {
@@ -93,7 +95,8 @@ func newRouteTestHarnessWithCleaner(t *testing.T, cleaner usecaseGroupUnregistra
 	limiter := ratelimit.NewRateLimiter(1000, 0)
 	t.Cleanup(limiter.Close)
 	tgClient := telegramclient.New(bot, limiter, nil)
-	tgGroups := telegramgroups.New(bot, limiter, nil, store)
+	tgGroups := telegramgroups.New(bot, limiter, nil, store, nil)
+	eventSink := &routeEventSink{}
 
 	controller := New(Dependencies{
 		Config: config.Config{
@@ -109,6 +112,7 @@ func newRouteTestHarnessWithCleaner(t *testing.T, cleaner usecaseGroupUnregistra
 		GroupRegistration:   usecase.NewGroupRegistrationUseCase(store, nil),
 		GroupUnregistration: usecase.NewGroupUnregistrationUseCase(store, cleaner, nil),
 		GroupPolicyUpdate:   usecase.NewGroupPolicyUpdateUseCase(store, nil),
+		Events:              eventSink,
 	})
 	controller.SetViewerAccessUseCase(usecase.NewViewerAccessUseCase(core.NewViewerService(store, controller.ViewerGroupOps(), nil, nil), nil))
 	controller.SetResetUseCase(usecase.NewResetUseCase(core.NewResetService(store, controller.KickFromGroup, nil), nil))
@@ -120,7 +124,25 @@ func newRouteTestHarnessWithCleaner(t *testing.T, cleaner usecaseGroupUnregistra
 		baseGroup:  bh.BaseGroup(),
 		store:      store,
 		caller:     caller,
+		events:     eventSink,
 	}
+}
+
+type routeEventSink struct {
+	mu     sync.Mutex
+	events []events.Event
+}
+
+func (s *routeEventSink) Emit(_ context.Context, evt events.Event) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.events = append(s.events, evt)
+}
+
+func (s *routeEventSink) snapshot() []events.Event {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]events.Event(nil), s.events...)
 }
 
 type usecaseGroupUnregistrationCleaner interface {
@@ -426,6 +448,7 @@ type routeTestStore struct {
 	untrackedMembersByGroup map[int64]map[int64]core.UntrackedGroupMember
 	untrackedCountByChatID  map[int64]int
 	blockedByCreatorUser    map[string]map[string]bool
+	activeUsers             []int64
 }
 
 type routeTestUntrackedUpsert struct {
@@ -509,6 +532,19 @@ func (s *routeTestStore) lastSavedStatePayload() core.OAuthStatePayload {
 		return core.OAuthStatePayload{}
 	}
 	return s.savedOAuthStateCalls[len(s.savedOAuthStateCalls)-1]
+}
+
+func (s *routeTestStore) activeUserTouches() []int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]int64(nil), s.activeUsers...)
+}
+
+func (s *routeTestStore) TrackTelegramActiveUser(_ context.Context, telegramUserID int64, _ time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.activeUsers = append(s.activeUsers, telegramUserID)
+	return nil
 }
 
 func (s *routeTestStore) SaveOAuthState(_ context.Context, _ string, payload core.OAuthStatePayload, _ time.Duration) error {
@@ -824,6 +860,9 @@ func (routeTestStoreStub) AddTrackedGroupMember(context.Context, int64, int64, s
 func (routeTestStoreStub) RemoveTrackedGroupMember(context.Context, int64, int64) error { return nil }
 func (routeTestStoreStub) IsTrackedGroupMember(context.Context, int64, int64) (bool, error) {
 	return false, nil
+}
+func (routeTestStoreStub) TrackTelegramActiveUser(context.Context, int64, time.Time) error {
+	return nil
 }
 func (routeTestStoreStub) UpsertUntrackedGroupMember(context.Context, int64, int64, string, string, time.Time) error {
 	return nil

@@ -19,6 +19,10 @@ type fakeStore struct {
 	listManagedGroups  func(ctx context.Context) ([]core.ManagedGroup, error)
 	listUntracked      func(ctx context.Context, chatID int64) ([]core.UntrackedGroupMember, error)
 	removeUntracked    func(ctx context.Context, chatID, telegramUserID int64) error
+	countActiveUsers   func(ctx context.Context, since time.Time) (int, error)
+	countViewers       func(ctx context.Context) (int, error)
+	countCreators      func(ctx context.Context) (int, error)
+	countManaged       func(ctx context.Context) (int, error)
 }
 
 type fakeMemberCleanupStore struct {
@@ -78,6 +82,38 @@ func (f *fakeStore) RemoveUntrackedGroupMember(ctx context.Context, chatID, tele
 		return f.removeUntracked(ctx, chatID, telegramUserID)
 	}
 	return nil
+}
+
+func (f *fakeStore) CountTelegramActiveUsersSince(ctx context.Context, since time.Time) (int, error) {
+	if f.countActiveUsers != nil {
+		return f.countActiveUsers(ctx, since)
+	}
+	return 0, nil
+}
+
+func (f *fakeStore) PruneTelegramActiveUsersBefore(context.Context, time.Time) error {
+	return nil
+}
+
+func (f *fakeStore) CountLinkedViewerAccounts(ctx context.Context) (int, error) {
+	if f.countViewers != nil {
+		return f.countViewers(ctx)
+	}
+	return 0, nil
+}
+
+func (f *fakeStore) CountLinkedCreatorAccounts(ctx context.Context) (int, error) {
+	if f.countCreators != nil {
+		return f.countCreators(ctx)
+	}
+	return 0, nil
+}
+
+func (f *fakeStore) CountManagedGroups(ctx context.Context) (int, error) {
+	if f.countManaged != nil {
+		return f.countManaged(ctx)
+	}
+	return 0, nil
 }
 
 func (f *fakeMemberCleanupStore) ListPendingMemberCleanupJobs(context.Context) ([]core.MemberCleanupJob, error) {
@@ -173,12 +209,19 @@ type fakeObserver struct {
 	calls     int
 }
 
+type fakeProductMetricsSink struct {
+	dailyActive    int
+	linkedViewers  int
+	linkedCreators int
+	managedGroups  int
+}
+
 type fakeGroupKicker struct {
 	mu    sync.Mutex
 	kicks [][2]int64
 }
 
-func (f *fakeGroupKicker) KickFromGroup(_ context.Context, groupChatID, telegramUserID int64) error {
+func (f *fakeGroupKicker) KickFromGroup(_ context.Context, groupChatID, telegramUserID int64, _ core.KickReason) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.kicks = append(f.kicks, [2]int64{groupChatID, telegramUserID})
@@ -203,6 +246,11 @@ func (f *fakeObserver) snapshot() (calls int, evt events.Event) {
 	defer f.mu.Unlock()
 	return f.calls, f.lastEvent
 }
+
+func (f *fakeProductMetricsSink) TelegramDailyActiveUsers(count int) { f.dailyActive = count }
+func (f *fakeProductMetricsSink) LinkedViewerAccounts(count int)     { f.linkedViewers = count }
+func (f *fakeProductMetricsSink) LinkedCreatorAccounts(count int)    { f.linkedCreators = count }
+func (f *fakeProductMetricsSink) ManagedGroups(count int)            { f.managedGroups = count }
 
 func TestRunScheduledRecordsObserverResult(t *testing.T) {
 	t.Parallel()
@@ -250,6 +298,25 @@ func TestRunScheduledRecordsObserverResult(t *testing.T) {
 	}
 }
 
+func TestProductMetricsSnapshotTaskSyncsCounts(t *testing.T) {
+	t.Parallel()
+
+	sink := &fakeProductMetricsSink{}
+	task := NewProductMetricsSnapshotTask(&fakeStore{
+		countActiveUsers: func(context.Context, time.Time) (int, error) { return 7, nil },
+		countViewers:     func(context.Context) (int, error) { return 11, nil },
+		countCreators:    func(context.Context) (int, error) { return 3, nil },
+		countManaged:     func(context.Context) (int, error) { return 5, nil },
+	}, sink)
+
+	if err := task.Run(t.Context()); err != nil {
+		t.Fatalf("Run() error = %v, want nil", err)
+	}
+	if sink.dailyActive != 7 || sink.linkedViewers != 11 || sink.linkedCreators != 3 || sink.managedGroups != 5 {
+		t.Fatalf("snapshot sink = %+v, want dau=7 viewers=11 creators=3 groups=5", *sink)
+	}
+}
+
 func TestRunScheduledStopsOnCancel(t *testing.T) {
 	t.Parallel()
 
@@ -283,6 +350,36 @@ func TestRunScheduledStopsOnCancel(t *testing.T) {
 	case <-done:
 	case <-time.After(300 * time.Millisecond):
 		t.Fatal("RunScheduled did not stop after cancel")
+	}
+}
+
+func TestProductMetricsSnapshotTaskSyncsAllGauges(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeStore{
+		countActiveUsers: func(_ context.Context, since time.Time) (int, error) {
+			if since.IsZero() {
+				t.Fatal("since should be populated")
+			}
+			return 7, nil
+		},
+		countViewers:  func(context.Context) (int, error) { return 11, nil },
+		countCreators: func(context.Context) (int, error) { return 3, nil },
+		countManaged:  func(context.Context) (int, error) { return 5, nil },
+	}
+	sink := &fakeProductMetricsSink{}
+	taskIface := NewProductMetricsSnapshotTask(store, sink)
+	task, ok := taskIface.(productMetricsSnapshotTask)
+	if !ok {
+		t.Fatalf("NewProductMetricsSnapshotTask() type = %T, want productMetricsSnapshotTask", taskIface)
+	}
+	task.now = func() time.Time { return time.Date(2026, 3, 10, 12, 0, 0, 0, time.UTC) }
+
+	if err := task.Run(t.Context()); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if sink.dailyActive != 7 || sink.linkedViewers != 11 || sink.linkedCreators != 3 || sink.managedGroups != 5 {
+		t.Fatalf("sink = %+v, want daily=7 viewers=11 creators=3 groups=5", sink)
 	}
 }
 

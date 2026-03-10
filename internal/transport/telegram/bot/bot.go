@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"imsub/internal/core"
+	"imsub/internal/events"
 	"imsub/internal/platform/i18n"
 	"imsub/internal/transport/telegram/client"
 	telegramui "imsub/internal/transport/telegram/ui"
@@ -79,15 +80,49 @@ func (c *Bot) isGroupMember(ctx context.Context, groupChatID, telegramUserID int
 	return c.telegramGroups.IsGroupMember(ctx, groupChatID, telegramUserID)
 }
 
-// KickFromGroup removes a Telegram user from a managed group.
-func (c *Bot) KickFromGroup(ctx context.Context, groupChatID int64, telegramUserID int64) error {
+// KickFromGroup removes a Telegram user from a managed group for a specific workflow reason.
+func (c *Bot) KickFromGroup(ctx context.Context, groupChatID int64, telegramUserID int64, reason core.KickReason) error {
 	if c == nil || c.telegramGroups == nil {
 		return nil
 	}
-	if err := c.telegramGroups.KickFromGroup(ctx, groupChatID, telegramUserID); err != nil {
+	if err := c.telegramGroups.KickFromGroup(ctx, groupChatID, telegramUserID, reason); err != nil {
 		return fmt.Errorf("kick from group via group ops: %w", err)
 	}
 	return nil
+}
+
+func (c *Bot) trackTelegramActiveUser(ctx context.Context, telegramUserID int64) {
+	if c == nil || c.store == nil || telegramUserID == 0 {
+		return
+	}
+	if err := c.store.TrackTelegramActiveUser(ctx, telegramUserID, time.Now().UTC()); err != nil {
+		c.log().Warn("track telegram active user failed", "telegram_user_id", telegramUserID, "error", err)
+	}
+}
+
+func (c *Bot) recordTelegramCommand(ctx context.Context, telegramUserID int64, command, chatType string) {
+	c.trackTelegramActiveUser(ctx, telegramUserID)
+	if c == nil || c.events == nil {
+		return
+	}
+	c.events.Emit(ctx, events.Event{
+		Name: events.NameTelegramCommand,
+		Fields: map[string]string{
+			"command":   strings.TrimSpace(command),
+			"chat_type": normalizeTelegramChatType(chatType),
+		},
+	})
+}
+
+func normalizeTelegramChatType(chatType string) string {
+	switch chatType {
+	case telego.ChatTypePrivate:
+		return "private"
+	case telego.ChatTypeGroup, telego.ChatTypeSupergroup:
+		return "group"
+	default:
+		return "other"
+	}
 }
 
 func renderJoinButtons(targets core.JoinTargets, lang string) [][]telego.InlineKeyboardButton {
@@ -186,12 +221,20 @@ func (c *Bot) RegisterTelegramHandlers() {
 	groupOnly := func(_ context.Context, update telego.Update) bool {
 		return update.Message != nil && update.Message.Chat.Type != telego.ChatTypePrivate && update.Message.From != nil
 	}
+	trackedCommand := func(command, chatType string, handler func(*tghandler.Context, telego.Message) error) func(*tghandler.Context, telego.Message) error {
+		return func(ctx *tghandler.Context, msg telego.Message) error {
+			if msg.From != nil {
+				c.recordTelegramCommand(ctx, msg.From.ID, command, chatType)
+			}
+			return handler(ctx, msg)
+		}
+	}
 
-	c.tgHandler.HandleMessage(c.onRegisterGroup, tghandler.CommandEqual("registergroup"))
-	c.tgHandler.HandleMessage(c.onUnregisterCommand, tghandler.And(tghandler.CommandEqual("unregistergroup"), groupOnly))
-	c.tgHandler.HandleMessage(c.onStartCommand, tghandler.And(tghandler.CommandEqual("start"), privateOnly))
-	c.tgHandler.HandleMessage(c.onCreatorCommand, tghandler.And(tghandler.CommandEqual("creator"), privateOnly))
-	c.tgHandler.HandleMessage(c.onResetCommand, tghandler.And(tghandler.CommandEqual("reset"), privateOnly))
+	c.tgHandler.HandleMessage(trackedCommand("registergroup", "group", c.onRegisterGroup), tghandler.CommandEqual("registergroup"))
+	c.tgHandler.HandleMessage(trackedCommand("unregistergroup", "group", c.onUnregisterCommand), tghandler.And(tghandler.CommandEqual("unregistergroup"), groupOnly))
+	c.tgHandler.HandleMessage(trackedCommand("start", "private", c.onStartCommand), tghandler.And(tghandler.CommandEqual("start"), privateOnly))
+	c.tgHandler.HandleMessage(trackedCommand("creator", "private", c.onCreatorCommand), tghandler.And(tghandler.CommandEqual("creator"), privateOnly))
+	c.tgHandler.HandleMessage(trackedCommand("reset", "private", c.onResetCommand), tghandler.And(tghandler.CommandEqual("reset"), privateOnly))
 	c.tgHandler.HandleCallbackQuery(func(ctx *tghandler.Context, query telego.CallbackQuery) error {
 		c.onCallbackQuery(ctx, query)
 		return nil
@@ -204,6 +247,7 @@ func (c *Bot) RegisterTelegramHandlers() {
 }
 
 func (c *Bot) onCallbackQuery(ctx context.Context, q telego.CallbackQuery) {
+	c.trackTelegramActiveUser(ctx, q.From.ID)
 	lang := i18n.NormalizeLanguage(q.From.LanguageCode)
 	exec := callbackExecution{
 		userID: q.From.ID,
@@ -453,7 +497,7 @@ func (c *Bot) HandleSubscriptionEnd(ctx context.Context, broadcasterID, broadcas
 	}
 
 	for _, groupChatID := range res.Prepared.GroupChatIDs {
-		if err := c.KickFromGroup(ctx, groupChatID, res.Prepared.TelegramUserID); err != nil {
+		if err := c.KickFromGroup(ctx, groupChatID, res.Prepared.TelegramUserID, core.KickReasonSubscriptionEnd); err != nil {
 			c.log().Warn("kickFromGroup failed", "telegram_user_id", res.Prepared.TelegramUserID, "group_chat_id", groupChatID, "error", err)
 		}
 	}

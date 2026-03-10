@@ -7,7 +7,7 @@ import (
 	"slices"
 )
 
-type kickFunc func(ctx context.Context, groupChatID int64, telegramUserID int64) error
+type kickFunc = func(ctx context.Context, groupChatID int64, telegramUserID int64, reason KickReason) error
 
 // CreatorResetGroupAction describes what a creator reset should do with tracked
 // members of the creator's managed groups.
@@ -101,7 +101,7 @@ type BothResetResult struct {
 }
 
 // NewResetService creates a reset service with optional logger fallback.
-func NewResetService(store resetStore, kick kickFunc, logger *slog.Logger) *ResetService {
+func NewResetService(store resetStore, kick func(context.Context, int64, int64, KickReason) error, logger *slog.Logger) *ResetService {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -320,7 +320,7 @@ func (r *ResetService) ResetViewerDataAndRevokeGroupAccess(ctx context.Context, 
 		return 0, GroupResolutionStats{}, fmt.Errorf("sub linked group ids: %w", err)
 	}
 	for _, groupID := range groupIDs {
-		if err := r.kick(ctx, groupID, telegramUserID); err != nil {
+		if err := r.kick(ctx, groupID, telegramUserID, KickReasonViewerReset); err != nil {
 			r.log.Warn("kickFromGroup during reset failed", "telegram_user_id", telegramUserID, "group_id", groupID, "error", err)
 		}
 	}

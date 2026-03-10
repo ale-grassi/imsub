@@ -8,7 +8,7 @@ func TestClientNilSafety(t *testing.T) {
 	t.Parallel()
 
 	var nilClient *Client
-	if err := nilClient.KickFromGroup(t.Context(), 1, 2); err != nil {
+	if err := nilClient.KickFromGroup(t.Context(), 1, 2, "test"); err != nil {
 		t.Errorf("(*Client).KickFromGroup(nil, groupChatID=%d, telegramUserID=%d) returned error %v, want nil", 1, 2, err)
 	}
 	nilClient.KickDisplacedUser(t.Context(), 2)
@@ -20,7 +20,7 @@ func TestClientNilSafety(t *testing.T) {
 	}
 
 	c := &Client{}
-	if err := c.KickFromGroup(t.Context(), 1, 2); err != nil {
+	if err := c.KickFromGroup(t.Context(), 1, 2, "test"); err != nil {
 		t.Errorf("(*Client).KickFromGroup(empty, groupChatID=%d, telegramUserID=%d) returned error %v, want nil", 1, 2, err)
 	}
 	c.KickDisplacedUser(t.Context(), 2)

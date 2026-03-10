@@ -32,6 +32,12 @@ func TestNilSafety(t *testing.T) {
 	m.ViewerAccess("linked")
 	m.ViewerJoinTargets("invite_groups", 2)
 	m.ViewerInviteLink("ok")
+	m.TelegramCommand("start", "private")
+	m.TelegramKickAction("group_policy", "ok")
+	m.TelegramDailyActiveUsers(4)
+	m.LinkedViewerAccounts(5)
+	m.LinkedCreatorAccounts(2)
+	m.ManagedGroups(3)
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
 	rec := httptest.NewRecorder()
@@ -62,6 +68,12 @@ func TestMetricsExposure(t *testing.T) {
 	m.ViewerAccess("linked")
 	m.ViewerJoinTargets("invite_groups", 2)
 	m.ViewerInviteLink("ok")
+	m.TelegramCommand("start", "private")
+	m.TelegramKickAction("group_policy", "ok")
+	m.TelegramDailyActiveUsers(4)
+	m.LinkedViewerAccounts(5)
+	m.LinkedCreatorAccounts(2)
+	m.ManagedGroups(3)
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
 	rec := httptest.NewRecorder()
@@ -89,6 +101,12 @@ func TestMetricsExposure(t *testing.T) {
 		"imsub_viewer_access_total",
 		"imsub_viewer_join_targets_total",
 		"imsub_viewer_invite_links_total",
+		"imsub_telegram_commands_total",
+		"imsub_telegram_kick_actions_total",
+		"imsub_telegram_daily_active_users",
+		"imsub_linked_viewer_accounts",
+		"imsub_linked_creator_accounts",
+		"imsub_managed_groups",
 	}
 	for _, needle := range needles {
 		if !strings.Contains(body, needle) {
@@ -114,6 +132,33 @@ func TestEmitProjectsViewerEvents(t *testing.T) {
 	}
 	if !strings.Contains(body, `imsub_viewer_invite_links_total{result="ok"} 1`) {
 		t.Fatalf("metrics output missing projected viewer_invite_link event: %s", body)
+	}
+}
+
+func TestEmitProjectsTelegramEvents(t *testing.T) {
+	t.Parallel()
+
+	m := New()
+	m.Emit(t.Context(), events.Event{
+		Name:   events.NameTelegramCommand,
+		Fields: map[string]string{"command": "start", "chat_type": "private"},
+	})
+	m.Emit(t.Context(), events.Event{
+		Name:    events.NameTelegramKickAction,
+		Outcome: "ok",
+		Fields:  map[string]string{"reason": "group_policy"},
+	})
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
+	rec := httptest.NewRecorder()
+	m.Handler().ServeHTTP(rec, req)
+
+	body := rec.Body.String()
+	if !strings.Contains(body, `imsub_telegram_commands_total{chat_type="private",command="start"} 1`) {
+		t.Fatalf("metrics output missing projected telegram_command event: %s", body)
+	}
+	if !strings.Contains(body, `imsub_telegram_kick_actions_total{reason="group_policy",result="ok"} 1`) {
+		t.Fatalf("metrics output missing projected telegram_kick_action event: %s", body)
 	}
 }
 

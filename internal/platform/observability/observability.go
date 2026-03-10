@@ -21,6 +21,10 @@ type Metrics struct {
 	requestsTotal        *prometheus.CounterVec
 	requestDuration      *prometheus.HistogramVec
 	requestsInFlight     prometheus.Gauge
+	telegramDailyActive  prometheus.Gauge
+	linkedViewers        prometheus.Gauge
+	linkedCreators       prometheus.Gauge
+	managedGroups        prometheus.Gauge
 	oauthCallbacksTotal  *prometheus.CounterVec
 	eventsubTotal        *prometheus.CounterVec
 	telegramWebhook      *prometheus.CounterVec
@@ -45,6 +49,8 @@ type Metrics struct {
 	viewerAccess         *prometheus.CounterVec
 	viewerJoinTargets    *prometheus.CounterVec
 	viewerInviteLinks    *prometheus.CounterVec
+	telegramCommands     *prometheus.CounterVec
+	telegramKickActions  *prometheus.CounterVec
 }
 
 // New creates and registers all Prometheus metrics.
@@ -69,6 +75,22 @@ func New() *Metrics {
 		requestsInFlight: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "imsub_http_requests_in_flight",
 			Help: "Current in-flight HTTP requests.",
+		}),
+		telegramDailyActive: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "imsub_telegram_daily_active_users",
+			Help: "Rolling 24h unique Telegram users who actively interacted with the bot.",
+		}),
+		linkedViewers: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "imsub_linked_viewer_accounts",
+			Help: "Current count of linked viewer identities.",
+		}),
+		linkedCreators: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "imsub_linked_creator_accounts",
+			Help: "Current count of linked creator accounts.",
+		}),
+		managedGroups: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "imsub_managed_groups",
+			Help: "Current count of managed Telegram groups.",
 		}),
 		oauthCallbacksTotal: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
@@ -236,12 +258,30 @@ func New() *Metrics {
 			},
 			[]string{"result"},
 		),
+		telegramCommands: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "imsub_telegram_commands_total",
+				Help: "Telegram slash command usage by command and chat type.",
+			},
+			[]string{"command", "chat_type"},
+		),
+		telegramKickActions: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "imsub_telegram_kick_actions_total",
+				Help: "Telegram member removal attempts by reason and result.",
+			},
+			[]string{"reason", "result"},
+		),
 	}
 
 	m.registry.MustRegister(
 		m.requestsTotal,
 		m.requestDuration,
 		m.requestsInFlight,
+		m.telegramDailyActive,
+		m.linkedViewers,
+		m.linkedCreators,
+		m.managedGroups,
 		m.oauthCallbacksTotal,
 		m.eventsubTotal,
 		m.telegramWebhook,
@@ -266,9 +306,43 @@ func New() *Metrics {
 		m.viewerAccess,
 		m.viewerJoinTargets,
 		m.viewerInviteLinks,
+		m.telegramCommands,
+		m.telegramKickActions,
 	)
 
 	return m
+}
+
+// TelegramDailyActiveUsers sets the rolling 24h unique Telegram active-user gauge.
+func (m *Metrics) TelegramDailyActiveUsers(count int) {
+	if m == nil {
+		return
+	}
+	m.telegramDailyActive.Set(float64(count))
+}
+
+// LinkedViewerAccounts sets the current linked-viewer gauge.
+func (m *Metrics) LinkedViewerAccounts(count int) {
+	if m == nil {
+		return
+	}
+	m.linkedViewers.Set(float64(count))
+}
+
+// LinkedCreatorAccounts sets the current linked-creator gauge.
+func (m *Metrics) LinkedCreatorAccounts(count int) {
+	if m == nil {
+		return
+	}
+	m.linkedCreators.Set(float64(count))
+}
+
+// ManagedGroups sets the current managed-groups gauge.
+func (m *Metrics) ManagedGroups(count int) {
+	if m == nil {
+		return
+	}
+	m.managedGroups.Set(float64(count))
 }
 
 // CreatorTokenRefresh records creator token refresh attempts.
@@ -427,6 +501,28 @@ func (m *Metrics) ViewerInviteLink(result string) {
 	m.viewerInviteLinks.WithLabelValues(httputil.LabelOrUnknown(result)).Inc()
 }
 
+// TelegramCommand records a slash command invocation.
+func (m *Metrics) TelegramCommand(command, chatType string) {
+	if m == nil {
+		return
+	}
+	m.telegramCommands.WithLabelValues(
+		httputil.LabelOrUnknown(command),
+		httputil.LabelOrUnknown(chatType),
+	).Inc()
+}
+
+// TelegramKickAction records a Telegram kick action by reason and result.
+func (m *Metrics) TelegramKickAction(reason, result string) {
+	if m == nil {
+		return
+	}
+	m.telegramKickActions.WithLabelValues(
+		httputil.LabelOrUnknown(reason),
+		httputil.LabelOrUnknown(result),
+	).Inc()
+}
+
 // Emit projects application events into observability metrics.
 func (m *Metrics) Emit(_ context.Context, evt events.Event) {
 	if m == nil {
@@ -479,6 +575,10 @@ func (m *Metrics) Emit(_ context.Context, evt events.Event) {
 		m.CreatorStatus(evt.Outcome)
 	case events.NameViewerAccess:
 		m.ViewerAccess(evt.Outcome)
+	case events.NameTelegramCommand:
+		m.TelegramCommand(evt.Fields["command"], evt.Fields["chat_type"])
+	case events.NameTelegramKickAction:
+		m.TelegramKickAction(evt.Fields["reason"], evt.Outcome)
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"imsub/internal/core"
+	"imsub/internal/events"
 	"imsub/internal/platform/config"
 	"imsub/internal/platform/ratelimit"
 	"imsub/internal/transport/telegram/client"
@@ -99,6 +100,7 @@ type Dependencies struct {
 	CreatorActivation   *usecase.CreatorActivationUseCase
 	SubscriptionEnd     *usecase.SubscriptionEndUseCase
 	Reset               *usecase.ResetUseCase
+	Events              events.EventSink
 }
 
 type controllerStore interface {
@@ -121,6 +123,7 @@ type controllerStore interface {
 	UpsertUntrackedGroupMember(ctx context.Context, chatID, telegramUserID int64, source, status string, at time.Time) error
 	RemoveUntrackedGroupMember(ctx context.Context, chatID, telegramUserID int64) error
 	ListUntrackedGroupMembers(ctx context.Context, chatID int64) ([]core.UntrackedGroupMember, error)
+	TrackTelegramActiveUser(ctx context.Context, telegramUserID int64, at time.Time) error
 }
 
 // Bot owns Telegram bot flows and callback orchestration.
@@ -146,6 +149,7 @@ type Bot struct {
 	creatorActivation   *usecase.CreatorActivationUseCase
 	subscriptionEnd     *usecase.SubscriptionEndUseCase
 	reset               *usecase.ResetUseCase
+	events              events.EventSink
 
 	backgroundWG sync.WaitGroup
 }
@@ -176,6 +180,7 @@ func New(deps Dependencies) *Bot {
 		creatorActivation:   deps.CreatorActivation,
 		subscriptionEnd:     deps.SubscriptionEnd,
 		reset:               deps.Reset,
+		events:              events.EnsureSink(deps.Events),
 	}
 	return c
 }

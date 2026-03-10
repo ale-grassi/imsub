@@ -28,7 +28,7 @@ type gracePolicyStore interface {
 }
 
 type groupKicker interface {
-	KickFromGroup(ctx context.Context, groupChatID, telegramUserID int64) error
+	KickFromGroup(ctx context.Context, groupChatID, telegramUserID int64, reason core.KickReason) error
 }
 
 type memberCleanupStore interface {
@@ -52,6 +52,21 @@ type subscriptionGraceStore interface {
 
 type subscriptionGraceNotifier interface {
 	NotifySubscriptionGraceExpired(ctx context.Context, result core.ExpiredSubscriptionGraceResult) error
+}
+
+type productMetricsSnapshotStore interface {
+	PruneTelegramActiveUsersBefore(ctx context.Context, before time.Time) error
+	CountTelegramActiveUsersSince(ctx context.Context, since time.Time) (int, error)
+	CountLinkedViewerAccounts(ctx context.Context) (int, error)
+	CountLinkedCreatorAccounts(ctx context.Context) (int, error)
+	CountManagedGroups(ctx context.Context) (int, error)
+}
+
+type productMetricsSink interface {
+	TelegramDailyActiveUsers(count int)
+	LinkedViewerAccounts(count int)
+	LinkedCreatorAccounts(count int)
+	ManagedGroups(count int)
 }
 
 type subscriberTask struct {
@@ -119,6 +134,13 @@ type subscriptionGraceTask struct {
 	now      func() time.Time
 }
 
+type productMetricsSnapshotTask struct {
+	store  productMetricsSnapshotStore
+	sink   productMetricsSink
+	now    func() time.Time
+	window time.Duration
+}
+
 // NewEventSubTask builds the EventSub reconciliation task.
 func NewEventSubTask(r eventSubReconciler) Task {
 	return eventSubTask{reconciler: r}
@@ -171,6 +193,16 @@ func NewSubscriptionGraceTask(store subscriptionGraceStore, kicker groupKicker, 
 	}
 }
 
+// NewProductMetricsSnapshotTask builds the periodic sync for product snapshot gauges.
+func NewProductMetricsSnapshotTask(store productMetricsSnapshotStore, sink productMetricsSink) Task {
+	return productMetricsSnapshotTask{
+		store:  store,
+		sink:   sink,
+		now:    func() time.Time { return time.Now().UTC() },
+		window: 24 * time.Hour,
+	}
+}
+
 func (t eventSubTask) Name() string { return "reconcile_eventsubs" }
 
 func (t eventSubTask) Run(ctx context.Context) error {
@@ -218,7 +250,7 @@ func (t gracePolicyTask) Run(ctx context.Context) error {
 			if member.FirstSeenAt.IsZero() || member.FirstSeenAt.After(deadline) {
 				continue
 			}
-			if err := t.kicker.KickFromGroup(ctx, group.ChatID, member.TelegramUserID); err != nil {
+			if err := t.kicker.KickFromGroup(ctx, group.ChatID, member.TelegramUserID, core.KickReasonGroupGracePolicy); err != nil {
 				partialErrs = append(partialErrs, fmt.Errorf("kick unverified member %d from %d: %w", member.TelegramUserID, group.ChatID, err))
 				t.logger.Warn("grace policy kick failed", "chat_id", group.ChatID, "telegram_user_id", member.TelegramUserID, "error", err)
 				continue
@@ -286,6 +318,48 @@ func (t memberCleanupTask) Run(ctx context.Context) error {
 	return nil
 }
 
+func (t productMetricsSnapshotTask) Name() string { return "sync_product_metrics_snapshot" }
+
+func (t productMetricsSnapshotTask) Run(ctx context.Context) error {
+	if t.store == nil || t.sink == nil {
+		return nil
+	}
+	now := t.now()
+	cutoff := now.Add(-t.window)
+	if err := t.store.PruneTelegramActiveUsersBefore(ctx, cutoff); err != nil {
+		return fmt.Errorf("prune telegram active users: %w", err)
+	}
+	dau, err := t.store.CountTelegramActiveUsersSince(ctx, cutoff)
+	if err != nil {
+		return fmt.Errorf("count telegram active users: %w", err)
+	}
+	viewers, err := t.store.CountLinkedViewerAccounts(ctx)
+	if err != nil {
+		return fmt.Errorf("count linked viewer accounts: %w", err)
+	}
+	creators, err := t.store.CountLinkedCreatorAccounts(ctx)
+	if err != nil {
+		return fmt.Errorf("count linked creator accounts: %w", err)
+	}
+	groups, err := t.store.CountManagedGroups(ctx)
+	if err != nil {
+		return fmt.Errorf("count managed groups: %w", err)
+	}
+
+	t.sink.TelegramDailyActiveUsers(dau)
+	t.sink.LinkedViewerAccounts(viewers)
+	t.sink.LinkedCreatorAccounts(creators)
+	t.sink.ManagedGroups(groups)
+	return nil
+}
+
+func (t productMetricsSnapshotTask) Classify(err error) string {
+	if err != nil {
+		return taskResultFailed
+	}
+	return "ok"
+}
+
 func (t memberCleanupTask) processJob(ctx context.Context, job core.MemberCleanupJob) (core.MemberCleanupResult, bool, error) {
 	limit := t.maxTargetsPerRun
 	if limit <= 0 || limit > len(job.Targets) {
@@ -299,7 +373,11 @@ func (t memberCleanupTask) processJob(ctx context.Context, job core.MemberCleanu
 			remaining = append(remaining, job.Targets[idx:]...)
 			break
 		}
-		if err := t.kicker.KickFromGroup(ctx, target.ChatID, target.TelegramUserID); err != nil {
+		reason := core.KickReasonGroupUnregistration
+		if job.Kind == core.MemberCleanupKindCreatorReset {
+			reason = core.KickReasonCreatorReset
+		}
+		if err := t.kicker.KickFromGroup(ctx, target.ChatID, target.TelegramUserID, reason); err != nil {
 			target.Attempts++
 			if target.Attempts >= target.MaxAttempts {
 				permanentFailures++
@@ -397,7 +475,7 @@ func (t subscriptionGraceTask) processJob(ctx context.Context, job core.PendingS
 		return fmt.Errorf("list managed groups by creator: %w", err)
 	}
 	for _, group := range groups {
-		if err := t.kicker.KickFromGroup(ctx, group.ChatID, job.TelegramUserID); err != nil {
+		if err := t.kicker.KickFromGroup(ctx, group.ChatID, job.TelegramUserID, core.KickReasonSubscriptionGrace); err != nil {
 			t.logger.Warn("subscription grace kick failed", "creator_id", job.CreatorID, "chat_id", group.ChatID, "telegram_user_id", job.TelegramUserID, "error", err)
 			continue
 		}

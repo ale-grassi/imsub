@@ -32,7 +32,7 @@ type blocklistStore interface {
 }
 
 type blocklistGroupRevoker interface {
-	KickFromGroup(ctx context.Context, groupChatID int64, telegramUserID int64) error
+	KickFromGroup(ctx context.Context, groupChatID int64, telegramUserID int64, reason KickReason) error
 }
 
 const creatorAuthErrorBlocklistTokenRefreshFailed = "blocklist_token_refresh_failed"
@@ -219,7 +219,7 @@ func (s *CreatorBlocklistService) enforceBlockedUser(ctx context.Context, groups
 			return fmt.Errorf("remove tracked group member: %w", err)
 		}
 		if s.revoker != nil {
-			if err := s.revoker.KickFromGroup(ctx, group.ChatID, telegramUserID); err != nil {
+			if err := s.revoker.KickFromGroup(ctx, group.ChatID, telegramUserID, KickReasonBlocklist); err != nil {
 				return fmt.Errorf("kick from group: %w", err)
 			}
 		}

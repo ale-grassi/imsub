@@ -86,6 +86,65 @@ func TestListTrackedGroupIDsForUserRoundTrip(t *testing.T) {
 	}
 }
 
+func TestProductMetricsSnapshotCounts(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	ctx := t.Context()
+	now := time.Date(2026, 3, 10, 12, 0, 0, 0, time.UTC)
+
+	if _, err := s.SaveUserIdentityOnly(ctx, 7, "tw-7", "viewer7", "en"); err != nil {
+		t.Fatalf("SaveUserIdentityOnly(7) failed: %v", err)
+	}
+	if _, err := s.SaveUserIdentityOnly(ctx, 8, "tw-8", "viewer8", "en"); err != nil {
+		t.Fatalf("SaveUserIdentityOnly(8) failed: %v", err)
+	}
+	if err := s.UpsertCreator(ctx, core.Creator{ID: "creator-1", OwnerTelegramID: 42, TwitchLogin: "creator1", UpdatedAt: now}); err != nil {
+		t.Fatalf("UpsertCreator failed: %v", err)
+	}
+	if err := s.UpsertManagedGroup(ctx, core.ManagedGroup{ChatID: 1001, CreatorID: "creator-1", GroupName: "VIP"}); err != nil {
+		t.Fatalf("UpsertManagedGroup failed: %v", err)
+	}
+	if err := s.TrackTelegramActiveUser(ctx, 7, now.Add(-2*time.Hour)); err != nil {
+		t.Fatalf("TrackTelegramActiveUser(7) failed: %v", err)
+	}
+	if err := s.TrackTelegramActiveUser(ctx, 8, now.Add(-26*time.Hour)); err != nil {
+		t.Fatalf("TrackTelegramActiveUser(8) failed: %v", err)
+	}
+
+	dau, err := s.CountTelegramActiveUsersSince(ctx, now.Add(-24*time.Hour))
+	if err != nil {
+		t.Fatalf("CountTelegramActiveUsersSince failed: %v", err)
+	}
+	if dau != 1 {
+		t.Fatalf("CountTelegramActiveUsersSince = %d, want 1", dau)
+	}
+
+	viewers, err := s.CountLinkedViewerAccounts(ctx)
+	if err != nil {
+		t.Fatalf("CountLinkedViewerAccounts failed: %v", err)
+	}
+	if viewers != 2 {
+		t.Fatalf("CountLinkedViewerAccounts = %d, want 2", viewers)
+	}
+
+	creators, err := s.CountLinkedCreatorAccounts(ctx)
+	if err != nil {
+		t.Fatalf("CountLinkedCreatorAccounts failed: %v", err)
+	}
+	if creators != 1 {
+		t.Fatalf("CountLinkedCreatorAccounts = %d, want 1", creators)
+	}
+
+	groups, err := s.CountManagedGroups(ctx)
+	if err != nil {
+		t.Fatalf("CountManagedGroups failed: %v", err)
+	}
+	if groups != 1 {
+		t.Fatalf("CountManagedGroups = %d, want 1", groups)
+	}
+}
+
 func TestDeleteAllUserDataRemovesTrackedGroupLinks(t *testing.T) {
 	t.Parallel()
 

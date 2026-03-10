@@ -725,7 +725,7 @@ func (c *Bot) observeGroupMember(ctx context.Context, group core.ManagedGroup, t
 	if group.Policy != core.GroupPolicyKick {
 		return
 	}
-	if err := c.KickFromGroup(ctx, group.ChatID, telegramUserID); err != nil {
+	if err := c.KickFromGroup(ctx, group.ChatID, telegramUserID, core.KickReasonGroupPolicy); err != nil {
 		c.log().Warn("kick unverified group member failed", "chat_id", group.ChatID, "telegram_user_id", telegramUserID, "source", source, "error", err)
 		return
 	}

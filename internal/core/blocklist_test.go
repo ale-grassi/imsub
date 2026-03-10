@@ -142,7 +142,7 @@ type blocklistFakeRevoker struct {
 	kicked []int64
 }
 
-func (f *blocklistFakeRevoker) KickFromGroup(_ context.Context, groupChatID int64, _ int64) error {
+func (f *blocklistFakeRevoker) KickFromGroup(_ context.Context, groupChatID int64, _ int64, _ KickReason) error {
 	f.kicked = append(f.kicked, groupChatID)
 	return nil
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"imsub/internal/core"
+	"imsub/internal/events"
 	"imsub/internal/transport/telegram"
 
 	"github.com/mymmrac/telego"
@@ -33,10 +34,11 @@ type Client struct {
 	limiter limiter
 	logger  *slog.Logger
 	store   creatorStore
+	events  events.EventSink
 }
 
 // New creates a Telegram group operations client.
-func New(bot *telego.Bot, lim limiter, logger *slog.Logger, store creatorStore) *Client {
+func New(bot *telego.Bot, lim limiter, logger *slog.Logger, store creatorStore, sink events.EventSink) *Client {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -45,6 +47,7 @@ func New(bot *telego.Bot, lim limiter, logger *slog.Logger, store creatorStore) 
 		limiter: lim,
 		logger:  logger,
 		store:   store,
+		events:  events.EnsureSink(sink),
 	}
 }
 
@@ -101,13 +104,14 @@ func (c *Client) IsGroupMember(ctx context.Context, groupChatID, telegramUserID 
 }
 
 // KickFromGroup bans and immediately unbans telegramUserID from groupChatID.
-func (c *Client) KickFromGroup(ctx context.Context, groupChatID int64, telegramUserID int64) error {
+func (c *Client) KickFromGroup(ctx context.Context, groupChatID int64, telegramUserID int64, reason core.KickReason) error {
 	if c == nil || c.bot == nil {
 		return nil
 	}
 	until := time.Now().Add(60 * time.Second).Unix()
 	if c.limiter != nil {
 		if err := c.limiter.Wait(ctx, groupChatID); err != nil {
+			c.recordKick(ctx, reason, "failed")
 			return fmt.Errorf("limiter wait for ban: %w", err)
 		}
 	}
@@ -118,12 +122,15 @@ func (c *Client) KickFromGroup(ctx context.Context, groupChatID int64, telegramU
 	})
 	if err != nil {
 		if telegram.IsForbidden(err) || telegram.IsBadRequest(err) {
+			c.recordKick(ctx, reason, "skipped")
 			return nil
 		}
+		c.recordKick(ctx, reason, "failed")
 		return fmt.Errorf("ban chat member: %w", err)
 	}
 	if c.limiter != nil {
 		if err := c.limiter.Wait(ctx, groupChatID); err != nil {
+			c.recordKick(ctx, reason, "failed")
 			return fmt.Errorf("limiter wait for unban: %w", err)
 		}
 	}
@@ -133,8 +140,10 @@ func (c *Client) KickFromGroup(ctx context.Context, groupChatID int64, telegramU
 		OnlyIfBanned: true,
 	})
 	if err != nil {
+		c.recordKick(ctx, reason, "failed")
 		return fmt.Errorf("unban chat member: %w", err)
 	}
+	c.recordKick(ctx, reason, "ok")
 	return nil
 }
 
@@ -149,8 +158,21 @@ func (c *Client) KickDisplacedUser(ctx context.Context, telegramUserID int64) {
 		return
 	}
 	for _, group := range groups {
-		if err := c.KickFromGroup(ctx, group.ChatID, telegramUserID); err != nil {
+		if err := c.KickFromGroup(ctx, group.ChatID, telegramUserID, core.KickReasonDisplacedUser); err != nil {
 			c.logger.Warn("kick displaced user from group failed", "group_chat_id", group.ChatID, "telegram_user_id", telegramUserID, "error", err)
 		}
 	}
+}
+
+func (c *Client) recordKick(ctx context.Context, reason core.KickReason, result string) {
+	if c == nil || c.events == nil {
+		return
+	}
+	c.events.Emit(ctx, events.Event{
+		Name:    events.NameTelegramKickAction,
+		Outcome: result,
+		Fields: map[string]string{
+			"reason": string(reason),
+		},
+	})
 }

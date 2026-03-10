@@ -109,6 +109,7 @@ func keyManagedGroupsSet() string { return "imsub:groups" }
 func keyManagedGroupsByCreator(creatorID string) string {
 	return "imsub:groups:by_creator:" + creatorID
 }
+func keyTelegramActiveUsers() string { return "imsub:metrics:telegram_active_users" }
 func keyTrackedGroupMembers(chatID int64) string {
 	return "imsub:group:tracked:" + strconv.FormatInt(chatID, 10)
 }
