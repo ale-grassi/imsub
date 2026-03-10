@@ -267,6 +267,8 @@ Key metrics include:
 | `imsub_viewer_access_total` | Counter | Viewer access workflow results |
 | `imsub_reconciliation_repairs_total` | Counter | Integrity and repair counts |
 | `imsub_telegram_commands_total` | Counter | Telegram slash command usage by command and chat type |
+| `imsub_telegram_command_response_duration_seconds` | Histogram | Telegram command latency to first successful bot response, or handler error before one is sent |
+| `imsub_telegram_api_errors_total` | Counter | Telegram API call failures by method and normalized reason |
 | `imsub_telegram_kick_actions_total` | Counter | Telegram kick actions by reason and result |
 
 Fly.io's managed Prometheus can scrape this endpoint for Grafana dashboards.

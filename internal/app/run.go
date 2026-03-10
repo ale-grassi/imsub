@@ -127,6 +127,7 @@ func Run() error {
 	subscriberTask := jobs.NewSubscriberTask(reconcileSvc)
 	eventSubTask := jobs.NewEventSubTask(eventSubSvc)
 	tgClient := telegramclient.New(tgBot, tgLimiter, logger)
+	tgClient.SetObserver(eventSink)
 	tgGroups := telegramgroups.New(tgBot, tgLimiter, logger, s, eventSink)
 	groupUnregistrationUC := usecase.NewGroupUnregistrationUseCase(s, eventSubSvc, eventSink)
 	gracePolicyTask := jobs.NewGracePolicyTask(s, tgGroups, logger)

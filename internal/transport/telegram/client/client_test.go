@@ -3,8 +3,12 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
+	"sync"
 	"testing"
+
+	"imsub/internal/events"
 
 	"github.com/mymmrac/telego"
 	"github.com/mymmrac/telego/telegoapi"
@@ -193,6 +197,66 @@ func TestSendDraftCanDisableHTML(t *testing.T) {
 	caller.assertJSONFieldMissing(t, "sendMessageDraft", "parse_mode")
 }
 
+func TestAnswerCallbackEmitsNormalizedAPIError(t *testing.T) {
+	t.Parallel()
+
+	caller := &recordingCaller{
+		errs: map[string]error{
+			"answerCallbackQuery": errors.New(`request call: 400 "Bad Request: MESSAGE_TOO_LONG"`),
+		},
+	}
+	c := newTestClient(t, caller)
+	sink := &testEventSink{}
+	c.SetObserver(sink)
+
+	c.AnswerCallback(t.Context(), "cb-id", "way too long", true)
+
+	evts := sink.snapshot()
+	if len(evts) != 1 {
+		t.Fatalf("emitted events = %d, want 1", len(evts))
+	}
+	if evts[0].Name != events.NameTelegramAPIError {
+		t.Fatalf("event name = %q, want %q", evts[0].Name, events.NameTelegramAPIError)
+	}
+	if got := evts[0].Fields["method"]; got != "answer_callback_query" {
+		t.Fatalf("event method = %q, want answer_callback_query", got)
+	}
+	if got := evts[0].Fields["reason"]; got != "message_too_long" {
+		t.Fatalf("event reason = %q, want message_too_long", got)
+	}
+}
+
+func TestEditForbiddenReturnsZeroAndEmitsForbiddenAPIError(t *testing.T) {
+	t.Parallel()
+
+	caller := &recordingCaller{
+		errs: map[string]error{
+			"editMessageText": errors.New(`request call: 403 "Forbidden: message can't be edited"`),
+		},
+	}
+	c := newTestClient(t, caller)
+	sink := &testEventSink{}
+	c.SetObserver(sink)
+
+	if got := c.Edit(t.Context(), 100, 10, "hello", nil); got != 0 {
+		t.Fatalf("Edit() = %d, want 0 on forbidden", got)
+	}
+
+	evts := sink.snapshot()
+	if len(evts) != 1 {
+		t.Fatalf("emitted events = %d, want 1", len(evts))
+	}
+	if evts[0].Name != events.NameTelegramAPIError {
+		t.Fatalf("event name = %q, want %q", evts[0].Name, events.NameTelegramAPIError)
+	}
+	if got := evts[0].Fields["method"]; got != "edit_message_text" {
+		t.Fatalf("event method = %q, want edit_message_text", got)
+	}
+	if got := evts[0].Fields["reason"]; got != "forbidden" {
+		t.Fatalf("event reason = %q, want forbidden", got)
+	}
+}
+
 func newTestClient(t *testing.T, caller telegoapi.Caller) *Client {
 	t.Helper()
 
@@ -206,6 +270,7 @@ func newTestClient(t *testing.T, caller telegoapi.Caller) *Client {
 type recordingCaller struct {
 	results map[string]json.RawMessage
 	request map[string]map[string]any
+	errs    map[string]error
 }
 
 func (c *recordingCaller) Call(_ context.Context, url string, data *telegoapi.RequestData) (*telegoapi.Response, error) {
@@ -219,6 +284,9 @@ func (c *recordingCaller) Call(_ context.Context, url string, data *telegoapi.Re
 			return nil, err
 		}
 		c.request[method] = payload
+	}
+	if err, ok := c.errs[method]; ok {
+		return nil, err
 	}
 
 	result := json.RawMessage(`true`)
@@ -238,6 +306,23 @@ func (c *recordingCaller) assertJSONField(t *testing.T, method, field string, wa
 	if got, ok := payload[field]; !ok || got != want {
 		t.Fatalf("%s payload[%q] = %#v, want %#v", method, field, got, want)
 	}
+}
+
+type testEventSink struct {
+	mu     sync.Mutex
+	events []events.Event
+}
+
+func (s *testEventSink) Emit(_ context.Context, evt events.Event) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.events = append(s.events, evt)
+}
+
+func (s *testEventSink) snapshot() []events.Event {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]events.Event(nil), s.events...)
 }
 
 func (c *recordingCaller) assertJSONFieldContains(t *testing.T, method, field, wantSubstring string) {

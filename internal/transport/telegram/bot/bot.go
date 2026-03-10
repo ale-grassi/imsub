@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"imsub/internal/core"
@@ -22,6 +23,26 @@ import (
 
 const msgCbRefreshed = "cb_refreshed"
 
+type telegramCommandResponseKey struct{}
+
+type telegramCommandResponseState struct {
+	command  string
+	chatType string
+	started  time.Time
+	once     sync.Once
+}
+
+func withTelegramCommandResponse(ctx context.Context, command, chatType string, started time.Time) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, telegramCommandResponseKey{}, &telegramCommandResponseState{
+		command:  strings.TrimSpace(command),
+		chatType: normalizeTelegramChatType(chatType),
+		started:  started.UTC(),
+	})
+}
+
 func (c *Bot) oauthStartURL(state string) string {
 	return c.cfg.PublicBaseURL + "/auth/start/" + url.PathEscape(state)
 }
@@ -31,14 +52,22 @@ func (c *Bot) sendMsg(ctx context.Context, chatID int64, text string, opts *clie
 	if c == nil || c.telegramClient == nil {
 		return 0
 	}
-	return c.telegramClient.Send(ctx, chatID, text, opts)
+	messageID := c.telegramClient.Send(ctx, chatID, text, opts)
+	if messageID != 0 {
+		c.observeTelegramCommandResponse(ctx, "ok")
+	}
+	return messageID
 }
 
-func (c *Bot) reply(ctx context.Context, chatID int64, messageID int, text string, opts *client.MessageOptions) {
+func (c *Bot) reply(ctx context.Context, chatID int64, messageID int, text string, opts *client.MessageOptions) int {
 	if c == nil || c.telegramClient == nil {
-		return
+		return 0
 	}
-	c.telegramClient.Reply(ctx, chatID, messageID, text, opts)
+	replyID := c.telegramClient.Reply(ctx, chatID, messageID, text, opts)
+	if replyID != 0 {
+		c.observeTelegramCommandResponse(ctx, "ok")
+	}
+	return replyID
 }
 
 func (c *Bot) sendDraft(ctx context.Context, chatID int64, draftID int, text string, opts *client.MessageOptions) {
@@ -111,6 +140,27 @@ func (c *Bot) recordTelegramCommand(ctx context.Context, telegramUserID int64, c
 			"command":   strings.TrimSpace(command),
 			"chat_type": normalizeTelegramChatType(chatType),
 		},
+	})
+}
+
+func (c *Bot) observeTelegramCommandResponse(ctx context.Context, result string) {
+	if c == nil || c.events == nil || ctx == nil {
+		return
+	}
+	state, ok := ctx.Value(telegramCommandResponseKey{}).(*telegramCommandResponseState)
+	if !ok || state == nil || state.started.IsZero() {
+		return
+	}
+	state.once.Do(func() {
+		c.events.Emit(ctx, events.Event{
+			Name:    events.NameTelegramCommandResponse,
+			Outcome: strings.TrimSpace(result),
+			Fields: map[string]string{
+				"command":   state.command,
+				"chat_type": state.chatType,
+			},
+			Duration: time.Since(state.started),
+		})
 	})
 }
 
@@ -223,10 +273,16 @@ func (c *Bot) RegisterTelegramHandlers() {
 	}
 	trackedCommand := func(command, chatType string, handler func(*tghandler.Context, telego.Message) error) func(*tghandler.Context, telego.Message) error {
 		return func(ctx *tghandler.Context, msg telego.Message) error {
+			ctx = ctx.WithContext(withTelegramCommandResponse(ctx, command, chatType, time.Now()))
 			if msg.From != nil {
 				c.recordTelegramCommand(ctx, msg.From.ID, command, chatType)
 			}
-			return handler(ctx, msg)
+			err := handler(ctx, msg)
+			if err != nil {
+				c.observeTelegramCommandResponse(ctx, "error")
+				return err
+			}
+			return nil
 		}
 	}
 

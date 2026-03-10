@@ -33,6 +33,8 @@ func TestNilSafety(t *testing.T) {
 	m.ViewerJoinTargets("invite_groups", 2)
 	m.ViewerInviteLink("ok")
 	m.TelegramCommand("start", "private")
+	m.TelegramCommandResponse("start", "private", "ok", 150*time.Millisecond)
+	m.TelegramAPIError("answer_callback_query", "message_too_long")
 	m.TelegramKickAction("group_policy", "ok")
 	m.TelegramDailyActiveUsers(4)
 	m.LinkedViewerAccounts(5)
@@ -69,6 +71,8 @@ func TestMetricsExposure(t *testing.T) {
 	m.ViewerJoinTargets("invite_groups", 2)
 	m.ViewerInviteLink("ok")
 	m.TelegramCommand("start", "private")
+	m.TelegramCommandResponse("start", "private", "ok", 150*time.Millisecond)
+	m.TelegramAPIError("answer_callback_query", "message_too_long")
 	m.TelegramKickAction("group_policy", "ok")
 	m.TelegramDailyActiveUsers(4)
 	m.LinkedViewerAccounts(5)
@@ -102,6 +106,8 @@ func TestMetricsExposure(t *testing.T) {
 		"imsub_viewer_join_targets_total",
 		"imsub_viewer_invite_links_total",
 		"imsub_telegram_commands_total",
+		"imsub_telegram_command_response_duration_seconds",
+		"imsub_telegram_api_errors_total",
 		"imsub_telegram_kick_actions_total",
 		"imsub_telegram_daily_active_users",
 		"imsub_linked_viewer_accounts",
@@ -144,6 +150,20 @@ func TestEmitProjectsTelegramEvents(t *testing.T) {
 		Fields: map[string]string{"command": "start", "chat_type": "private"},
 	})
 	m.Emit(t.Context(), events.Event{
+		Name:     events.NameTelegramCommandResponse,
+		Outcome:  "ok",
+		Fields:   map[string]string{"command": "start", "chat_type": "private"},
+		Duration: 150 * time.Millisecond,
+	})
+	m.Emit(t.Context(), events.Event{
+		Name:   events.NameTelegramAPIError,
+		Fields: map[string]string{"method": "answer_callback_query", "reason": "message_too_long"},
+	})
+	m.Emit(t.Context(), events.Event{
+		Name:   events.NameTelegramAPIError,
+		Fields: map[string]string{"method": "edit_message_text", "reason": "forbidden"},
+	})
+	m.Emit(t.Context(), events.Event{
 		Name:    events.NameTelegramKickAction,
 		Outcome: "ok",
 		Fields:  map[string]string{"reason": "group_policy"},
@@ -156,6 +176,15 @@ func TestEmitProjectsTelegramEvents(t *testing.T) {
 	body := rec.Body.String()
 	if !strings.Contains(body, `imsub_telegram_commands_total{chat_type="private",command="start"} 1`) {
 		t.Fatalf("metrics output missing projected telegram_command event: %s", body)
+	}
+	if !strings.Contains(body, `imsub_telegram_command_response_duration_seconds_count{chat_type="private",command="start",result="ok"} 1`) {
+		t.Fatalf("metrics output missing projected telegram_command_response event: %s", body)
+	}
+	if !strings.Contains(body, `imsub_telegram_api_errors_total{method="answer_callback_query",reason="message_too_long"} 1`) {
+		t.Fatalf("metrics output missing projected telegram_api_error event: %s", body)
+	}
+	if !strings.Contains(body, `imsub_telegram_api_errors_total{method="edit_message_text",reason="forbidden"} 1`) {
+		t.Fatalf("metrics output missing projected forbidden telegram_api_error event: %s", body)
 	}
 	if !strings.Contains(body, `imsub_telegram_kick_actions_total{reason="group_policy",result="ok"} 1`) {
 		t.Fatalf("metrics output missing projected telegram_kick_action event: %s", body)

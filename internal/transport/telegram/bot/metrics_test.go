@@ -47,4 +47,19 @@ func TestStartCommandTracksActivityAndEmitsCommandEvent(t *testing.T) {
 	if !found {
 		t.Fatal("expected telegram command event for /start")
 	}
+
+	found = false
+	for _, evt := range h.events.snapshot() {
+		if evt.Name == events.NameTelegramCommandResponse &&
+			evt.Fields["command"] == "start" &&
+			evt.Fields["chat_type"] == "private" &&
+			evt.Outcome == "ok" &&
+			evt.Duration > 0 {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("expected telegram command response event for /start")
+	}
 }

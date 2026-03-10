@@ -3,7 +3,9 @@ package client
 import (
 	"context"
 	"log/slog"
+	"strings"
 
+	"imsub/internal/events"
 	"imsub/internal/transport/telegram"
 
 	"github.com/mymmrac/telego"
@@ -30,6 +32,7 @@ type Client struct {
 	bot     *telego.Bot
 	limiter limiter
 	logger  *slog.Logger
+	events  events.EventSink
 }
 
 // New creates a Telegram client wrapper with optional logger fallback.
@@ -41,6 +44,48 @@ func New(bot *telego.Bot, lim limiter, logger *slog.Logger) *Client {
 		bot:     bot,
 		limiter: lim,
 		logger:  logger,
+	}
+}
+
+// SetObserver configures the optional event sink used for telemetry projection.
+func (c *Client) SetObserver(sink events.EventSink) {
+	if c == nil {
+		return
+	}
+	c.events = events.EnsureSink(sink)
+}
+
+func (c *Client) emitTelegramAPIError(ctx context.Context, method string, err error) {
+	if c == nil || c.events == nil || err == nil {
+		return
+	}
+	c.events.Emit(ctx, events.Event{
+		Name: events.NameTelegramAPIError,
+		Fields: map[string]string{
+			"method": method,
+			"reason": normalizeTelegramAPIErrorReason(err),
+		},
+	})
+}
+
+func normalizeTelegramAPIErrorReason(err error) string {
+	if err == nil {
+		return "unknown"
+	}
+	msg := strings.ToLower(strings.TrimSpace(err.Error()))
+	switch {
+	case strings.Contains(msg, "message_too_long"):
+		return "message_too_long"
+	case strings.Contains(msg, "too many requests"), strings.Contains(msg, "retry after"):
+		return "rate_limited"
+	case strings.Contains(msg, "forbidden"):
+		return "forbidden"
+	case strings.Contains(msg, "bad request"):
+		return "bad_request"
+	case strings.Contains(msg, "timeout"), strings.Contains(msg, "deadline exceeded"):
+		return "timeout"
+	default:
+		return "unknown"
 	}
 }
 
@@ -78,8 +123,11 @@ func (c *Client) Send(ctx context.Context, chatID int64, text string, opts *Mess
 		}
 	}
 	msg, err := c.bot.SendMessage(ctx, params)
-	if err != nil && !telegram.IsForbidden(err) {
-		c.logger.Warn("Send message failed", "chat_id", chatID, "error", err)
+	if err != nil {
+		if !telegram.IsForbidden(err) {
+			c.logger.Warn("Send message failed", "chat_id", chatID, "error", err)
+		}
+		c.emitTelegramAPIError(ctx, "send_message", err)
 		return 0
 	}
 	if msg == nil {
@@ -88,10 +136,10 @@ func (c *Client) Send(ctx context.Context, chatID int64, text string, opts *Mess
 	return msg.MessageID
 }
 
-// Edit edits a Telegram message in place.
-func (c *Client) Edit(ctx context.Context, chatID int64, messageID int, text string, opts *MessageOptions) {
+// Edit edits a Telegram message in place and returns the edited message ID, or 0 on failure.
+func (c *Client) Edit(ctx context.Context, chatID int64, messageID int, text string, opts *MessageOptions) int {
 	if c == nil || c.bot == nil {
-		return
+		return 0
 	}
 	text = transformOutgoingText(text, opts)
 	params := tu.EditMessageText(tu.ID(chatID), messageID, text)
@@ -110,20 +158,27 @@ func (c *Client) Edit(ctx context.Context, chatID int64, messageID int, text str
 	if c.limiter != nil {
 		if err := c.limiter.Wait(ctx, chatID); err != nil {
 			c.logger.Warn("Edit message rate limit wait failed", "chat_id", chatID, "error", err)
-			return
+			return 0
 		}
 	}
 	_, err := c.bot.EditMessageText(ctx, params)
-	if err != nil && !telegram.IsForbidden(err) {
-		c.logger.Warn("Edit message failed", "message_id", messageID, "chat_id", chatID, "error", err)
+	if err != nil {
+		if !telegram.IsForbidden(err) {
+			c.logger.Warn("Edit message failed", "message_id", messageID, "chat_id", chatID, "error", err)
+		}
+		c.emitTelegramAPIError(ctx, "edit_message_text", err)
+		return 0
 	}
+	return messageID
 }
 
 // Reply edits when messageID != 0, otherwise sends a new message.
 func (c *Client) Reply(ctx context.Context, chatID int64, messageID int, text string, opts *MessageOptions) int {
 	if messageID != 0 {
-		c.Edit(ctx, chatID, messageID, text, opts)
-		return messageID
+		if c == nil || c.bot == nil {
+			return messageID
+		}
+		return c.Edit(ctx, chatID, messageID, text, opts)
 	}
 	return c.Send(ctx, chatID, text, opts)
 }
@@ -142,8 +197,11 @@ func (c *Client) Delete(ctx context.Context, chatID int64, messageID int) {
 		ChatID:    tu.ID(chatID),
 		MessageID: messageID,
 	})
-	if err != nil && !telegram.IsBadRequest(err) && !telegram.IsForbidden(err) {
-		c.logger.Warn("Delete message failed", "chat_id", chatID, "message_id", messageID, "error", err)
+	if err != nil {
+		if !telegram.IsBadRequest(err) && !telegram.IsForbidden(err) {
+			c.logger.Warn("Delete message failed", "chat_id", chatID, "message_id", messageID, "error", err)
+		}
+		c.emitTelegramAPIError(ctx, "delete_message", err)
 	}
 }
 
@@ -174,8 +232,11 @@ func (c *Client) SendDraft(ctx context.Context, chatID int64, draftID int, text 
 			params.MessageThreadID = opts.MessageThreadID
 		}
 	}
-	if err := c.bot.SendMessageDraft(ctx, params); err != nil && !telegram.IsForbidden(err) {
-		c.logger.Warn("Send draft failed", "chat_id", chatID, "draft_id", draftID, "error", err)
+	if err := c.bot.SendMessageDraft(ctx, params); err != nil {
+		if !telegram.IsForbidden(err) {
+			c.logger.Warn("Send draft failed", "chat_id", chatID, "draft_id", draftID, "error", err)
+		}
+		c.emitTelegramAPIError(ctx, "send_message_draft", err)
 	}
 }
 
@@ -198,7 +259,10 @@ func (c *Client) AnswerCallback(ctx context.Context, callbackID, text string, sh
 		params.WithShowAlert()
 	}
 	err := c.bot.AnswerCallbackQuery(ctx, params)
-	if err != nil && !telegram.IsForbidden(err) {
-		c.logger.Warn("Answer callback failed", "error", err)
+	if err != nil {
+		if !telegram.IsForbidden(err) {
+			c.logger.Warn("Answer callback failed", "error", err)
+		}
+		c.emitTelegramAPIError(ctx, "answer_callback_query", err)
 	}
 }

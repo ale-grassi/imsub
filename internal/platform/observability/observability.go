@@ -50,6 +50,8 @@ type Metrics struct {
 	viewerJoinTargets    *prometheus.CounterVec
 	viewerInviteLinks    *prometheus.CounterVec
 	telegramCommands     *prometheus.CounterVec
+	telegramCommandTime  *prometheus.HistogramVec
+	telegramAPIErrors    *prometheus.CounterVec
 	telegramKickActions  *prometheus.CounterVec
 }
 
@@ -265,6 +267,21 @@ func New() *Metrics {
 			},
 			[]string{"command", "chat_type"},
 		),
+		telegramCommandTime: prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "imsub_telegram_command_response_duration_seconds",
+				Help:    "Time from receiving a Telegram slash command to the first successful bot response, or command termination without a reply.",
+				Buckets: []float64{0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20, 30},
+			},
+			[]string{"command", "chat_type", "result"},
+		),
+		telegramAPIErrors: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "imsub_telegram_api_errors_total",
+				Help: "Telegram API call failures by method and normalized reason.",
+			},
+			[]string{"method", "reason"},
+		),
 		telegramKickActions: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "imsub_telegram_kick_actions_total",
@@ -307,6 +324,8 @@ func New() *Metrics {
 		m.viewerJoinTargets,
 		m.viewerInviteLinks,
 		m.telegramCommands,
+		m.telegramCommandTime,
+		m.telegramAPIErrors,
 		m.telegramKickActions,
 	)
 
@@ -512,6 +531,29 @@ func (m *Metrics) TelegramCommand(command, chatType string) {
 	).Inc()
 }
 
+// TelegramCommandResponse records latency from command receipt to its first successful response.
+func (m *Metrics) TelegramCommandResponse(command, chatType, result string, d time.Duration) {
+	if m == nil {
+		return
+	}
+	m.telegramCommandTime.WithLabelValues(
+		httputil.LabelOrUnknown(command),
+		httputil.LabelOrUnknown(chatType),
+		httputil.LabelOrUnknown(result),
+	).Observe(d.Seconds())
+}
+
+// TelegramAPIError records a Telegram API failure by method and normalized reason.
+func (m *Metrics) TelegramAPIError(method, reason string) {
+	if m == nil {
+		return
+	}
+	m.telegramAPIErrors.WithLabelValues(
+		httputil.LabelOrUnknown(method),
+		httputil.LabelOrUnknown(reason),
+	).Inc()
+}
+
 // TelegramKickAction records a Telegram kick action by reason and result.
 func (m *Metrics) TelegramKickAction(reason, result string) {
 	if m == nil {
@@ -577,6 +619,10 @@ func (m *Metrics) Emit(_ context.Context, evt events.Event) {
 		m.ViewerAccess(evt.Outcome)
 	case events.NameTelegramCommand:
 		m.TelegramCommand(evt.Fields["command"], evt.Fields["chat_type"])
+	case events.NameTelegramCommandResponse:
+		m.TelegramCommandResponse(evt.Fields["command"], evt.Fields["chat_type"], evt.Outcome, evt.Duration)
+	case events.NameTelegramAPIError:
+		m.TelegramAPIError(evt.Fields["method"], evt.Fields["reason"])
 	case events.NameTelegramKickAction:
 		m.TelegramKickAction(evt.Fields["reason"], evt.Outcome)
 	}

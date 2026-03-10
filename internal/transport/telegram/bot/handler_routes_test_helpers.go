@@ -97,6 +97,7 @@ func newRouteTestHarnessWithCleaner(t *testing.T, cleaner usecaseGroupUnregistra
 	tgClient := telegramclient.New(bot, limiter, nil)
 	tgGroups := telegramgroups.New(bot, limiter, nil, store, nil)
 	eventSink := &routeEventSink{}
+	tgClient.SetObserver(eventSink)
 
 	controller := New(Dependencies{
 		Config: config.Config{

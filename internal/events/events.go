@@ -22,6 +22,8 @@ const (
 	NameCreatorOAuth                = "creator_oauth"
 	NameCreatorStatus               = "creator_status"
 	NameTelegramCommand             = "telegram_command"
+	NameTelegramCommandResponse     = "telegram_command_response"
+	NameTelegramAPIError            = "telegram_api_error"
 	NameTelegramKickAction          = "telegram_kick_action"
 	NameCreatorTokenRefresh         = "creator_token_refresh"
 	NameCreatorBlocklistSync        = "creator_blocklist_sync"
