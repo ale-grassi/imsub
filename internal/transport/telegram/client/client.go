@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"strings"
+	"unicode/utf8"
 
 	"imsub/internal/events"
 	"imsub/internal/transport/telegram"
@@ -34,6 +35,8 @@ type Client struct {
 	logger  *slog.Logger
 	events  events.EventSink
 }
+
+const telegramCallbackAnswerMaxRunes = 200
 
 // New creates a Telegram client wrapper with optional logger fallback.
 func New(bot *telego.Bot, lim limiter, logger *slog.Logger) *Client {
@@ -245,6 +248,10 @@ func (c *Client) AnswerCallback(ctx context.Context, callbackID, text string, sh
 	if c == nil || c.bot == nil {
 		return
 	}
+	text, truncated, originalLen, sentLen := sanitizeCallbackAnswerText(text)
+	if truncated {
+		c.logger.Warn("Truncated callback answer text before Telegram API call", "method", "answer_callback_query", "original_len", originalLen, "sent_len", sentLen, "show_alert", showAlert)
+	}
 	if c.limiter != nil {
 		if err := c.limiter.Wait(ctx, 0); err != nil {
 			c.logger.Warn("Answer callback rate limit wait failed", "error", err)
@@ -265,4 +272,24 @@ func (c *Client) AnswerCallback(ctx context.Context, callbackID, text string, sh
 		}
 		c.emitTelegramAPIError(ctx, "answer_callback_query", err)
 	}
+}
+
+func sanitizeCallbackAnswerText(text string) (sanitized string, truncated bool, originalLen, sentLen int) {
+	sanitized = strings.TrimSpace(text)
+	originalLen = utf8.RuneCountInString(sanitized)
+	if originalLen <= telegramCallbackAnswerMaxRunes {
+		return sanitized, false, originalLen, originalLen
+	}
+
+	const ellipsis = "..."
+	keepRunes := telegramCallbackAnswerMaxRunes - utf8.RuneCountInString(ellipsis)
+	runes := []rune(sanitized)
+	if keepRunes <= 0 {
+		sanitized = string(runes[:telegramCallbackAnswerMaxRunes])
+		sentLen = utf8.RuneCountInString(sanitized)
+		return sanitized, true, originalLen, sentLen
+	}
+	sanitized = string(runes[:keepRunes]) + ellipsis
+	sentLen = utf8.RuneCountInString(sanitized)
+	return sanitized, true, originalLen, sentLen
 }

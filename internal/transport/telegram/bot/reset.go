@@ -48,29 +48,29 @@ func (c *Bot) onResetCommand(ctx *tghandler.Context, message telego.Message) err
 	return nil
 }
 
-func (c *Bot) handleResetAction(ctx context.Context, telegramUserID int64, editMsgID int, lang string, action callbackAction) string {
+func (c *Bot) handleResetAction(ctx context.Context, telegramUserID int64, editMsgID int, lang string, action callbackAction) callbackFeedback {
 	switch action.verb {
 	case callbackVerbOpen:
-		return c.renderResetPrompt(ctx, telegramUserID, editMsgID, lang, action.origin)
+		return callbackNoAckAfterRender(c.renderResetPrompt(ctx, telegramUserID, editMsgID, lang, action.origin))
 	case callbackVerbPick:
 		if action.resetAction != "" {
-			return c.renderResetConfirm(ctx, telegramUserID, editMsgID, lang, action.origin, action.scope, action.resetAction)
+			return callbackNoAckAfterRender(c.renderResetConfirm(ctx, telegramUserID, editMsgID, lang, action.origin, action.scope, action.resetAction))
 		}
-		return c.renderResetPickedScope(ctx, telegramUserID, editMsgID, lang, action.origin, action.scope)
+		return callbackNoAckAfterRender(c.renderResetPickedScope(ctx, telegramUserID, editMsgID, lang, action.origin, action.scope))
 	case callbackVerbBack:
-		return c.handleResetBack(ctx, telegramUserID, editMsgID, lang, action.origin)
+		return callbackNoAckAfterRender(c.handleResetBack(ctx, telegramUserID, editMsgID, lang, action.origin))
 	case callbackVerbMenu:
-		return c.handleResetBackToMenu(ctx, telegramUserID, editMsgID, lang, action.origin)
+		return callbackNoAckAfterRender(c.handleResetBackToMenu(ctx, telegramUserID, editMsgID, lang, action.origin))
 	case callbackVerbCancel:
-		return c.handleResetCancel(ctx, telegramUserID, editMsgID, lang)
+		return callbackNoAckAfterRender(c.handleResetCancel(ctx, telegramUserID, editMsgID, lang))
 	case callbackVerbExecute:
-		return c.executeReset(ctx, telegramUserID, editMsgID, lang, action.scope, action.resetAction)
+		return callbackNoAckAfterRender(c.executeReset(ctx, telegramUserID, editMsgID, lang, action.scope, action.resetAction))
 	case callbackVerbRefresh, callbackVerbRegister, callbackVerbReconnect:
 		c.log().Warn("unsupported reset callback verb", "telegram_user_id", telegramUserID, "verb", action.verb)
-		return ""
+		return noCallbackFeedback()
 	default:
 		c.log().Warn("unsupported reset callback verb", "telegram_user_id", telegramUserID, "verb", action.verb)
-		return ""
+		return noCallbackFeedback()
 	}
 }
 

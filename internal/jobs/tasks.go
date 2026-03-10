@@ -11,7 +11,10 @@ import (
 	"imsub/internal/events"
 )
 
-const taskResultFailed = "failed"
+const (
+	taskResultFailed         = "failed"
+	taskResultPartialFailure = "partial_failure"
+)
 
 type subscriberReconciler interface {
 	ReconcileSubscribersOnce(ctx context.Context) error
@@ -97,7 +100,7 @@ func (t subscriberTask) Classify(err error) string {
 	case errors.Is(err, core.ErrListActiveCreators):
 		return "list_active_creators_failed"
 	case errors.Is(err, core.ErrPartialReconcile):
-		return "partial_failure"
+		return taskResultPartialFailure
 	default:
 		return taskResultFailed
 	}

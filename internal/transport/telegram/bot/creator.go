@@ -82,67 +82,67 @@ func (c *Bot) onCreatorCommand(ctx *tghandler.Context, msg telego.Message) error
 	return nil
 }
 
-func (c *Bot) handleCreatorCallback(ctx context.Context, userID int64, editMsgID int, lang string, action callbackAction) string {
+func (c *Bot) handleCreatorCallback(ctx context.Context, userID int64, editMsgID int, lang string, action callbackAction) callbackFeedback {
 	switch action.verb {
 	case callbackVerbRefresh, callbackVerbRegister:
-		return c.handleCreatorStart(ctx, userID, editMsgID, lang)
+		return callbackNoAckAfterRender(c.handleCreatorStart(ctx, userID, editMsgID, lang))
 	case callbackVerbReconnect:
-		return c.handleCreatorReconnectStart(ctx, userID, editMsgID, lang)
+		return callbackNoAckAfterRender(c.handleCreatorReconnectStart(ctx, userID, editMsgID, lang))
 	case callbackVerbOpen:
 		if action.target == creatorCallbackTargetGroups {
-			return c.replyCreatorManagedGroups(ctx, userID, editMsgID, lang, "")
+			return callbackNoAckAfterRender(c.replyCreatorManagedGroups(ctx, userID, editMsgID, lang, ""))
 		}
 		if action.target == creatorCallbackTargetGrace {
-			return c.replyCreatorGracePicker(ctx, userID, editMsgID, lang)
+			return callbackNoAckAfterRender(c.replyCreatorGracePicker(ctx, userID, editMsgID, lang))
 		}
 		if action.target == creatorCallbackTargetGroupConfirm {
-			return c.replyCreatorGroupUnregisterConfirm(ctx, userID, editMsgID, lang, action.chatID)
+			return callbackNoAckAfterRender(c.replyCreatorGroupUnregisterConfirm(ctx, userID, editMsgID, lang, action.chatID))
 		}
 		if action.target == creatorCallbackTargetPolicy {
-			return c.replyCreatorGroupPolicyPicker(ctx, userID, editMsgID, lang, action.chatID)
+			return callbackNoAckAfterRender(c.replyCreatorGroupPolicyPicker(ctx, userID, editMsgID, lang, action.chatID))
 		}
 	case callbackVerbPick:
 		if action.target == creatorCallbackTargetGroup {
-			return c.replyCreatorGroupSettings(ctx, userID, editMsgID, lang, action.chatID, "")
+			return callbackNoAckAfterRender(c.replyCreatorGroupSettings(ctx, userID, editMsgID, lang, action.chatID, ""))
 		}
 		if action.target == creatorCallbackTargetPolicy {
-			return c.replyCreatorGroupPolicyConfirm(ctx, userID, editMsgID, lang, action.chatID, action.policy)
+			return callbackNoAckAfterRender(c.replyCreatorGroupPolicyConfirm(ctx, userID, editMsgID, lang, action.chatID, action.policy))
 		}
 	case callbackVerbBack:
 		if action.target == creatorCallbackTargetGroups {
-			return c.replyCreatorManagedGroups(ctx, userID, editMsgID, lang, "")
+			return callbackNoAckAfterRender(c.replyCreatorManagedGroups(ctx, userID, editMsgID, lang, ""))
 		}
 		if action.target == creatorCallbackTargetPolicy {
-			return c.replyCreatorGroupSettings(ctx, userID, editMsgID, lang, action.chatID, "")
+			return callbackNoAckAfterRender(c.replyCreatorGroupSettings(ctx, userID, editMsgID, lang, action.chatID, ""))
 		}
 	case callbackVerbMenu:
-		return c.handleCreatorStart(ctx, userID, editMsgID, lang)
+		return callbackNoAckAfterRender(c.handleCreatorStart(ctx, userID, editMsgID, lang))
 	case callbackVerbExecute:
 		if action.target == creatorCallbackTargetGroup {
 			memberAction := action.resetAction
 			if memberAction == "" {
 				memberAction = core.CreatorResetKeepMembers
 			}
-			return c.executeCreatorGroupUnregister(ctx, userID, editMsgID, lang, action.chatID, memberAction)
+			return callbackNoAckAfterRender(c.executeCreatorGroupUnregister(ctx, userID, editMsgID, lang, action.chatID, memberAction))
 		}
 		if action.target == creatorCallbackTargetPolicy {
-			return c.executeCreatorGroupPolicyUpdate(ctx, userID, editMsgID, lang, action.chatID, action.policy)
+			return callbackNoAckAfterRender(c.executeCreatorGroupPolicyUpdate(ctx, userID, editMsgID, lang, action.chatID, action.policy))
 		}
 		if action.target == creatorCallbackTargetBlocklist {
-			return c.toggleCreatorBlocklist(ctx, userID, editMsgID, lang)
+			return callbackNoAckAfterRender(c.toggleCreatorBlocklist(ctx, userID, editMsgID, lang))
 		}
 		if action.target == creatorCallbackTargetGrace {
-			return c.updateCreatorGrace(ctx, userID, editMsgID, lang, action.grace)
+			return callbackNoAckAfterRender(c.updateCreatorGrace(ctx, userID, editMsgID, lang, action.grace))
 		}
 	case callbackVerbCancel:
 		c.log().Warn("unsupported creator callback verb", "telegram_user_id", userID, "verb", action.verb)
-		return ""
+		return noCallbackFeedback()
 	default:
 		c.log().Warn("unsupported creator callback verb", "telegram_user_id", userID, "verb", action.verb)
-		return ""
+		return noCallbackFeedback()
 	}
 	c.log().Warn("unsupported creator callback action", "telegram_user_id", userID, "verb", action.verb, "target", action.target, "chat_id", action.chatID)
-	return ""
+	return noCallbackFeedback()
 }
 
 func (c *Bot) handleCreatorStart(ctx context.Context, telegramUserID int64, editMsgID int, lang string) string {

@@ -12,6 +12,11 @@ import (
 	"github.com/mymmrac/telego"
 )
 
+type answerCallbackRequest struct {
+	Text      string `json:"text"`
+	ShowAlert bool   `json:"show_alert"`
+}
+
 func TestRegisterTelegramHandlersStartCommand(t *testing.T) {
 	t.Parallel()
 
@@ -447,6 +452,62 @@ func TestRegisterTelegramHandlersCreatorGroupPolicyUpdateFlow(t *testing.T) {
 	body = h.caller.lastEditMessageBody()
 	h.assertEditMessageHasCallback(t, body, creatorGroupPolicyOpenCallback(-1003))
 	h.assertEditMessageTextContains(t, body, "Group policy updated")
+}
+
+func TestRegisterTelegramHandlersGroupRegisterPolicyCallbackShowsWarningsInMessageNotAlert(t *testing.T) {
+	t.Parallel()
+
+	h := newRouteTestHarness(t)
+	h.store.setOwnedCreator(core.Creator{
+		ID:              "creator-1",
+		TwitchLogin:     "streamer",
+		OwnerTelegramID: 77,
+	})
+	h.caller.setBotUserID()
+	h.caller.setChatMember(77, mustMarshalJSON(map[string]any{
+		"status": "administrator",
+		"user":   map[string]any{"id": 77, "is_bot": false, "first_name": "Owner"},
+	}))
+	h.caller.setChatMember(999, mustMarshalJSON(map[string]any{
+		"status":               "administrator",
+		"user":                 map[string]any{"id": 999, "is_bot": true, "first_name": "ImSub"},
+		"can_invite_users":     false,
+		"can_restrict_members": false,
+	}))
+
+	h.handleUpdate(t, telego.Update{
+		UpdateID: 401,
+		CallbackQuery: &telego.CallbackQuery{
+			ID:   "cb-group-warnings",
+			Data: groupRegisterPolicyCallback(-1007, 0, core.GroupPolicyGraceWeek),
+			From: telego.User{ID: 77, LanguageCode: "en"},
+			Message: &telego.Message{
+				MessageID: 120,
+				Chat: telego.Chat{
+					ID:    -1007,
+					Type:  telego.ChatTypeSupergroup,
+					Title: "VIP Group",
+				},
+			},
+		},
+	})
+
+	body := h.caller.lastEditMessageBody()
+	h.assertEditMessageTextContains(t, body, "Group settings need attention")
+	h.assertEditMessageTextContains(t, body, "Invite Users")
+	h.assertEditMessageTextContains(t, body, "Ban Users")
+
+	callbackBody := h.caller.lastAnswerCallbackBody()
+	var ack answerCallbackRequest
+	if err := json.Unmarshal(callbackBody, &ack); err != nil {
+		t.Fatalf("json.Unmarshal(answerCallbackQuery body) error = %v, body = %s", err, callbackBody)
+	}
+	if ack.Text != "" {
+		t.Fatalf("answerCallbackQuery text = %q, want empty text when warnings are shown in message", ack.Text)
+	}
+	if ack.ShowAlert {
+		t.Fatal("answerCallbackQuery show_alert = true, want false")
+	}
 }
 
 func TestRegisterTelegramHandlersCreatorGroupPolicyUpdateNotManaged(t *testing.T) {

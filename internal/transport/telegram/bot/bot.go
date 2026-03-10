@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"imsub/internal/core"
 	"imsub/internal/events"
@@ -23,7 +24,17 @@ import (
 
 const msgCbRefreshed = "cb_refreshed"
 
+const (
+	telegramChatTypePrivate = "private"
+	telegramChatTypeGroup   = "group"
+	telegramChatTypeOther   = "other"
+)
+
 type telegramCommandResponseKey struct{}
+type callbackFeedback struct {
+	ackText   string
+	showAlert bool
+}
 
 type telegramCommandResponseState struct {
 	command  string
@@ -43,6 +54,22 @@ func withTelegramCommandResponse(ctx context.Context, command, chatType string, 
 	})
 }
 
+func noCallbackFeedback() callbackFeedback {
+	return callbackFeedback{}
+}
+
+func callbackAlert(text string) callbackFeedback {
+	return callbackFeedback{ackText: strings.TrimSpace(text), showAlert: true}
+}
+
+func callbackAck(text string) callbackFeedback {
+	return callbackFeedback{ackText: strings.TrimSpace(text), showAlert: false}
+}
+
+func callbackNoAckAfterRender(_ string) callbackFeedback {
+	return noCallbackFeedback()
+}
+
 func (c *Bot) oauthStartURL(state string) string {
 	return c.cfg.PublicBaseURL + "/auth/start/" + url.PathEscape(state)
 }
@@ -59,15 +86,14 @@ func (c *Bot) sendMsg(ctx context.Context, chatID int64, text string, opts *clie
 	return messageID
 }
 
-func (c *Bot) reply(ctx context.Context, chatID int64, messageID int, text string, opts *client.MessageOptions) int {
+func (c *Bot) reply(ctx context.Context, chatID int64, messageID int, text string, opts *client.MessageOptions) {
 	if c == nil || c.telegramClient == nil {
-		return 0
+		return
 	}
 	replyID := c.telegramClient.Reply(ctx, chatID, messageID, text, opts)
 	if replyID != 0 {
 		c.observeTelegramCommandResponse(ctx, "ok")
 	}
-	return replyID
 }
 
 func (c *Bot) sendDraft(ctx context.Context, chatID int64, draftID int, text string, opts *client.MessageOptions) {
@@ -167,11 +193,11 @@ func (c *Bot) observeTelegramCommandResponse(ctx context.Context, result string)
 func normalizeTelegramChatType(chatType string) string {
 	switch chatType {
 	case telego.ChatTypePrivate:
-		return "private"
+		return telegramChatTypePrivate
 	case telego.ChatTypeGroup, telego.ChatTypeSupergroup:
-		return "group"
+		return telegramChatTypeGroup
 	default:
-		return "other"
+		return telegramChatTypeOther
 	}
 }
 
@@ -186,10 +212,6 @@ func renderJoinButtons(targets core.JoinTargets, lang string) [][]telego.InlineK
 
 func (c *Bot) answerCallback(ctx context.Context, callbackID, text string) {
 	c.answerCallbackOpts(ctx, callbackID, text, false)
-}
-
-func (c *Bot) answerCallbackAlert(ctx context.Context, callbackID, text string) {
-	c.answerCallbackOpts(ctx, callbackID, text, true)
 }
 
 func (c *Bot) answerCallbackOpts(ctx context.Context, callbackID, text string, showAlert bool) {
@@ -323,17 +345,16 @@ func (c *Bot) onCallbackQuery(ctx context.Context, q telego.CallbackQuery) {
 	}
 
 	exec.action = action
-	alertErr := c.dispatchCallbackAction(ctx, exec)
-	if alertErr != "" {
-		c.answerCallbackAlert(ctx, q.ID, alertErr)
+	feedback := c.dispatchCallbackAction(ctx, exec)
+	if feedback.ackText == "" && action.verb == callbackVerbRefresh {
+		feedback = callbackAck(i18n.Translate(exec.lang, msgCbRefreshed))
+	}
+	if feedback.ackText != "" {
+		c.log().Info("sending callback acknowledgement", "telegram_user_id", q.From.ID, "callback_data", q.Data, "domain", action.domain, "verb", action.verb, "ack_len", utf8.RuneCountInString(feedback.ackText), "show_alert", feedback.showAlert)
+		c.answerCallbackOpts(ctx, q.ID, feedback.ackText, feedback.showAlert)
 		return
 	}
-
-	callbackText := ""
-	if action.verb == callbackVerbRefresh {
-		callbackText = i18n.Translate(exec.lang, msgCbRefreshed)
-	}
-	c.answerCallback(ctx, q.ID, callbackText)
+	c.answerCallback(ctx, q.ID, "")
 }
 
 type callbackExecution struct {
@@ -346,10 +367,10 @@ type callbackExecution struct {
 	action        callbackAction
 }
 
-func (c *Bot) dispatchCallbackAction(ctx context.Context, exec callbackExecution) string {
+func (c *Bot) dispatchCallbackAction(ctx context.Context, exec callbackExecution) callbackFeedback {
 	switch exec.action.domain {
 	case callbackDomainViewer:
-		return c.handleViewerStart(ctx, exec.userID, exec.editMsgID, exec.lang)
+		return callbackNoAckAfterRender(c.handleViewerStart(ctx, exec.userID, exec.editMsgID, exec.lang))
 	case callbackDomainCreator:
 		return c.handleCreatorCallback(ctx, exec.userID, exec.editMsgID, exec.lang, exec.action)
 	case callbackDomainGroup:
@@ -358,7 +379,7 @@ func (c *Bot) dispatchCallbackAction(ctx context.Context, exec callbackExecution
 		return c.handleResetAction(ctx, exec.userID, exec.editMsgID, exec.lang, exec.action)
 	}
 	c.log().Warn("unsupported callback action", "telegram_user_id", exec.userID, "data", exec.action.String())
-	return ""
+	return noCallbackFeedback()
 }
 
 func (c *Bot) onUnknownMessage(ctx *tghandler.Context, message telego.Message) error {

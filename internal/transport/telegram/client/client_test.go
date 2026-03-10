@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"unicode/utf8"
 
 	"imsub/internal/events"
 
@@ -223,6 +224,35 @@ func TestAnswerCallbackEmitsNormalizedAPIError(t *testing.T) {
 	}
 	if got := evts[0].Fields["reason"]; got != "message_too_long" {
 		t.Fatalf("event reason = %q, want message_too_long", got)
+	}
+}
+
+func TestAnswerCallbackTruncatesOverlongTextBeforeSend(t *testing.T) {
+	t.Parallel()
+
+	caller := &recordingCaller{
+		results: map[string]json.RawMessage{
+			"answerCallbackQuery": json.RawMessage(`true`),
+		},
+	}
+	c := newTestClient(t, caller)
+	longText := strings.Repeat("界", 205)
+
+	c.AnswerCallback(t.Context(), "cb-id", longText, true)
+
+	payload, ok := caller.request["answerCallbackQuery"]
+	if !ok {
+		t.Fatal("answerCallbackQuery payload not recorded")
+	}
+	got, ok := payload["text"].(string)
+	if !ok {
+		t.Fatalf("answerCallbackQuery text = %#v, want string", payload["text"])
+	}
+	if utf8.RuneCountInString(got) > telegramCallbackAnswerMaxRunes {
+		t.Fatalf("answerCallbackQuery text rune count = %d, want <= %d", utf8.RuneCountInString(got), telegramCallbackAnswerMaxRunes)
+	}
+	if got == longText {
+		t.Fatal("answerCallbackQuery text was not truncated")
 	}
 }
 
