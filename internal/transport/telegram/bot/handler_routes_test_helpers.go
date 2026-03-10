@@ -102,6 +102,7 @@ func newRouteTestHarnessWithCleaner(t *testing.T, cleaner usecaseGroupUnregistra
 		CreatorStatus:       usecase.NewCreatorStatusUseCase(core.NewCreatorService(store, routeTestEventSubChecker{}, nil), nil),
 		GroupRegistration:   usecase.NewGroupRegistrationUseCase(store, nil),
 		GroupUnregistration: usecase.NewGroupUnregistrationUseCase(store, cleaner, nil),
+		GroupPolicyUpdate:   usecase.NewGroupPolicyUpdateUseCase(store, nil),
 	})
 	controller.SetViewerAccessUseCase(usecase.NewViewerAccessUseCase(core.NewViewerService(store, controller.ViewerGroupOps(), nil, nil), nil))
 	controller.SetResetUseCase(usecase.NewResetUseCase(core.NewResetService(store, controller.KickFromGroup, nil), nil))

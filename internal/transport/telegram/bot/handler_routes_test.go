@@ -219,12 +219,65 @@ func TestRegisterTelegramHandlersCreatorManageGroupsFlow(t *testing.T) {
 	})
 
 	body = h.caller.lastEditMessageBody()
-	h.assertEditMessageHasCallback(t, body, creatorGroupExecuteCallback(-1001))
+	h.assertEditMessageHasCallback(t, body, creatorGroupPolicyOpenCallback(-1001))
+	h.assertEditMessageHasCallback(t, body, creatorGroupConfirmCallback(-1001))
 	h.assertEditMessageHasCallback(t, body, creatorGroupBackCallback())
+	h.assertEditMessageTextContains(t, body, "Group settings")
 	h.assertEditMessageTextContains(t, body, "VIP One")
 
 	h.handleUpdate(t, telego.Update{
 		UpdateID: 36,
+		CallbackQuery: &telego.CallbackQuery{
+			ID:   "cb-group-policy-open",
+			Data: creatorGroupPolicyOpenCallback(-1001),
+			From: telego.User{
+				ID:           77,
+				LanguageCode: "en",
+			},
+			Message: &telego.Message{
+				MessageID: 90,
+				Chat: telego.Chat{
+					ID:   77,
+					Type: telego.ChatTypePrivate,
+				},
+			},
+		},
+	})
+
+	body = h.caller.lastEditMessageBody()
+	h.assertEditMessageHasCallback(t, body, creatorGroupPolicyPickCallback(-1001, core.GroupPolicyObserve))
+	h.assertEditMessageHasCallback(t, body, creatorGroupPolicyPickCallback(-1001, core.GroupPolicyObserveWarn))
+	h.assertEditMessageHasCallback(t, body, creatorGroupPolicyPickCallback(-1001, core.GroupPolicyKick))
+	h.assertEditMessageHasCallback(t, body, creatorGroupPolicyPickCallback(-1001, core.GroupPolicyGraceWeek))
+	h.assertEditMessageHasCallback(t, body, creatorGroupPickCallback(-1001))
+	h.assertEditMessageTextContains(t, body, "Change group policy")
+
+	h.handleUpdate(t, telego.Update{
+		UpdateID: 37,
+		CallbackQuery: &telego.CallbackQuery{
+			ID:   "cb-groups-confirm-open",
+			Data: creatorGroupConfirmCallback(-1001),
+			From: telego.User{
+				ID:           77,
+				LanguageCode: "en",
+			},
+			Message: &telego.Message{
+				MessageID: 90,
+				Chat: telego.Chat{
+					ID:   77,
+					Type: telego.ChatTypePrivate,
+				},
+			},
+		},
+	})
+
+	body = h.caller.lastEditMessageBody()
+	h.assertEditMessageHasCallback(t, body, creatorGroupExecuteCallback(-1001))
+	h.assertEditMessageHasCallback(t, body, creatorGroupPickCallback(-1001))
+	h.assertEditMessageTextContains(t, body, "Unregister group")
+
+	h.handleUpdate(t, telego.Update{
+		UpdateID: 38,
 		CallbackQuery: &telego.CallbackQuery{
 			ID:   "cb-groups-exec",
 			Data: creatorGroupExecuteCallback(-1001),
@@ -244,7 +297,8 @@ func TestRegisterTelegramHandlersCreatorManageGroupsFlow(t *testing.T) {
 
 	body = h.caller.lastEditMessageBody()
 	h.assertEditMessageLacksCallback(t, body, creatorGroupPickCallback(-1001))
-	h.assertEditMessageHasCallback(t, body, creatorGroupExecuteCallback(-1002))
+	h.assertEditMessageHasCallback(t, body, creatorGroupPolicyOpenCallback(-1002))
+	h.assertEditMessageHasCallback(t, body, creatorGroupConfirmCallback(-1002))
 	h.assertEditMessageHasCallback(t, body, creatorMenuCallback())
 	h.assertEditMessageTextContains(t, body, "VIP Two")
 	if h.store.hasManagedGroup(-1001) {
@@ -252,7 +306,7 @@ func TestRegisterTelegramHandlersCreatorManageGroupsFlow(t *testing.T) {
 	}
 }
 
-func TestRegisterTelegramHandlersCreatorSingleGroupGoesStraightToConfirm(t *testing.T) {
+func TestRegisterTelegramHandlersCreatorSingleGroupGoesStraightToSettings(t *testing.T) {
 	t.Parallel()
 
 	h := newRouteTestHarness(t)
@@ -287,10 +341,205 @@ func TestRegisterTelegramHandlersCreatorSingleGroupGoesStraightToConfirm(t *test
 	})
 
 	body := h.caller.lastEditMessageBody()
-	h.assertEditMessageHasCallback(t, body, creatorGroupExecuteCallback(-1001))
+	h.assertEditMessageHasCallback(t, body, creatorGroupPolicyOpenCallback(-1001))
+	h.assertEditMessageHasCallback(t, body, creatorGroupConfirmCallback(-1001))
 	h.assertEditMessageHasCallback(t, body, creatorMenuCallback())
 	h.assertEditMessageLacksCallback(t, body, creatorGroupPickCallback(-1001))
+	h.assertEditMessageTextContains(t, body, "Group settings")
 	h.assertEditMessageTextContains(t, body, "VIP One")
+}
+
+func TestRegisterTelegramHandlersCreatorGroupPolicyUpdateFlow(t *testing.T) {
+	t.Parallel()
+
+	h := newRouteTestHarness(t)
+	h.store.setOwnedCreator(core.Creator{
+		ID:              "creator-1",
+		TwitchLogin:     "streamer",
+		OwnerTelegramID: 77,
+	})
+	h.store.setManagedGroup(core.ManagedGroup{
+		ChatID:    -1003,
+		CreatorID: "creator-1",
+		GroupName: "VIP Policy",
+		Policy:    core.GroupPolicyObserve,
+	})
+
+	h.handleUpdate(t, telego.Update{
+		UpdateID: 38,
+		CallbackQuery: &telego.CallbackQuery{
+			ID:   "cb-policy-settings",
+			Data: creatorGroupPickCallback(-1003),
+			From: telego.User{
+				ID:           77,
+				LanguageCode: "en",
+			},
+			Message: &telego.Message{
+				MessageID: 92,
+				Chat:      telego.Chat{ID: 77, Type: telego.ChatTypePrivate},
+			},
+		},
+	})
+
+	h.handleUpdate(t, telego.Update{
+		UpdateID: 39,
+		CallbackQuery: &telego.CallbackQuery{
+			ID:   "cb-policy-picker",
+			Data: creatorGroupPolicyOpenCallback(-1003),
+			From: telego.User{
+				ID:           77,
+				LanguageCode: "en",
+			},
+			Message: &telego.Message{
+				MessageID: 92,
+				Chat:      telego.Chat{ID: 77, Type: telego.ChatTypePrivate},
+			},
+		},
+	})
+
+	body := h.caller.lastEditMessageBody()
+	h.assertEditMessageHasCallback(t, body, creatorGroupPolicyPickCallback(-1003, core.GroupPolicyKick))
+
+	h.handleUpdate(t, telego.Update{
+		UpdateID: 40,
+		CallbackQuery: &telego.CallbackQuery{
+			ID:   "cb-policy-confirm-open",
+			Data: creatorGroupPolicyPickCallback(-1003, core.GroupPolicyKick),
+			From: telego.User{
+				ID:           77,
+				LanguageCode: "en",
+			},
+			Message: &telego.Message{
+				MessageID: 92,
+				Chat:      telego.Chat{ID: 77, Type: telego.ChatTypePrivate},
+			},
+		},
+	})
+
+	body = h.caller.lastEditMessageBody()
+	h.assertEditMessageHasCallback(t, body, creatorGroupPolicyExecuteCallback(-1003, core.GroupPolicyKick))
+	h.assertEditMessageTextContains(t, body, "Confirm group policy change")
+
+	h.handleUpdate(t, telego.Update{
+		UpdateID: 41,
+		CallbackQuery: &telego.CallbackQuery{
+			ID:   "cb-policy-confirm",
+			Data: creatorGroupPolicyExecuteCallback(-1003, core.GroupPolicyKick),
+			From: telego.User{
+				ID:           77,
+				LanguageCode: "en",
+			},
+			Message: &telego.Message{
+				MessageID: 92,
+				Chat:      telego.Chat{ID: 77, Type: telego.ChatTypePrivate},
+			},
+		},
+	})
+
+	group, ok, err := h.store.ManagedGroupByChatID(t.Context(), -1003)
+	if err != nil || !ok {
+		t.Fatalf("ManagedGroupByChatID() = %+v, %t, %v; want stored group", group, ok, err)
+	}
+	if group.Policy != core.GroupPolicyKick {
+		t.Fatalf("group policy = %q, want %q", group.Policy, core.GroupPolicyKick)
+	}
+	body = h.caller.lastEditMessageBody()
+	h.assertEditMessageHasCallback(t, body, creatorGroupPolicyOpenCallback(-1003))
+	h.assertEditMessageTextContains(t, body, "Group policy updated")
+}
+
+func TestRegisterTelegramHandlersCreatorGroupPolicyUpdateNotManaged(t *testing.T) {
+	t.Parallel()
+
+	h := newRouteTestHarness(t)
+	h.store.setOwnedCreator(core.Creator{
+		ID:              "creator-1",
+		TwitchLogin:     "streamer",
+		OwnerTelegramID: 77,
+	})
+
+	h.handleUpdate(t, telego.Update{
+		UpdateID: 42,
+		CallbackQuery: &telego.CallbackQuery{
+			ID:   "cb-policy-not-managed",
+			Data: creatorGroupPolicyExecuteCallback(-1999, core.GroupPolicyKick),
+			From: telego.User{ID: 77, LanguageCode: "en"},
+			Message: &telego.Message{
+				MessageID: 93,
+				Chat:      telego.Chat{ID: 77, Type: telego.ChatTypePrivate},
+			},
+		},
+	})
+
+	body := h.caller.lastEditMessageBody()
+	h.assertEditMessageTextContains(t, body, "no longer linked")
+}
+
+func TestRegisterTelegramHandlersCreatorGroupPolicyUpdateNotOwner(t *testing.T) {
+	t.Parallel()
+
+	h := newRouteTestHarness(t)
+	h.store.setOwnedCreator(core.Creator{
+		ID:              "creator-1",
+		TwitchLogin:     "streamer",
+		OwnerTelegramID: 77,
+	})
+	h.store.setManagedGroup(core.ManagedGroup{
+		ChatID:    -1004,
+		CreatorID: "creator-2",
+		GroupName: "Foreign",
+		Policy:    core.GroupPolicyObserve,
+	})
+
+	h.handleUpdate(t, telego.Update{
+		UpdateID: 43,
+		CallbackQuery: &telego.CallbackQuery{
+			ID:   "cb-policy-not-owner",
+			Data: creatorGroupPolicyExecuteCallback(-1004, core.GroupPolicyKick),
+			From: telego.User{ID: 77, LanguageCode: "en"},
+			Message: &telego.Message{
+				MessageID: 94,
+				Chat:      telego.Chat{ID: 77, Type: telego.ChatTypePrivate},
+			},
+		},
+	})
+
+	body := h.caller.lastEditMessageBody()
+	h.assertEditMessageTextContains(t, body, "can change its policy")
+}
+
+func TestRegisterTelegramHandlersCreatorGroupPolicyUpdateUnchanged(t *testing.T) {
+	t.Parallel()
+
+	h := newRouteTestHarness(t)
+	h.store.setOwnedCreator(core.Creator{
+		ID:              "creator-1",
+		TwitchLogin:     "streamer",
+		OwnerTelegramID: 77,
+	})
+	h.store.setManagedGroup(core.ManagedGroup{
+		ChatID:    -1005,
+		CreatorID: "creator-1",
+		GroupName: "VIP Same",
+		Policy:    core.GroupPolicyObserveWarn,
+	})
+
+	h.handleUpdate(t, telego.Update{
+		UpdateID: 44,
+		CallbackQuery: &telego.CallbackQuery{
+			ID:   "cb-policy-unchanged",
+			Data: creatorGroupPolicyExecuteCallback(-1005, core.GroupPolicyObserveWarn),
+			From: telego.User{ID: 77, LanguageCode: "en"},
+			Message: &telego.Message{
+				MessageID: 95,
+				Chat:      telego.Chat{ID: 77, Type: telego.ChatTypePrivate},
+			},
+		},
+	})
+
+	body := h.caller.lastEditMessageBody()
+	h.assertEditMessageTextContains(t, body, "No change")
+	h.assertEditMessageHasCallback(t, body, creatorGroupPolicyOpenCallback(-1005))
 }
 
 func TestRegisterTelegramHandlersResetViewerOriginBackReturnsViewerMenu(t *testing.T) {

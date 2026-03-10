@@ -121,6 +121,7 @@ func Run() error {
 	creatorOAuthUC := usecase.NewCreatorOAuthUseCase(oauthSvc, eventSink)
 	groupRegistrationUC := usecase.NewGroupRegistrationUseCase(s, eventSink)
 	groupUnregistrationUC := usecase.NewGroupUnregistrationUseCase(s, eventSubSvc, eventSink)
+	groupPolicyUpdateUC := usecase.NewGroupPolicyUpdateUseCase(s, eventSink)
 	creatorActivationUC := usecase.NewCreatorActivationUseCase(eventSubSvc, eventSink)
 	subscriptionEndUC := usecase.NewSubscriptionEndUseCase(subscriptionSvc, eventSink)
 	jobRunner := jobs.NewRunner(logger, eventSink)
@@ -147,6 +148,7 @@ func Run() error {
 		CreatorOAuth:        creatorOAuthUC,
 		GroupRegistration:   groupRegistrationUC,
 		GroupUnregistration: groupUnregistrationUC,
+		GroupPolicyUpdate:   groupPolicyUpdateUC,
 		CreatorActivation:   creatorActivationUC,
 		SubscriptionEnd:     subscriptionEndUC,
 	})

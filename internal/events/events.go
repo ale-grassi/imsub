@@ -12,6 +12,7 @@ const (
 	NameResetGroupTarget            = "reset_group_target"
 	NameGroupRegistration           = "group_registration"
 	NameGroupUnregistration         = "group_unregistration"
+	NameGroupPolicyUpdate           = "group_policy_update"
 	NameCreatorActivation           = "creator_activation"
 	NameSubscriptionEnd             = "subscription_end"
 	NameViewerOAuth                 = "viewer_oauth"

@@ -97,47 +97,7 @@ func parseCallbackAction(data string) (callbackAction, bool) {
 		}
 		return action, true
 	case callbackDomainCreator:
-		switch action.verb {
-		case callbackVerbRefresh, callbackVerbRegister, callbackVerbReconnect, callbackVerbMenu:
-			if len(parts) != 2 {
-				return callbackAction{}, false
-			}
-			return action, true
-		case callbackVerbOpen, callbackVerbBack:
-			if len(parts) != 3 {
-				return callbackAction{}, false
-			}
-			action.target = parts[2]
-			if !action.validCreatorTarget() {
-				return callbackAction{}, false
-			}
-			return action, true
-		case callbackVerbPick, callbackVerbExecute:
-			if len(parts) == 3 {
-				action.target = parts[2]
-				if action.verb != callbackVerbExecute || action.target != creatorCallbackTargetBlocklist {
-					return callbackAction{}, false
-				}
-				return action, true
-			}
-			if len(parts) != 4 {
-				return callbackAction{}, false
-			}
-			action.target = parts[2]
-			if action.target != creatorCallbackTargetGroup {
-				return callbackAction{}, false
-			}
-			chatID, err := strconv.ParseInt(parts[3], 10, 64)
-			if err != nil || chatID == 0 {
-				return callbackAction{}, false
-			}
-			action.chatID = chatID
-			return action, true
-		case callbackVerbCancel:
-			return callbackAction{}, false
-		default:
-			return callbackAction{}, false
-		}
+		return parseCreatorCallbackAction(action, parts)
 	case callbackDomainGroup:
 		switch action.verb {
 		case callbackVerbPick:
@@ -197,14 +157,98 @@ func parseCallbackAction(data string) (callbackAction, bool) {
 	}
 }
 
+func parseCreatorCallbackAction(action callbackAction, parts []string) (callbackAction, bool) {
+	switch action.verb {
+	case callbackVerbRefresh, callbackVerbRegister, callbackVerbReconnect, callbackVerbMenu:
+		return action, len(parts) == 2
+	case callbackVerbOpen, callbackVerbBack:
+		return parseCreatorOpenBackAction(action, parts)
+	case callbackVerbPick, callbackVerbExecute:
+		return parseCreatorPickExecuteAction(action, parts)
+	case callbackVerbCancel:
+		return callbackAction{}, false
+	default:
+		return callbackAction{}, false
+	}
+}
+
+func parseCreatorOpenBackAction(action callbackAction, parts []string) (callbackAction, bool) {
+	switch len(parts) {
+	case 3:
+		action.target = parts[2]
+		if !validCreatorOpenTarget(action.target) {
+			return callbackAction{}, false
+		}
+		return action, true
+	case 4:
+		action.target = parts[2]
+		if !validCreatorOpenChatTarget(action.target) {
+			return callbackAction{}, false
+		}
+		chatID, err := strconv.ParseInt(parts[3], 10, 64)
+		if err != nil || chatID == 0 {
+			return callbackAction{}, false
+		}
+		action.chatID = chatID
+		return action, true
+	default:
+		return callbackAction{}, false
+	}
+}
+
+func parseCreatorPickExecuteAction(action callbackAction, parts []string) (callbackAction, bool) {
+	switch len(parts) {
+	case 3:
+		action.target = parts[2]
+		if action.verb != callbackVerbExecute || action.target != creatorCallbackTargetBlocklist {
+			return callbackAction{}, false
+		}
+		return action, true
+	case 4:
+		action.target = parts[2]
+		if action.target != creatorCallbackTargetGroup {
+			return callbackAction{}, false
+		}
+		chatID, err := strconv.ParseInt(parts[3], 10, 64)
+		if err != nil || chatID == 0 {
+			return callbackAction{}, false
+		}
+		action.chatID = chatID
+		return action, true
+	case 5:
+		action.target = parts[2]
+		if action.target != creatorCallbackTargetPolicy {
+			return callbackAction{}, false
+		}
+		action.policy = core.GroupPolicy(parts[3])
+		if !validGroupPolicy(action.policy) {
+			return callbackAction{}, false
+		}
+		chatID, err := strconv.ParseInt(parts[4], 10, 64)
+		if err != nil || chatID == 0 {
+			return callbackAction{}, false
+		}
+		action.chatID = chatID
+		return action, true
+	default:
+		return callbackAction{}, false
+	}
+}
+
 const (
-	creatorCallbackTargetGroups    = "groups"
-	creatorCallbackTargetGroup     = "group"
-	creatorCallbackTargetBlocklist = "blocklist"
+	creatorCallbackTargetGroups       = "groups"
+	creatorCallbackTargetGroup        = "group"
+	creatorCallbackTargetGroupConfirm = "group_confirm"
+	creatorCallbackTargetBlocklist    = "blocklist"
+	creatorCallbackTargetPolicy       = "policy"
 )
 
-func (a callbackAction) validCreatorTarget() bool {
-	return a.target == creatorCallbackTargetGroups || a.target == creatorCallbackTargetBlocklist
+func validCreatorOpenTarget(target string) bool {
+	return target == creatorCallbackTargetGroups || target == creatorCallbackTargetBlocklist
+}
+
+func validCreatorOpenChatTarget(target string) bool {
+	return target == creatorCallbackTargetGroupConfirm || target == creatorCallbackTargetPolicy
 }
 
 func (o resetOrigin) valid() bool {
@@ -252,6 +296,22 @@ func creatorManageGroupsCallback() string {
 
 func creatorGroupPickCallback(chatID int64) string {
 	return callbackAction{domain: callbackDomainCreator, verb: callbackVerbPick, target: creatorCallbackTargetGroup, chatID: chatID}.String()
+}
+
+func creatorGroupPolicyOpenCallback(chatID int64) string {
+	return callbackAction{domain: callbackDomainCreator, verb: callbackVerbOpen, target: creatorCallbackTargetPolicy, chatID: chatID}.String()
+}
+
+func creatorGroupConfirmCallback(chatID int64) string {
+	return callbackAction{domain: callbackDomainCreator, verb: callbackVerbOpen, target: creatorCallbackTargetGroupConfirm, chatID: chatID}.String()
+}
+
+func creatorGroupPolicyPickCallback(chatID int64, policy core.GroupPolicy) string {
+	return callbackAction{domain: callbackDomainCreator, verb: callbackVerbPick, target: creatorCallbackTargetPolicy, policy: policy, chatID: chatID}.String()
+}
+
+func creatorGroupPolicyExecuteCallback(chatID int64, policy core.GroupPolicy) string {
+	return callbackAction{domain: callbackDomainCreator, verb: callbackVerbExecute, target: creatorCallbackTargetPolicy, policy: policy, chatID: chatID}.String()
 }
 
 func creatorGroupBackCallback() string {

@@ -86,6 +86,7 @@ type Dependencies struct {
 	ViewerAccess        *usecase.ViewerAccessUseCase
 	GroupRegistration   *usecase.GroupRegistrationUseCase
 	GroupUnregistration *usecase.GroupUnregistrationUseCase
+	GroupPolicyUpdate   *usecase.GroupPolicyUpdateUseCase
 	CreatorActivation   *usecase.CreatorActivationUseCase
 	SubscriptionEnd     *usecase.SubscriptionEndUseCase
 	Reset               *usecase.ResetUseCase
@@ -130,6 +131,7 @@ type Bot struct {
 	viewerAccess        *usecase.ViewerAccessUseCase
 	groupRegistration   *usecase.GroupRegistrationUseCase
 	groupUnregistration *usecase.GroupUnregistrationUseCase
+	groupPolicyUpdate   *usecase.GroupPolicyUpdateUseCase
 	creatorActivation   *usecase.CreatorActivationUseCase
 	subscriptionEnd     *usecase.SubscriptionEndUseCase
 	reset               *usecase.ResetUseCase
@@ -159,6 +161,7 @@ func New(deps Dependencies) *Bot {
 		viewerAccess:        deps.ViewerAccess,
 		groupRegistration:   deps.GroupRegistration,
 		groupUnregistration: deps.GroupUnregistration,
+		groupPolicyUpdate:   deps.GroupPolicyUpdate,
 		creatorActivation:   deps.CreatorActivation,
 		subscriptionEnd:     deps.SubscriptionEnd,
 		reset:               deps.Reset,

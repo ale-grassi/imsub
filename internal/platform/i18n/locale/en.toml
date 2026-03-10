@@ -37,6 +37,12 @@ other = "Grace 7 days, then kick"
 [btn_manage_group]
 other = "Manage Group - %s"
 
+[btn_change_group_policy]
+other = "Change policy"
+
+[btn_confirm_group_policy]
+other = "Apply policy"
+
 [btn_register_creator_open]
 other = "Connect Creator Account"
 
@@ -98,10 +104,19 @@ other = "⚠️ <b>Creator setup did not finish</b>\nTwitch authorization was in
 other = "• No groups linked yet."
 
 [creator_manage_groups_html]
-other = "🗂️ <b>Manage linked groups</b>\n\nYour creator account <b>%s</b> can currently manage the groups below.\nSelect one group to unregister it."
+other = "🗂️ <b>Manage linked groups</b>\n\nYour creator account <b>%s</b> can currently manage the groups below.\nSelect one group to review its settings, change its unverified-member policy, or unregister it."
 
 [creator_manage_groups_empty_html]
 other = "🗂️ <b>Manage linked groups</b>\n\nYou do not have any linked groups right now."
+
+[creator_group_settings_html]
+other = "⚙️ <b>Group settings</b>\n\n<b>Group:</b> %s\n<b>Creator:</b> %s\n%s\n\nThis policy applies to unverified members that ImSub can observe from now on, such as new joins and users the bot later sees in the group."
+
+[creator_group_policy_picker_html]
+other = "🛡️ <b>Change group policy</b>\n\n<b>Group:</b> %s\n<b>Creator:</b> %s\n%s\n\nChoose how ImSub should handle unverified members for this group going forward.\n\nTelegram does not expose the full silent member list for users already inside the group, so this only affects members ImSub can observe from now on."
+
+[creator_group_policy_confirm_html]
+other = "⚠️ <b>Confirm group policy change</b>\n\n<b>Group:</b> %s\n<b>Creator:</b> %s\n\n<b>Current policy</b>\n%s\n\n<b>New policy</b>\n%s\n\nThis change applies going forward to unverified members ImSub observes in this group."
 
 [creator_register_info]
 other = "🎙️ <b>Creator Setup</b>\n\nConnect your Twitch creator account so ImSub can verify subscribers and manage access to your Telegram group.\n\n<b>❔ Setup steps</b>\n1. Tap <b>Connect Creator Account</b>\n2. Approve access on Twitch\n3. Run /registergroup in your Telegram group\n\n⚠️ You must be an <b>admin</b> in that group.\n\nIf the button does not open Twitch, use <b>Copy link</b> below."
@@ -132,6 +147,15 @@ other = "✅ <b>Group unregistered</b>\n<b>%s</b> was removed from your creator 
 
 [creator_group_unavailable_html]
 other = "⚠️ That group is no longer linked to your creator account."
+
+[creator_group_policy_updated_html]
+other = "✅ <b>Group policy updated</b>\n<b>%s</b> now uses:\n%s"
+
+[creator_group_policy_same_html]
+other = "ℹ️ <b>No change</b>\n<b>%s</b> is already using that policy."
+
+[creator_group_policy_not_owner]
+other = "⚠️ Only the creator who linked this group can change its policy."
 
 [creator_blocklist_enabled]
 other = "• Twitch ban sync: ▶️ <b>Enabled</b>"

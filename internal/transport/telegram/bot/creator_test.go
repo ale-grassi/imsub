@@ -129,6 +129,63 @@ func TestBuildCreatorManagedGroupsView(t *testing.T) {
 	}
 }
 
+func TestBuildCreatorGroupSettingsView(t *testing.T) {
+	t.Parallel()
+
+	if err := i18n.Ensure(); err != nil {
+		t.Fatalf("i18n.Ensure failed: %v", err)
+	}
+
+	view := buildCreatorGroupSettingsView("en", core.Creator{TwitchLogin: "creator"}, core.ManagedGroup{ChatID: 1, GroupName: "VIP", Policy: core.GroupPolicyObserveWarn}, creatorMenuCallback(), "notice")
+	if view.text == "" || view.opts.Markup == nil {
+		t.Fatalf("buildCreatorGroupSettingsView() = %+v, want non-empty text and markup", view)
+	}
+	if !strings.Contains(view.text, "notice") || !strings.Contains(view.text, "Ignore, but warn") {
+		t.Fatalf("buildCreatorGroupSettingsView() text = %q, want notice and current policy", view.text)
+	}
+	if got := view.opts.Markup.InlineKeyboard[0][0].IconCustomEmojiID; got != "5258318620722733379" {
+		t.Fatalf("buildCreatorGroupSettingsView() change policy icon = %q, want %q", got, "5258318620722733379")
+	}
+}
+
+func TestBuildCreatorGroupPolicyPickerView(t *testing.T) {
+	t.Parallel()
+
+	if err := i18n.Ensure(); err != nil {
+		t.Fatalf("i18n.Ensure failed: %v", err)
+	}
+
+	view := buildCreatorGroupPolicyPickerView("en", core.Creator{TwitchLogin: "creator"}, core.ManagedGroup{ChatID: 1, GroupName: "VIP", Policy: core.GroupPolicyObserve})
+	if view.text == "" || view.opts.Markup == nil {
+		t.Fatalf("buildCreatorGroupPolicyPickerView() = %+v, want non-empty text and markup", view)
+	}
+	if !strings.Contains(view.text, "Ignore and track") {
+		t.Fatalf("buildCreatorGroupPolicyPickerView() text = %q, want current policy line", view.text)
+	}
+	if got := view.opts.Markup.InlineKeyboard[0][0].IconCustomEmojiID; got != "5253959125838090076" {
+		t.Fatalf("buildCreatorGroupPolicyPickerView() ignore icon = %q, want %q", got, "5253959125838090076")
+	}
+	if got := view.opts.Markup.InlineKeyboard[1][0].IconCustomEmojiID; got != "5253959125838090076" {
+		t.Fatalf("buildCreatorGroupPolicyPickerView() warn icon = %q, want %q", got, "5253959125838090076")
+	}
+}
+
+func TestBuildCreatorGroupPolicyConfirmView(t *testing.T) {
+	t.Parallel()
+
+	if err := i18n.Ensure(); err != nil {
+		t.Fatalf("i18n.Ensure failed: %v", err)
+	}
+
+	view := buildCreatorGroupPolicyConfirmView("en", core.Creator{TwitchLogin: "creator"}, core.ManagedGroup{ChatID: 1, GroupName: "VIP", Policy: core.GroupPolicyObserve}, core.GroupPolicyGraceWeek)
+	if view.text == "" || view.opts.Markup == nil {
+		t.Fatalf("buildCreatorGroupPolicyConfirmView() = %+v, want non-empty text and markup", view)
+	}
+	if !strings.Contains(view.text, "Current policy") || !strings.Contains(view.text, "Grace 7 days") {
+		t.Fatalf("buildCreatorGroupPolicyConfirmView() text = %q, want current and new policy", view.text)
+	}
+}
+
 func TestBuildCreatorGroupUnregisterConfirmView(t *testing.T) {
 	t.Parallel()
 

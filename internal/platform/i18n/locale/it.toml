@@ -37,6 +37,12 @@ other = "Tolleranza 7 giorni, poi espelli"
 [btn_manage_group]
 other = "Gestisci Gruppo - %s"
 
+[btn_change_group_policy]
+other = "Cambia policy"
+
+[btn_confirm_group_policy]
+other = "Applica policy"
+
 [btn_register_creator_open]
 other = "Collega account creator"
 
@@ -98,10 +104,19 @@ other = "⚠️ <b>Setup creator non completato</b>\nL'autorizzazione Twitch e' 
 other = "• Nessun gruppo collegato al momento."
 
 [creator_manage_groups_html]
-other = "🗂️ <b>Gestisci gruppi collegati</b>\n\nIl tuo account creator <b>%s</b> puo' gestire i gruppi qui sotto.\nSeleziona un gruppo per scollegarlo."
+other = "🗂️ <b>Gestisci gruppi collegati</b>\n\nIl tuo account creator <b>%s</b> puo' gestire i gruppi qui sotto.\nSeleziona un gruppo per vedere le sue impostazioni, cambiare la policy dei membri non verificati o scollegarlo."
 
 [creator_manage_groups_empty_html]
 other = "🗂️ <b>Gestisci gruppi collegati</b>\n\nNon hai gruppi collegati al momento."
+
+[creator_group_settings_html]
+other = "⚙️ <b>Impostazioni gruppo</b>\n\n<b>Gruppo:</b> %s\n<b>Creator:</b> %s\n%s\n\nQuesta policy si applica ai membri non verificati che ImSub riuscira' a osservare da ora in poi, ad esempio nuovi ingressi e utenti che il bot vedra' successivamente nel gruppo."
+
+[creator_group_policy_picker_html]
+other = "🛡️ <b>Cambia policy del gruppo</b>\n\n<b>Gruppo:</b> %s\n<b>Creator:</b> %s\n%s\n\nScegli come ImSub deve gestire i membri non verificati per questo gruppo da ora in poi.\n\nTelegram non espone l'elenco completo dei membri silenziosi gia' presenti nel gruppo, quindi la modifica riguarda solo i membri che ImSub riuscira' a osservare da ora in poi."
+
+[creator_group_policy_confirm_html]
+other = "⚠️ <b>Conferma cambio policy</b>\n\n<b>Gruppo:</b> %s\n<b>Creator:</b> %s\n\n<b>Policy attuale</b>\n%s\n\n<b>Nuova policy</b>\n%s\n\nQuesta modifica si applica da ora in poi ai membri non verificati che ImSub osserva nel gruppo."
 
 [creator_register_info]
 other = "🎙️ <b>Setup Creator</b>\n\nCollega il tuo account creator Twitch cosi' ImSub puo' verificare i subscriber e gestire l'accesso al tuo gruppo Telegram.\n\n<b>❔ Passaggi</b>\n1. Tocca <b>Collega account creator</b>\n2. Approva l'accesso su Twitch\n3. Esegui /registergroup nel tuo gruppo Telegram\n\n⚠️ Devi essere <b>admin</b> in quel gruppo.\n\nSe il pulsante non apre Twitch, usa <b>Copia link</b> qui sotto."
@@ -132,6 +147,15 @@ other = "✅ <b>Gruppo scollegato</b>\n<b>%s</b> e' stato rimosso dal tuo accoun
 
 [creator_group_unavailable_html]
 other = "⚠️ Questo gruppo non e' piu' collegato al tuo account creator."
+
+[creator_group_policy_updated_html]
+other = "✅ <b>Policy del gruppo aggiornata</b>\n<b>%s</b> ora usa:\n%s"
+
+[creator_group_policy_same_html]
+other = "ℹ️ <b>Nessuna modifica</b>\n<b>%s</b> usa gia' questa policy."
+
+[creator_group_policy_not_owner]
+other = "⚠️ Solo il creator che ha collegato questo gruppo puo' cambiare la sua policy."
 
 [creator_blocklist_enabled]
 other = "• Sync ban Twitch: ▶️ <b>Attiva</b>"

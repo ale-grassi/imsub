@@ -43,9 +43,15 @@ const (
 	msgCreatorStoreFail          = "creator_store_fail"
 	msgCreatorManageGroupsHTML   = "creator_manage_groups_html"
 	msgCreatorManageGroupsEmpty  = "creator_manage_groups_empty_html"
+	msgCreatorGroupSettingsHTML  = "creator_group_settings_html"
+	msgCreatorGroupPolicyHTML    = "creator_group_policy_picker_html"
+	msgCreatorGroupPolicyConfirm = "creator_group_policy_confirm_html"
 	msgCreatorUnregisterConfirm  = "creator_unregister_confirm_html"
 	msgCreatorGroupUnregistered  = "creator_group_unregistered_html"
 	msgCreatorGroupUnavailable   = "creator_group_unavailable_html"
+	msgCreatorGroupPolicyUpdated = "creator_group_policy_updated_html"
+	msgCreatorGroupPolicySame    = "creator_group_policy_same_html"
+	msgCreatorGroupPolicyDenied  = "creator_group_policy_not_owner"
 	msgCreatorBlocklistEnabled   = "creator_blocklist_enabled"
 	msgCreatorBlocklistDisabled  = "creator_blocklist_disabled"
 	msgCreatorBlocklistOnNotice  = "creator_blocklist_on_notice"
@@ -54,6 +60,8 @@ const (
 	btnRegisterCreatorOpen = "btn_register_creator_open"
 	btnReconnectCreator    = "btn_reconnect_creator"
 	btnManageGroup         = "btn_manage_group"
+	btnChangeGroupPolicy   = "btn_change_group_policy"
+	btnConfirmGroupPolicy  = "btn_confirm_group_policy"
 	btnUnregisterGroup     = "btn_unregister_group"
 )
 
@@ -74,19 +82,34 @@ func (c *Bot) handleCreatorCallback(ctx context.Context, userID int64, editMsgID
 		if action.target == creatorCallbackTargetGroups {
 			return c.replyCreatorManagedGroups(ctx, userID, editMsgID, lang, "")
 		}
+		if action.target == creatorCallbackTargetGroupConfirm {
+			return c.replyCreatorGroupUnregisterConfirm(ctx, userID, editMsgID, lang, action.chatID)
+		}
+		if action.target == creatorCallbackTargetPolicy {
+			return c.replyCreatorGroupPolicyPicker(ctx, userID, editMsgID, lang, action.chatID)
+		}
 	case callbackVerbPick:
 		if action.target == creatorCallbackTargetGroup {
-			return c.replyCreatorGroupUnregisterConfirm(ctx, userID, editMsgID, lang, action.chatID)
+			return c.replyCreatorGroupSettings(ctx, userID, editMsgID, lang, action.chatID, "")
+		}
+		if action.target == creatorCallbackTargetPolicy {
+			return c.replyCreatorGroupPolicyConfirm(ctx, userID, editMsgID, lang, action.chatID, action.policy)
 		}
 	case callbackVerbBack:
 		if action.target == creatorCallbackTargetGroups {
 			return c.replyCreatorManagedGroups(ctx, userID, editMsgID, lang, "")
+		}
+		if action.target == creatorCallbackTargetPolicy {
+			return c.replyCreatorGroupSettings(ctx, userID, editMsgID, lang, action.chatID, "")
 		}
 	case callbackVerbMenu:
 		return c.handleCreatorStart(ctx, userID, editMsgID, lang)
 	case callbackVerbExecute:
 		if action.target == creatorCallbackTargetGroup {
 			return c.executeCreatorGroupUnregister(ctx, userID, editMsgID, lang, action.chatID)
+		}
+		if action.target == creatorCallbackTargetPolicy {
+			return c.executeCreatorGroupPolicyUpdate(ctx, userID, editMsgID, lang, action.chatID, action.policy)
 		}
 		if action.target == creatorCallbackTargetBlocklist {
 			return c.toggleCreatorBlocklist(ctx, userID, editMsgID, lang)
@@ -371,9 +394,75 @@ func (c *Bot) replyCreatorManagedGroups(ctx context.Context, telegramUserID int6
 		return ""
 	}
 	if len(res.Groups) == 1 {
-		return c.replyCreatorGroupUnregisterConfirmForResult(ctx, telegramUserID, editMsgID, lang, res, res.Groups[0].ChatID)
+		return c.replyCreatorGroupSettingsForResult(ctx, telegramUserID, editMsgID, lang, res, res.Groups[0].ChatID, notice)
 	}
 	view := buildCreatorManagedGroupsView(lang, res.Creator, res.Groups, notice)
+	c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
+	return ""
+}
+
+func (c *Bot) replyCreatorGroupSettings(ctx context.Context, telegramUserID int64, editMsgID int, lang string, groupChatID int64, notice string) string {
+	res, ok := c.loadCreatorStatusResult(ctx, telegramUserID, lang, editMsgID)
+	if !ok {
+		return ""
+	}
+	return c.replyCreatorGroupSettingsForResult(ctx, telegramUserID, editMsgID, lang, res, groupChatID, notice)
+}
+
+func (c *Bot) replyCreatorGroupSettingsForResult(
+	ctx context.Context,
+	telegramUserID int64,
+	editMsgID int,
+	lang string,
+	res usecase.CreatorStatusResult,
+	groupChatID int64,
+	notice string,
+) string {
+	group, found := findCreatorManagedGroup(res.Groups, groupChatID)
+	if !found {
+		view := buildCreatorManagedGroupsView(
+			lang,
+			res.Creator,
+			res.Groups,
+			i18n.Translate(lang, msgCreatorGroupUnavailable),
+		)
+		c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
+		return ""
+	}
+
+	backCallback := creatorGroupBackCallback()
+	if len(res.Groups) <= 1 {
+		backCallback = creatorMenuCallback()
+	}
+	view := buildCreatorGroupSettingsView(lang, res.Creator, group, backCallback, notice)
+	c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
+	return ""
+}
+
+func (c *Bot) replyCreatorGroupPolicyPicker(ctx context.Context, telegramUserID int64, editMsgID int, lang string, groupChatID int64) string {
+	res, ok := c.loadCreatorStatusResult(ctx, telegramUserID, lang, editMsgID)
+	if !ok {
+		return ""
+	}
+	group, found := findCreatorManagedGroup(res.Groups, groupChatID)
+	if !found {
+		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, i18n.Translate(lang, msgCreatorGroupUnavailable))
+	}
+	view := buildCreatorGroupPolicyPickerView(lang, res.Creator, group)
+	c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
+	return ""
+}
+
+func (c *Bot) replyCreatorGroupPolicyConfirm(ctx context.Context, telegramUserID int64, editMsgID int, lang string, groupChatID int64, policy core.GroupPolicy) string {
+	res, ok := c.loadCreatorStatusResult(ctx, telegramUserID, lang, editMsgID)
+	if !ok {
+		return ""
+	}
+	group, found := findCreatorManagedGroup(res.Groups, groupChatID)
+	if !found {
+		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, i18n.Translate(lang, msgCreatorGroupUnavailable))
+	}
+	view := buildCreatorGroupPolicyConfirmView(lang, res.Creator, group, policy)
 	c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
 	return ""
 }
@@ -406,10 +495,7 @@ func (c *Bot) replyCreatorGroupUnregisterConfirmForResult(
 		return ""
 	}
 
-	backCallback := creatorGroupBackCallback()
-	if len(res.Groups) <= 1 {
-		backCallback = creatorMenuCallback()
-	}
+	backCallback := creatorGroupPickCallback(groupChatID)
 	view := buildCreatorGroupUnregisterConfirmView(lang, res.Creator, group, backCallback)
 	c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
 	return ""
@@ -438,11 +524,48 @@ func (c *Bot) executeCreatorGroupUnregister(ctx context.Context, telegramUserID 
 		if res.CleanupFailed {
 			c.log().Warn("group unregistered from creator menu but eventsub cleanup deferred to reconciliation", "creator_id", res.Creator.ID, "chat_id", groupChatID)
 		}
-		groupName := creatorManagedGroupButtonLabel(res.Group, map[string]int{res.Group.GroupName: 1})
+		groupName := singleManagedGroupLabel(res.Group)
 		notice := fmt.Sprintf(i18n.Translate(lang, msgCreatorGroupUnregistered), html.EscapeString(groupName))
 		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, notice)
 	default:
 		c.log().Warn("unsupported group unregistration outcome", "chat_id", groupChatID, "outcome", res.Outcome)
+		return ""
+	}
+}
+
+func (c *Bot) executeCreatorGroupPolicyUpdate(ctx context.Context, telegramUserID int64, editMsgID int, lang string, groupChatID int64, policy core.GroupPolicy) string {
+	if c.groupPolicyUpdate == nil {
+		c.log().Warn("group policy update use case unavailable")
+		return ""
+	}
+
+	res, err := c.groupPolicyUpdate.UpdateGroupPolicy(ctx, telegramUserID, groupChatID, policy)
+	if err != nil {
+		c.log().Warn("UpdateGroupPolicy from creator menu failed", "chat_id", groupChatID, "owner_telegram_id", telegramUserID, "policy", policy, "error", err)
+		view := buildCreatorStatusErrorView(lang)
+		c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
+		return view.text
+	}
+
+	switch res.Outcome {
+	case usecase.UpdateGroupPolicyOutcomeNotManaged:
+		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, i18n.Translate(lang, msgCreatorGroupUnavailable))
+	case usecase.UpdateGroupPolicyOutcomeNotOwner:
+		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, i18n.Translate(lang, msgCreatorGroupPolicyDenied))
+	case usecase.UpdateGroupPolicyOutcomeUnchanged:
+		groupName := singleManagedGroupLabel(res.Group)
+		notice := fmt.Sprintf(i18n.Translate(lang, msgCreatorGroupPolicySame), html.EscapeString(groupName))
+		return c.replyCreatorGroupSettings(ctx, telegramUserID, editMsgID, lang, groupChatID, notice)
+	case usecase.UpdateGroupPolicyOutcomeUpdated:
+		groupName := singleManagedGroupLabel(res.Group)
+		notice := fmt.Sprintf(
+			i18n.Translate(lang, msgCreatorGroupPolicyUpdated),
+			html.EscapeString(groupName),
+			formatGroupPolicyLine(lang, res.Group.Policy),
+		)
+		return c.replyCreatorGroupSettings(ctx, telegramUserID, editMsgID, lang, groupChatID, notice)
+	default:
+		c.log().Warn("unsupported group policy update outcome", "chat_id", groupChatID, "outcome", res.Outcome)
 		return ""
 	}
 }
@@ -542,6 +665,10 @@ func creatorManagedGroupButtonLabel(group core.ManagedGroup, counts map[string]i
 	return name
 }
 
+func singleManagedGroupLabel(group core.ManagedGroup) string {
+	return creatorManagedGroupButtonLabel(group, map[string]int{group.GroupName: 1})
+}
+
 func buildCreatorPromptView(lang, authURL string, reconnect bool) sharedView {
 	openKey := btnRegisterCreatorOpen
 	textKey := msgCreatorRegisterInfo
@@ -634,8 +761,71 @@ func buildCreatorManagedGroupsView(lang string, creator core.Creator, groups []c
 	}
 }
 
+func buildCreatorGroupSettingsView(lang string, creator core.Creator, group core.ManagedGroup, backCallback, notice string) sharedView {
+	groupLabel := singleManagedGroupLabel(group)
+	text := fmt.Sprintf(
+		i18n.Translate(lang, msgCreatorGroupSettingsHTML),
+		html.EscapeString(groupLabel),
+		html.EscapeString(creator.TwitchLogin),
+		formatGroupPolicyLine(lang, group.Policy),
+	)
+	if strings.TrimSpace(notice) != "" {
+		text = notice + "\n\n" + text
+	}
+	return sharedView{
+		text: text,
+		opts: client.MessageOptions{
+			Markup: tu.InlineKeyboard(
+				tu.InlineKeyboardRow(ui.IconCallbackButton(i18n.Translate(lang, btnChangeGroupPolicy), creatorGroupPolicyOpenCallback(group.ChatID), "5258318620722733379")),
+				tu.InlineKeyboardRow(ui.UnregisterButton(i18n.Translate(lang, btnUnregisterGroup), creatorGroupConfirmCallback(group.ChatID))),
+				tu.InlineKeyboardRow(ui.BackButton(i18n.Translate(lang, btnBack), backCallback)),
+			),
+		},
+	}
+}
+
+func buildCreatorGroupPolicyPickerView(lang string, creator core.Creator, group core.ManagedGroup) sharedView {
+	groupLabel := singleManagedGroupLabel(group)
+	return sharedView{
+		text: fmt.Sprintf(
+			i18n.Translate(lang, msgCreatorGroupPolicyHTML),
+			html.EscapeString(groupLabel),
+			html.EscapeString(creator.TwitchLogin),
+			formatGroupPolicyLine(lang, group.Policy),
+		),
+		opts: client.MessageOptions{
+			Markup: tu.InlineKeyboard(
+				tu.InlineKeyboardRow(ui.IconCallbackButton(i18n.Translate(lang, btnGroupPolicyObserve), creatorGroupPolicyPickCallback(group.ChatID, core.GroupPolicyObserve), "5253959125838090076")),
+				tu.InlineKeyboardRow(ui.IconCallbackButton(i18n.Translate(lang, btnGroupPolicyObserveWarn), creatorGroupPolicyPickCallback(group.ChatID, core.GroupPolicyObserveWarn), "5253959125838090076")),
+				tu.InlineKeyboardRow(ui.IconCallbackButton(i18n.Translate(lang, btnGroupPolicyKick), creatorGroupPolicyPickCallback(group.ChatID, core.GroupPolicyKick), "5258318620722733379").WithStyle("danger")),
+				tu.InlineKeyboardRow(ui.IconCallbackButton(i18n.Translate(lang, btnGroupPolicyGrace), creatorGroupPolicyPickCallback(group.ChatID, core.GroupPolicyGraceWeek), "5258123337149717894").WithStyle("danger")),
+				tu.InlineKeyboardRow(ui.BackButton(i18n.Translate(lang, btnBack), creatorGroupPickCallback(group.ChatID))),
+			),
+		},
+	}
+}
+
+func buildCreatorGroupPolicyConfirmView(lang string, creator core.Creator, group core.ManagedGroup, selectedPolicy core.GroupPolicy) sharedView {
+	groupLabel := singleManagedGroupLabel(group)
+	return sharedView{
+		text: fmt.Sprintf(
+			i18n.Translate(lang, msgCreatorGroupPolicyConfirm),
+			html.EscapeString(groupLabel),
+			html.EscapeString(creator.TwitchLogin),
+			formatGroupPolicyLine(lang, group.Policy),
+			formatGroupPolicyLine(lang, selectedPolicy),
+		),
+		opts: client.MessageOptions{
+			Markup: tu.InlineKeyboard(
+				tu.InlineKeyboardRow(ui.CallbackButton(i18n.Translate(lang, btnConfirmGroupPolicy), creatorGroupPolicyExecuteCallback(group.ChatID, selectedPolicy))),
+				tu.InlineKeyboardRow(ui.BackButton(i18n.Translate(lang, btnBack), creatorGroupPolicyOpenCallback(group.ChatID))),
+			),
+		},
+	}
+}
+
 func buildCreatorGroupUnregisterConfirmView(lang string, creator core.Creator, group core.ManagedGroup, backCallback string) sharedView {
-	groupLabel := creatorManagedGroupButtonLabel(group, map[string]int{group.GroupName: 1})
+	groupLabel := singleManagedGroupLabel(group)
 	return sharedView{
 		text: fmt.Sprintf(
 			i18n.Translate(lang, msgCreatorUnregisterConfirm),
@@ -667,7 +857,7 @@ func creatorStatusMenuRows(lang string, groups []core.ManagedGroup) [][]telego.I
 	if len(groups) != 1 {
 		return nil
 	}
-	label := fmt.Sprintf(i18n.Translate(lang, btnManageGroup), creatorManagedGroupButtonLabel(groups[0], map[string]int{groups[0].GroupName: 1}))
+	label := fmt.Sprintf(i18n.Translate(lang, btnManageGroup), singleManagedGroupLabel(groups[0]))
 	return [][]telego.InlineKeyboardButton{
 		tu.InlineKeyboardRow(ui.GroupButton(label, creatorManageGroupsCallback())),
 	}
