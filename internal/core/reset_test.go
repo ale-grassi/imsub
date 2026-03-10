@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log/slog"
 	"slices"
-	"sort"
 	"testing"
 )
 
@@ -78,6 +77,12 @@ func (f *resetFakeStore) OwnedCreatorForUser(ctx context.Context, ownerTelegramI
 func (f *resetFakeStore) DeleteAllUserData(_ context.Context, telegramUserID int64) error {
 	f.deleteAllCalledWith = telegramUserID
 	return f.deleteAllUserDataErr
+}
+
+func (f *resetFakeStore) CreateMemberCleanupJob(_ context.Context, job MemberCleanupJob) (MemberCleanupJob, error) {
+	job.ID = "job-1"
+	job.TotalTargets = len(job.Targets)
+	return job, nil
 }
 
 func (f *resetFakeStore) DeleteCreatorData(_ context.Context, _ int64) (int, []string, error) {
@@ -342,18 +347,11 @@ func TestExecuteCreatorResetKickTrackedMembers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ExecuteCreatorReset kick returned error %v, want nil", err)
 	}
-	sort.Slice(rec.calls, func(i, j int) bool {
-		if rec.calls[i][0] == rec.calls[j][0] {
-			return rec.calls[i][1] < rec.calls[j][1]
-		}
-		return rec.calls[i][0] < rec.calls[j][0]
-	})
-	wantCalls := [][2]int64{{1001, 11}, {1001, 12}, {1002, 13}}
-	if !slices.Equal(rec.calls, wantCalls) {
-		t.Fatalf("kick calls = %v, want %v", rec.calls, wantCalls)
+	if len(rec.calls) != 0 {
+		t.Fatalf("kick calls = %v, want none (cleanup should be queued)", rec.calls)
 	}
-	if got.CreatorCleanup.TargetedMembershipCount != 3 || got.CreatorCleanup.KickFailureCount != 0 {
-		t.Fatalf("cleanup = %+v, want targets=3 failures=0", got.CreatorCleanup)
+	if got.CreatorCleanup.TargetedMembershipCount != 3 || !got.CreatorCleanup.Queued || got.CreatorCleanup.QueueFailed {
+		t.Fatalf("cleanup = %+v, want targets=3 queued=true queue_failed=false", got.CreatorCleanup)
 	}
 }
 
@@ -380,11 +378,11 @@ func TestExecuteCreatorResetKickTrackedMembersContinuesOnFailures(t *testing.T) 
 	if err != nil {
 		t.Fatalf("ExecuteCreatorReset kick returned error %v, want nil", err)
 	}
-	if len(rec.calls) != 2 {
-		t.Fatalf("kick calls = %v, want 2", rec.calls)
+	if len(rec.calls) != 0 {
+		t.Fatalf("kick calls = %v, want none (cleanup should be queued)", rec.calls)
 	}
-	if got.CreatorCleanup.KickFailureCount != 1 || got.CreatorCleanup.TargetedMembershipCount != 2 {
-		t.Fatalf("cleanup = %+v, want failures=1 targets=2", got.CreatorCleanup)
+	if got.CreatorCleanup.TargetedMembershipCount != 2 || !got.CreatorCleanup.Queued || got.CreatorCleanup.QueueFailed {
+		t.Fatalf("cleanup = %+v, want targets=2 queued=true queue_failed=false", got.CreatorCleanup)
 	}
 }
 

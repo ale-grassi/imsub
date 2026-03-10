@@ -107,7 +107,7 @@ func newRouteTestHarnessWithCleaner(t *testing.T, cleaner usecaseGroupUnregistra
 		TelegramGroups:      tgGroups,
 		CreatorStatus:       usecase.NewCreatorStatusUseCase(core.NewCreatorService(store, routeTestEventSubChecker{}, nil), nil),
 		GroupRegistration:   usecase.NewGroupRegistrationUseCase(store, nil),
-		GroupUnregistration: usecase.NewGroupUnregistrationUseCase(store, cleaner, tgGroups.KickFromGroup, nil),
+		GroupUnregistration: usecase.NewGroupUnregistrationUseCase(store, cleaner, nil),
 		GroupPolicyUpdate:   usecase.NewGroupPolicyUpdateUseCase(store, nil),
 	})
 	controller.SetViewerAccessUseCase(usecase.NewViewerAccessUseCase(core.NewViewerService(store, controller.ViewerGroupOps(), nil, nil), nil))
@@ -607,6 +607,12 @@ func (s *routeTestStore) ListTrackedGroupMemberIDs(_ context.Context, chatID int
 	return out, nil
 }
 
+func (s *routeTestStore) CreateMemberCleanupJob(_ context.Context, job core.MemberCleanupJob) (core.MemberCleanupJob, error) {
+	job.ID = "job-1"
+	job.TotalTargets = len(job.Targets)
+	return job, nil
+}
+
 func (s *routeTestStore) CreatorBlockedUserCount(_ context.Context, creatorID string) (int64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -780,6 +786,9 @@ func (routeTestStoreStub) ListTrackedGroupIDsForUser(context.Context, int64) ([]
 }
 func (routeTestStoreStub) ListTrackedGroupMemberIDs(context.Context, int64) ([]int64, error) {
 	return nil, nil
+}
+func (routeTestStoreStub) CreateMemberCleanupJob(context.Context, core.MemberCleanupJob) (core.MemberCleanupJob, error) {
+	return core.MemberCleanupJob{}, nil
 }
 func (routeTestStoreStub) UpsertManagedGroup(context.Context, core.ManagedGroup) error { return nil }
 func (routeTestStoreStub) DeleteManagedGroup(context.Context, int64) error             { return nil }

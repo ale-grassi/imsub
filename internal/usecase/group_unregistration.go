@@ -26,14 +26,13 @@ type groupUnregistrationStore interface {
 	OwnedCreatorForUser(ctx context.Context, ownerTelegramID int64) (core.Creator, bool, error)
 	ManagedGroupByChatID(ctx context.Context, chatID int64) (core.ManagedGroup, bool, error)
 	ListTrackedGroupMemberIDs(ctx context.Context, chatID int64) ([]int64, error)
+	CreateMemberCleanupJob(ctx context.Context, job core.MemberCleanupJob) (core.MemberCleanupJob, error)
 	DeleteManagedGroup(ctx context.Context, chatID int64) error
 }
 
 type groupUnregistrationCleaner interface {
 	DeleteEventSubsForCreator(ctx context.Context, creatorID string) error
 }
-
-type groupUnregistrationKicker func(ctx context.Context, groupChatID int64, telegramUserID int64) error
 
 // UnregisterGroupResult is the application-layer result for group unregistration.
 type UnregisterGroupResult struct {
@@ -43,23 +42,22 @@ type UnregisterGroupResult struct {
 	CleanupFailed           bool
 	MemberAction            core.CreatorResetGroupAction
 	TargetedMembershipCount int
-	KickFailureCount        int
+	CleanupQueued           bool
+	CleanupQueueFailed      bool
 }
 
 // GroupUnregistrationUseCase coordinates managed-group removal and best-effort cleanup.
 type GroupUnregistrationUseCase struct {
 	store   groupUnregistrationStore
 	cleaner groupUnregistrationCleaner
-	kick    groupUnregistrationKicker
 	events  events.EventSink
 }
 
 // NewGroupUnregistrationUseCase builds a group-unregistration use case.
-func NewGroupUnregistrationUseCase(store groupUnregistrationStore, cleaner groupUnregistrationCleaner, kick groupUnregistrationKicker, sink events.EventSink) *GroupUnregistrationUseCase {
+func NewGroupUnregistrationUseCase(store groupUnregistrationStore, cleaner groupUnregistrationCleaner, sink events.EventSink) *GroupUnregistrationUseCase {
 	return &GroupUnregistrationUseCase{
 		store:   store,
 		cleaner: cleaner,
-		kick:    kick,
 		events:  events.EnsureSink(sink),
 	}
 }
@@ -93,7 +91,10 @@ func (u *GroupUnregistrationUseCase) UnregisterGroup(ctx context.Context, ownerT
 	}
 
 	targetedMembershipCount := 0
-	kickFailureCount := 0
+	var queuedJob core.MemberCleanupJob
+	shouldQueueCleanup := false
+	cleanupQueued := false
+	cleanupQueueFailed := false
 	if action == core.CreatorResetKickTrackedMembers {
 		memberIDs, err := u.store.ListTrackedGroupMemberIDs(ctx, groupChatID)
 		if err != nil {
@@ -101,18 +102,38 @@ func (u *GroupUnregistrationUseCase) UnregisterGroup(ctx context.Context, ownerT
 			return UnregisterGroupResult{}, fmt.Errorf("list tracked group member ids: %w", err)
 		}
 		targetedMembershipCount = len(memberIDs)
-		if u.kick != nil {
+		if targetedMembershipCount > 0 {
+			targets := make([]core.MemberCleanupTarget, 0, targetedMembershipCount)
 			for _, telegramUserID := range memberIDs {
-				if err := u.kick(ctx, groupChatID, telegramUserID); err != nil {
-					kickFailureCount++
-				}
+				targets = append(targets, core.MemberCleanupTarget{
+					ChatID:         groupChatID,
+					TelegramUserID: telegramUserID,
+					MaxAttempts:    3,
+				})
 			}
+			queuedJob = core.MemberCleanupJob{
+				Kind:            core.MemberCleanupKindGroupUnregistration,
+				OwnerTelegramID: ownerTelegramID,
+				CreatorID:       creator.ID,
+				CreatorLogin:    creator.TwitchLogin,
+				GroupChatID:     group.ChatID,
+				GroupName:       group.GroupName,
+				Targets:         targets,
+			}
+			shouldQueueCleanup = true
 		}
 	}
 
 	if err := u.store.DeleteManagedGroup(ctx, groupChatID); err != nil {
 		u.recordOutcome(ctx, "failed")
 		return UnregisterGroupResult{}, fmt.Errorf("delete managed group: %w", err)
+	}
+	if shouldQueueCleanup {
+		if _, err := u.store.CreateMemberCleanupJob(ctx, queuedJob); err != nil {
+			cleanupQueueFailed = true
+		} else {
+			cleanupQueued = true
+		}
 	}
 
 	outcome := UnregisterGroupOutcomeUnregistered
@@ -132,7 +153,8 @@ func (u *GroupUnregistrationUseCase) UnregisterGroup(ctx context.Context, ownerT
 		CleanupFailed:           cleanupFailed,
 		MemberAction:            action,
 		TargetedMembershipCount: targetedMembershipCount,
-		KickFailureCount:        kickFailureCount,
+		CleanupQueued:           cleanupQueued,
+		CleanupQueueFailed:      cleanupQueueFailed,
 	}, nil
 }
 

@@ -444,8 +444,10 @@ func renderResetCreatorCleanupResult(lang string, cleanup core.CreatorGroupClean
 	}
 	if cleanup.Action == core.CreatorResetKickTrackedMembers {
 		lines = append(lines, fmt.Sprintf(i18n.Translate(lang, msgResetCreatorKickTargetsLine), cleanup.TargetedMembershipCount))
-		if cleanup.KickFailureCount > 0 {
-			lines = append(lines, fmt.Sprintf(i18n.Translate(lang, msgResetCreatorKickFailuresLine), cleanup.KickFailureCount))
+		if cleanup.QueueFailed {
+			lines = append(lines, i18n.Translate(lang, "reset_creator_cleanup_queue_failed"))
+		} else if cleanup.Queued {
+			lines = append(lines, i18n.Translate(lang, "reset_creator_cleanup_queued"))
 		}
 	} else {
 		lines = append(lines, i18n.Translate(lang, msgResetActionKeepLine))

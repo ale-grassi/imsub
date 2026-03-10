@@ -62,6 +62,12 @@ const (
 	msgGroupUnregisteredKicked        = "group_unregistered_kicked_html"
 	msgGroupUnregisteredKickAllFailed = "group_unregistered_kick_all_failed_html"
 	msgGroupUnregisterNotOwner        = "group_unregister_not_owner"
+	msgCleanupGroupDoneDM             = "cleanup_group_done_dm_html"
+	msgCleanupGroupPartialDM          = "cleanup_group_partial_dm_html"
+	msgCleanupGroupFailedDM           = "cleanup_group_failed_dm_html"
+	msgCleanupResetDoneDM             = "cleanup_reset_done_dm_html"
+	msgCleanupResetPartialDM          = "cleanup_reset_partial_dm_html"
+	msgCleanupResetFailedDM           = "cleanup_reset_failed_dm_html"
 
 	// Buttons.
 	btnBack                   = "btn_back"

@@ -34,6 +34,7 @@ type resetStore interface {
 	ListActiveCreators(ctx context.Context) ([]Creator, error)
 	ListManagedGroupsByCreator(ctx context.Context, creatorID string) ([]ManagedGroup, error)
 	IsCreatorSubscriber(ctx context.Context, creatorID, twitchUserID string) (bool, error)
+	CreateMemberCleanupJob(ctx context.Context, job MemberCleanupJob) (MemberCleanupJob, error)
 	DeleteAllUserData(ctx context.Context, telegramUserID int64) error
 	DeleteCreatorData(ctx context.Context, ownerTelegramID int64) (deletedCount int, deletedNames []string, err error)
 }
@@ -69,6 +70,8 @@ type CreatorGroupCleanupSummary struct {
 	ManagedGroupCount       int
 	TargetedMembershipCount int
 	KickFailureCount        int
+	Queued                  bool
+	QueueFailed             bool
 }
 
 // ViewerResetResult contains the outcome of a viewer reset.
@@ -373,6 +376,7 @@ func (r *ResetService) cleanupCreatorGroupsForReset(ctx context.Context, ownerTe
 		return summary, nil
 	}
 
+	targets := make([]MemberCleanupTarget, 0)
 	for _, group := range groups {
 		memberIDs, err := r.store.ListTrackedGroupMemberIDs(ctx, group.ChatID)
 		if err != nil {
@@ -380,12 +384,30 @@ func (r *ResetService) cleanupCreatorGroupsForReset(ctx context.Context, ownerTe
 		}
 		summary.TargetedMembershipCount += len(memberIDs)
 		for _, telegramUserID := range memberIDs {
-			if err := r.kick(ctx, group.ChatID, telegramUserID); err != nil {
-				summary.KickFailureCount++
-				r.log.Warn("kickFromGroup during creator reset failed", "group_id", group.ChatID, "telegram_user_id", telegramUserID, "error", err)
-			}
+			targets = append(targets, MemberCleanupTarget{
+				ChatID:         group.ChatID,
+				TelegramUserID: telegramUserID,
+				MaxAttempts:    3,
+			})
 		}
 	}
+	if len(targets) == 0 {
+		return summary, nil
+	}
+	_, err = r.store.CreateMemberCleanupJob(ctx, MemberCleanupJob{
+		Kind:              MemberCleanupKindCreatorReset,
+		OwnerTelegramID:   ownerTelegramID,
+		CreatorID:         creator.ID,
+		CreatorLogin:      creator.TwitchLogin,
+		ManagedGroupCount: len(groups),
+		Targets:           targets,
+	})
+	if err != nil {
+		summary.QueueFailed = true
+		r.log.Warn("enqueue creator reset member cleanup failed", "creator_id", creator.ID, "owner_telegram_id", ownerTelegramID, "error", err)
+		return summary, nil
+	}
+	summary.Queued = true
 
 	return summary, nil
 }

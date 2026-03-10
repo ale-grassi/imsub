@@ -146,10 +146,10 @@ other = "⚠️ <b>Unregister group</b>\n\nChoose what to do with tracked member
 other = "✅ <b>Group unregistered</b>\n<b>%s</b> was removed from your creator account."
 
 [creator_group_unregistered_kicked_html]
-other = "✅ <b>Group unregistered</b>\n<b>%s</b> was removed from your creator account.\n\n• Tracked memberships targeted for kick: %d\n• Kick attempts that failed: %d"
+other = "✅ <b>Group unregistered</b>\n<b>%s</b> was removed from your creator account.\n\nTracked-member cleanup was queued in the background for %d membership(s). I will DM you when it finishes."
 
 [creator_group_unregistered_kick_all_failed_html]
-other = "⚠️ <b>Group unregistered</b>\n<b>%s</b> was removed from your creator account, but ImSub could not kick any of the tracked memberships it targeted.\n\n• Tracked memberships targeted for kick: %d\n• Kick attempts that failed: %d"
+other = "⚠️ <b>Group unregistered</b>\n<b>%s</b> was removed from your creator account, but ImSub could not queue tracked-member cleanup for %d membership(s).\n\nPlease review the group manually and remove leftover members if needed."
 
 [creator_group_unavailable_html]
 other = "⚠️ That group is no longer linked to your creator account."
@@ -347,7 +347,7 @@ other = "🗑️ <b>Choose What To Do With Group Members</b>\n\n🔗 <b>Viewer a
 other = "• tracked members will stay in their groups"
 
 [reset_action_kick_line]
-other = "• tracked members will be kicked from managed groups before creator data is deleted"
+other = "• tracked members will be scheduled for background cleanup after creator data is deleted"
 
 [reset_creator_groups_line]
 other = "• Managed groups cleaned up: %d"
@@ -357,6 +357,12 @@ other = "• Tracked memberships targeted for kick: %d"
 
 [reset_creator_kick_failures_line]
 other = "• Kick attempts that failed: %d"
+
+[reset_creator_cleanup_queued]
+other = "• Background member cleanup was queued and a DM will be sent when it finishes"
+
+[reset_creator_cleanup_queue_failed]
+other = "• Background member cleanup could not be queued; review the affected groups manually if needed"
 
 [btn_reset_keep_members]
 other = "Keep members"
@@ -380,10 +386,28 @@ other = "🎉 <b>Group has been Unregistered</b>"
 other = "⚠️ <b>Unregister group</b>\n\nChoose what to do with tracked members before this group is unregistered.\n\nIf you keep members, they will stay in the Telegram group after unregistration.\nIf you kick tracked members, ImSub will try to remove currently tracked members before the group is unregistered."
 
 [group_unregistered_kicked_html]
-other = "🎉 <b>Group has been Unregistered</b>\n\n• Tracked memberships targeted for kick: %d\n• Kick attempts that failed: %d"
+other = "🎉 <b>Group has been Unregistered</b>\n\nTracked-member cleanup was queued in the background for %d membership(s). I will DM you when it finishes."
 
 [group_unregistered_kick_all_failed_html]
-other = "⚠️ <b>Group has been Unregistered</b>\n\nImSub could not kick any of the tracked memberships it targeted.\n\n• Tracked memberships targeted for kick: %d\n• Kick attempts that failed: %d"
+other = "⚠️ <b>Group has been Unregistered</b>\n\nImSub could not queue tracked-member cleanup for %d membership(s).\n\nPlease review the group manually and remove leftover members if needed."
+
+[cleanup_group_done_dm_html]
+other = "✅ <b>Tracked-member cleanup finished</b>\n\n<b>Group:</b> %s\n• Targeted memberships: %d\n• Removed successfully: %d\n• Failed after retries: %d"
+
+[cleanup_group_partial_dm_html]
+other = "⚠️ <b>Tracked-member cleanup finished with leftovers</b>\n\n<b>Group:</b> %s\n• Targeted memberships: %d\n• Removed successfully: %d\n• Failed after retries: %d\n\nPlease review the group manually and remove any leftover members if needed."
+
+[cleanup_group_failed_dm_html]
+other = "⚠️ <b>Tracked-member cleanup failed</b>\n\n<b>Group:</b> %s\n• Targeted memberships: %d\n• Removed successfully: %d\n• Failed after retries: %d\n\nThe group was already unregistered, but member cleanup did not happen. Please remove leftover members manually."
+
+[cleanup_reset_done_dm_html]
+other = "✅ <b>Creator reset cleanup finished</b>\n\n<b>Creator:</b> %s\n• Managed groups involved: %d\n• Targeted memberships: %d\n• Removed successfully: %d\n• Failed after retries: %d"
+
+[cleanup_reset_partial_dm_html]
+other = "⚠️ <b>Creator reset cleanup finished with leftovers</b>\n\n<b>Creator:</b> %s\n• Managed groups involved: %d\n• Targeted memberships: %d\n• Removed successfully: %d\n• Failed after retries: %d\n\nCreator data was already deleted. Please review the affected groups and remove leftover members manually if needed."
+
+[cleanup_reset_failed_dm_html]
+other = "⚠️ <b>Creator reset cleanup failed</b>\n\n<b>Creator:</b> %s\n• Managed groups involved: %d\n• Targeted memberships: %d\n• Removed successfully: %d\n• Failed after retries: %d\n\nCreator data was already deleted, but member cleanup did not happen. Please review the affected groups and remove leftover members manually."
 
 [group_unregister_not_owner]
 other = "⚠️ Only the creator who linked this group can unregister it."

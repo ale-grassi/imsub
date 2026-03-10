@@ -128,7 +128,7 @@ func Run() error {
 	eventSubTask := jobs.NewEventSubTask(eventSubSvc)
 	tgClient := telegramclient.New(tgBot, tgLimiter, logger)
 	tgGroups := telegramgroups.New(tgBot, tgLimiter, logger, s)
-	groupUnregistrationUC := usecase.NewGroupUnregistrationUseCase(s, eventSubSvc, tgGroups.KickFromGroup, eventSink)
+	groupUnregistrationUC := usecase.NewGroupUnregistrationUseCase(s, eventSubSvc, eventSink)
 	gracePolicyTask := jobs.NewGracePolicyTask(s, tgGroups, logger)
 	integrityTask := jobs.NewIntegrityAuditTask(s, logger, eventSink)
 	blocklistSvc = core.NewCreatorBlocklistService(s, twitchAPI, tgGroups, logger)
@@ -157,6 +157,7 @@ func Run() error {
 	resetSvc.SetEventSubCleaner(eventSubSvc)
 	flowController.SetViewerAccessUseCase(viewerAccessUC)
 	flowController.SetResetUseCase(usecase.NewResetUseCase(resetSvc, eventSink))
+	memberCleanupTask := jobs.NewMemberCleanupTask(s, tgGroups, flowController, logger)
 	eventSubSvc.SetObserver(eventSink)
 	blocklistSvc.SetObserver(eventSink)
 	eventSubSvc.SetNotifier(flowController)
@@ -241,6 +242,12 @@ func Run() error {
 		return jobRunner.RunScheduled(gctx, jobs.Schedule{
 			Task:     gracePolicyTask,
 			Interval: 1 * time.Hour,
+		})
+	})
+	g.Go(func() error {
+		return jobRunner.RunScheduled(gctx, jobs.Schedule{
+			Task:     memberCleanupTask,
+			Interval: 1 * time.Minute,
 		})
 	})
 

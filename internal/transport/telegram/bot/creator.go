@@ -534,11 +534,13 @@ func (c *Bot) executeCreatorGroupUnregister(ctx context.Context, telegramUserID 
 		noticeKey := msgCreatorGroupUnregistered
 		args := []any{html.EscapeString(groupName)}
 		if res.MemberAction == core.CreatorResetKickTrackedMembers {
-			noticeKey = msgCreatorGroupUnregisteredKicked
-			if res.TargetedMembershipCount > 0 && res.KickFailureCount == res.TargetedMembershipCount {
+			if res.CleanupQueueFailed {
 				noticeKey = msgCreatorGroupUnregisteredKickAllFailed
+				args = append(args, res.TargetedMembershipCount)
+			} else {
+				noticeKey = msgCreatorGroupUnregisteredKicked
+				args = append(args, res.TargetedMembershipCount)
 			}
-			args = append(args, res.TargetedMembershipCount, res.KickFailureCount)
 		}
 		notice := fmt.Sprintf(i18n.Translate(lang, noticeKey), args...)
 		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, notice)

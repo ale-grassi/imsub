@@ -845,11 +845,13 @@ func buildGroupUnregisteredView(lang string, replyToMessageID int, res usecase.U
 	key := msgGroupUnregistered
 	text := i18n.Translate(lang, key)
 	if res.MemberAction == core.CreatorResetKickTrackedMembers {
-		key = msgGroupUnregisteredKicked
-		if res.TargetedMembershipCount > 0 && res.KickFailureCount == res.TargetedMembershipCount {
+		if res.CleanupQueueFailed {
 			key = msgGroupUnregisteredKickAllFailed
+			text = fmt.Sprintf(i18n.Translate(lang, key), res.TargetedMembershipCount)
+		} else {
+			key = msgGroupUnregisteredKicked
+			text = fmt.Sprintf(i18n.Translate(lang, key), res.TargetedMembershipCount)
 		}
-		text = fmt.Sprintf(i18n.Translate(lang, key), res.TargetedMembershipCount, res.KickFailureCount)
 	}
 	view := sharedView{text: text}
 	if key == msgGroupUnregistered {

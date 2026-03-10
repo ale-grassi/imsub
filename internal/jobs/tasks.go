@@ -31,6 +31,16 @@ type groupKicker interface {
 	KickFromGroup(ctx context.Context, groupChatID, telegramUserID int64) error
 }
 
+type memberCleanupStore interface {
+	ListPendingMemberCleanupJobs(ctx context.Context) ([]core.MemberCleanupJob, error)
+	ClaimMemberCleanupJob(ctx context.Context, jobID string, ttl time.Duration) (bool, error)
+	SaveMemberCleanupJob(ctx context.Context, job core.MemberCleanupJob) error
+}
+
+type memberCleanupNotifier interface {
+	NotifyMemberCleanupComplete(ctx context.Context, result core.MemberCleanupResult) error
+}
+
 type subscriberTask struct {
 	reconciler subscriberReconciler
 }
@@ -77,6 +87,15 @@ type gracePolicyTask struct {
 	graceAfter time.Duration
 }
 
+type memberCleanupTask struct {
+	store            memberCleanupStore
+	kicker           groupKicker
+	notifier         memberCleanupNotifier
+	logger           *slog.Logger
+	lockTTL          time.Duration
+	maxTargetsPerRun int
+}
+
 // NewEventSubTask builds the EventSub reconciliation task.
 func NewEventSubTask(r eventSubReconciler) Task {
 	return eventSubTask{reconciler: r}
@@ -94,6 +113,21 @@ func NewGracePolicyTask(store gracePolicyStore, kicker groupKicker, logger *slog
 		logger:     logger,
 		now:        func() time.Time { return time.Now().UTC() },
 		graceAfter: 7 * 24 * time.Hour,
+	}
+}
+
+// NewMemberCleanupTask builds the periodic task that drains background tracked-member cleanup jobs.
+func NewMemberCleanupTask(store memberCleanupStore, kicker groupKicker, notifier memberCleanupNotifier, logger *slog.Logger) Task {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return memberCleanupTask{
+		store:            store,
+		kicker:           kicker,
+		notifier:         notifier,
+		logger:           logger,
+		lockTTL:          15 * time.Minute,
+		maxTargetsPerRun: 50,
 	}
 }
 
@@ -162,6 +196,110 @@ func (t gracePolicyTask) Run(ctx context.Context) error {
 }
 
 func (t gracePolicyTask) Classify(err error) string {
+	switch {
+	case err == nil:
+		return "ok"
+	case errors.Is(err, core.ErrPartialReconcile):
+		return "partial_failure"
+	default:
+		return taskResultFailed
+	}
+}
+
+func (t memberCleanupTask) Name() string { return "process_member_cleanup_jobs" }
+
+func (t memberCleanupTask) Run(ctx context.Context) error {
+	if t.store == nil || t.kicker == nil {
+		return nil
+	}
+	jobs, err := t.store.ListPendingMemberCleanupJobs(ctx)
+	if err != nil {
+		return fmt.Errorf("list pending member cleanup jobs: %w", err)
+	}
+	var partialErrs []error
+	for _, job := range jobs {
+		claimed, err := t.store.ClaimMemberCleanupJob(ctx, job.ID, t.lockTTL)
+		if err != nil {
+			partialErrs = append(partialErrs, fmt.Errorf("claim member cleanup job %s: %w", job.ID, err))
+			continue
+		}
+		if !claimed {
+			continue
+		}
+		result, done, runErr := t.processJob(ctx, job)
+		if runErr != nil {
+			partialErrs = append(partialErrs, fmt.Errorf("process member cleanup job %s: %w", job.ID, runErr))
+			continue
+		}
+		if !done {
+			continue
+		}
+		if t.notifier != nil {
+			if err := t.notifier.NotifyMemberCleanupComplete(ctx, result); err != nil {
+				t.logger.Warn("member cleanup completion notification failed", "job_id", job.ID, "owner_telegram_id", result.OwnerTelegramID, "error", err)
+			}
+		}
+	}
+	if len(partialErrs) > 0 {
+		return errors.Join(append([]error{core.ErrPartialReconcile}, partialErrs...)...)
+	}
+	return nil
+}
+
+func (t memberCleanupTask) processJob(ctx context.Context, job core.MemberCleanupJob) (core.MemberCleanupResult, bool, error) {
+	limit := t.maxTargetsPerRun
+	if limit <= 0 || limit > len(job.Targets) {
+		limit = len(job.Targets)
+	}
+	succeeded := 0
+	remaining := make([]core.MemberCleanupTarget, 0, len(job.Targets))
+	permanentFailures := 0
+	for idx, target := range job.Targets {
+		if idx >= limit {
+			remaining = append(remaining, job.Targets[idx:]...)
+			break
+		}
+		if err := t.kicker.KickFromGroup(ctx, target.ChatID, target.TelegramUserID); err != nil {
+			target.Attempts++
+			if target.Attempts >= target.MaxAttempts {
+				permanentFailures++
+				t.logger.Warn("member cleanup target exhausted", "job_id", job.ID, "chat_id", target.ChatID, "telegram_user_id", target.TelegramUserID, "attempts", target.Attempts, "error", err)
+				continue
+			}
+			remaining = append(remaining, target)
+			t.logger.Warn("member cleanup target failed", "job_id", job.ID, "chat_id", target.ChatID, "telegram_user_id", target.TelegramUserID, "attempts", target.Attempts, "error", err)
+			continue
+		}
+		succeeded++
+	}
+	job.SucceededCount += succeeded
+	failed := job.TotalTargets - job.SucceededCount
+	done := len(remaining) == 0
+	job.Targets = remaining
+	if done {
+		if permanentFailures > 0 {
+			job.Status = core.MemberCleanupStatusExhausted
+		} else {
+			job.Status = core.MemberCleanupStatusDone
+		}
+	}
+	if err := t.store.SaveMemberCleanupJob(ctx, job); err != nil {
+		return core.MemberCleanupResult{}, false, fmt.Errorf("save member cleanup job: %w", err)
+	}
+	return core.MemberCleanupResult{
+		Kind:              job.Kind,
+		Status:            job.Status,
+		OwnerTelegramID:   job.OwnerTelegramID,
+		CreatorLogin:      job.CreatorLogin,
+		GroupName:         job.GroupName,
+		ManagedGroupCount: job.ManagedGroupCount,
+		TargetedCount:     job.TotalTargets,
+		SucceededCount:    job.SucceededCount,
+		FailedCount:       failed,
+	}, done, nil
+}
+
+func (t memberCleanupTask) Classify(err error) string {
 	switch {
 	case err == nil:
 		return "ok"

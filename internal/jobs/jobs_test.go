@@ -3,6 +3,7 @@ package jobs
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"sync"
 	"testing"
 	"time"
@@ -18,6 +19,10 @@ type fakeStore struct {
 	listManagedGroups  func(ctx context.Context) ([]core.ManagedGroup, error)
 	listUntracked      func(ctx context.Context, chatID int64) ([]core.UntrackedGroupMember, error)
 	removeUntracked    func(ctx context.Context, chatID, telegramUserID int64) error
+}
+
+type fakeMemberCleanupStore struct {
+	saveJob func(ctx context.Context, job core.MemberCleanupJob) error
 }
 
 func (f *fakeStore) ListCreators(ctx context.Context) ([]core.Creator, error) {
@@ -58,6 +63,21 @@ func (f *fakeStore) ListUntrackedGroupMembers(ctx context.Context, chatID int64)
 func (f *fakeStore) RemoveUntrackedGroupMember(ctx context.Context, chatID, telegramUserID int64) error {
 	if f.removeUntracked != nil {
 		return f.removeUntracked(ctx, chatID, telegramUserID)
+	}
+	return nil
+}
+
+func (f *fakeMemberCleanupStore) ListPendingMemberCleanupJobs(context.Context) ([]core.MemberCleanupJob, error) {
+	return nil, nil
+}
+
+func (f *fakeMemberCleanupStore) ClaimMemberCleanupJob(context.Context, string, time.Duration) (bool, error) {
+	return false, nil
+}
+
+func (f *fakeMemberCleanupStore) SaveMemberCleanupJob(ctx context.Context, job core.MemberCleanupJob) error {
+	if f.saveJob != nil {
+		return f.saveJob(ctx, job)
 	}
 	return nil
 }
@@ -309,5 +329,62 @@ func TestGracePolicyTaskContinuesAfterMemberError(t *testing.T) {
 	}
 	if got := kicker.snapshot(); len(got) != 2 {
 		t.Fatalf("kicks = %#v, want both expired members attempted", got)
+	}
+}
+
+func TestMemberCleanupTaskProcessJobCapsWorkPerRun(t *testing.T) {
+	t.Parallel()
+
+	var saved core.MemberCleanupJob
+	store := &fakeMemberCleanupStore{
+		saveJob: func(_ context.Context, job core.MemberCleanupJob) error {
+			saved = job
+			return nil
+		},
+	}
+	kicker := &fakeGroupKicker{}
+	task := memberCleanupTask{
+		store:            store,
+		kicker:           kicker,
+		logger:           slog.Default(),
+		lockTTL:          15 * time.Minute,
+		maxTargetsPerRun: 2,
+	}
+	job := core.MemberCleanupJob{
+		ID:              "job-1",
+		Kind:            core.MemberCleanupKindGroupUnregistration,
+		Status:          core.MemberCleanupStatusPending,
+		OwnerTelegramID: 1,
+		CreatorLogin:    "creator",
+		GroupName:       "group",
+		TotalTargets:    3,
+		Targets: []core.MemberCleanupTarget{
+			{ChatID: 100, TelegramUserID: 10, MaxAttempts: 3},
+			{ChatID: 100, TelegramUserID: 11, MaxAttempts: 3},
+			{ChatID: 100, TelegramUserID: 12, MaxAttempts: 3},
+		},
+	}
+
+	result, done, err := task.processJob(t.Context(), job)
+	if err != nil {
+		t.Fatalf("processJob() error = %v", err)
+	}
+	if done {
+		t.Fatal("processJob() done = true, want false with leftover targets")
+	}
+	if got := kicker.snapshot(); len(got) != 2 {
+		t.Fatalf("kicks = %#v, want 2 attempts", got)
+	}
+	if saved.SucceededCount != 2 {
+		t.Fatalf("saved succeeded = %d, want 2", saved.SucceededCount)
+	}
+	if len(saved.Targets) != 1 || saved.Targets[0].TelegramUserID != 12 {
+		t.Fatalf("saved remaining targets = %#v, want only user 12", saved.Targets)
+	}
+	if result.SucceededCount != 2 {
+		t.Fatalf("result succeeded = %d, want 2", result.SucceededCount)
+	}
+	if result.FailedCount != 1 {
+		t.Fatalf("result failed = %d, want 1 remaining target", result.FailedCount)
 	}
 }

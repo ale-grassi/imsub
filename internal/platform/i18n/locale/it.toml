@@ -146,10 +146,10 @@ other = "⚠️ <b>Scollega gruppo</b>\n\nScegli cosa fare con i membri tracciat
 other = "✅ <b>Gruppo scollegato</b>\n<b>%s</b> e' stato rimosso dal tuo account creator."
 
 [creator_group_unregistered_kicked_html]
-other = "✅ <b>Gruppo scollegato</b>\n<b>%s</b> e' stato rimosso dal tuo account creator.\n\n• Membri tracciati presi di mira per l'espulsione: %d\n• Tentativi di espulsione falliti: %d"
+other = "✅ <b>Gruppo scollegato</b>\n<b>%s</b> e' stato rimosso dal tuo account creator.\n\nLa pulizia dei membri tracciati e' stata messa in coda in background per %d membership. Ti inviero' un DM quando termina."
 
 [creator_group_unregistered_kick_all_failed_html]
-other = "⚠️ <b>Gruppo scollegato</b>\n<b>%s</b> e' stato rimosso dal tuo account creator, ma ImSub non e' riuscito a espellere nessuno dei membri tracciati presi di mira.\n\n• Membri tracciati presi di mira per l'espulsione: %d\n• Tentativi di espulsione falliti: %d"
+other = "⚠️ <b>Gruppo scollegato</b>\n<b>%s</b> e' stato rimosso dal tuo account creator, ma ImSub non e' riuscito a mettere in coda la pulizia dei membri tracciati per %d membership.\n\nControlla il gruppo manualmente e rimuovi gli eventuali membri rimasti, se necessario."
 
 [creator_group_unavailable_html]
 other = "⚠️ Questo gruppo non e' piu' collegato al tuo account creator."
@@ -347,7 +347,7 @@ other = "🗑️ <b>Scegli cosa fare con i membri dei gruppi</b>\n\n🔗 <b>Acco
 other = "• i membri tracciati resteranno nei loro gruppi"
 
 [reset_action_kick_line]
-other = "• i membri tracciati verranno espulsi dai gruppi gestiti prima che i dati creator vengano eliminati"
+other = "• i membri tracciati verranno messi in coda per una pulizia in background dopo l'eliminazione dei dati creator"
 
 [reset_creator_groups_line]
 other = "• Gruppi gestiti ripuliti: %d"
@@ -357,6 +357,12 @@ other = "• Membri tracciati presi di mira per l'espulsione: %d"
 
 [reset_creator_kick_failures_line]
 other = "• Tentativi di espulsione falliti: %d"
+
+[reset_creator_cleanup_queued]
+other = "• La pulizia dei membri in background e' stata messa in coda e verra' inviato un DM al termine"
+
+[reset_creator_cleanup_queue_failed]
+other = "• Non e' stato possibile mettere in coda la pulizia dei membri; controlla manualmente i gruppi coinvolti se necessario"
 
 [btn_reset_keep_members]
 other = "Mantieni membri"
@@ -380,10 +386,28 @@ other = "🎉 <b>Gruppo scollegato</b>"
 other = "⚠️ <b>Scollega gruppo</b>\n\nScegli cosa fare con i membri tracciati prima che questo gruppo venga scollegato.\n\nSe mantieni i membri, resteranno nel gruppo Telegram dopo lo scollegamento.\nSe espelli i membri tracciati, ImSub proverà a rimuovere i membri attualmente tracciati prima che il gruppo venga scollegato."
 
 [group_unregistered_kicked_html]
-other = "🎉 <b>Gruppo scollegato</b>\n\n• Membri tracciati presi di mira per l'espulsione: %d\n• Tentativi di espulsione falliti: %d"
+other = "🎉 <b>Gruppo scollegato</b>\n\nLa pulizia dei membri tracciati e' stata messa in coda in background per %d membership. Ti inviero' un DM quando termina."
 
 [group_unregistered_kick_all_failed_html]
-other = "⚠️ <b>Gruppo scollegato</b>\n\nImSub non e' riuscito a espellere nessuno dei membri tracciati presi di mira.\n\n• Membri tracciati presi di mira per l'espulsione: %d\n• Tentativi di espulsione falliti: %d"
+other = "⚠️ <b>Gruppo scollegato</b>\n\nImSub non e' riuscito a mettere in coda la pulizia dei membri tracciati per %d membership.\n\nControlla il gruppo manualmente e rimuovi gli eventuali membri rimasti, se necessario."
+
+[cleanup_group_done_dm_html]
+other = "✅ <b>Pulizia membri tracciati completata</b>\n\n<b>Gruppo:</b> %s\n• Membership prese di mira: %d\n• Rimosse con successo: %d\n• Fallite dopo i retry: %d"
+
+[cleanup_group_partial_dm_html]
+other = "⚠️ <b>Pulizia membri tracciati completata con residui</b>\n\n<b>Gruppo:</b> %s\n• Membership prese di mira: %d\n• Rimosse con successo: %d\n• Fallite dopo i retry: %d\n\nControlla il gruppo manualmente e rimuovi gli eventuali membri rimasti, se necessario."
+
+[cleanup_group_failed_dm_html]
+other = "⚠️ <b>Pulizia membri tracciati fallita</b>\n\n<b>Gruppo:</b> %s\n• Membership prese di mira: %d\n• Rimosse con successo: %d\n• Fallite dopo i retry: %d\n\nIl gruppo e' gia' stato scollegato, ma la pulizia dei membri non e' avvenuta. Rimuovi manualmente gli eventuali membri rimasti."
+
+[cleanup_reset_done_dm_html]
+other = "✅ <b>Pulizia reset creator completata</b>\n\n<b>Creator:</b> %s\n• Gruppi coinvolti: %d\n• Membership prese di mira: %d\n• Rimosse con successo: %d\n• Fallite dopo i retry: %d"
+
+[cleanup_reset_partial_dm_html]
+other = "⚠️ <b>Pulizia reset creator completata con residui</b>\n\n<b>Creator:</b> %s\n• Gruppi coinvolti: %d\n• Membership prese di mira: %d\n• Rimosse con successo: %d\n• Fallite dopo i retry: %d\n\nI dati creator sono gia' stati eliminati. Controlla i gruppi coinvolti e rimuovi manualmente gli eventuali membri rimasti, se necessario."
+
+[cleanup_reset_failed_dm_html]
+other = "⚠️ <b>Pulizia reset creator fallita</b>\n\n<b>Creator:</b> %s\n• Gruppi coinvolti: %d\n• Membership prese di mira: %d\n• Rimosse con successo: %d\n• Fallite dopo i retry: %d\n\nI dati creator sono gia' stati eliminati, ma la pulizia dei membri non e' avvenuta. Controlla i gruppi coinvolti e rimuovi manualmente gli eventuali membri rimasti."
 
 [group_unregister_not_owner]
 other = "Solo il creator che ha collegato questo gruppo può scollegarlo."

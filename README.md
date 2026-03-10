@@ -463,8 +463,8 @@ Planned improvements and open design questions, roughly ordered by impact.
 
 ### Operational visibility
 
-- **Telegram log channel**: forward key events (kicks, joins, errors, EventSub issues) to a dedicated Telegram channel so developers can monitor without checking server logs.
-- **Creator kick log channel**: let a creator optionally bind a log channel where the bot posts whenever someone is kicked or leaves, with reason and timestamp.
+- **Telegram operator log channel**: forward high-signal service events to one Telegram channel owned by the operator, such as EventSub failures, OAuth errors, reconciliation warnings, failed kicks, and automatic unregisters. This is for bot/service monitoring, not creator-facing audit logs.
+- **Creator moderation log channel**: let each creator optionally bind one Telegram channel where ImSub posts member-access actions for that creator's groups, such as approved joins, declined joins, kicks, grace-expiry removals, and ban-sync removals, with the affected user and reason.
 - **Product and Telegram metrics**: add Prometheus metrics and Grafana panels for daily active bot users, linked viewer/creator accounts, subscription checks, group registrations, command usage, and kick/access actions so the dashboard answers operational and product questions directly.
 
 ### Subscription lifecycle
@@ -483,12 +483,6 @@ Planned improvements and open design questions, roughly ordered by impact.
 
 - **Creator allowlist**: let creators manually grant group access to specific users (e.g. mods, friends) who aren't subscribers, bypassing the subscription check.
 - **Sub-only channel mode**: let a creator flag a Telegram channel as sub-only so that only verified subscribers can view its posts. The bot would manage channel membership the same way it manages group membership — granting access on `channel.subscribe`, revoking on `channel.subscription.end`, and reconciling periodically. This extends the existing group flow to Telegram channels, which have different invite-link and kick semantics.
-
-### Group lifecycle
-
-- **Creator reset group action**: when a creator deletes their creator data, ask what to do with members of their managed groups. Options: kick all tracked members from those groups, or keep them. Currently `deleteCreatorData` removes the creator record and managed-group state but does not touch the Telegram groups themselves, so members remain there as orphans. The same choice should apply to the "reset both" flow.
-- **Unregister group**: let a creator unlink one managed Telegram group without deleting the entire creator record (e.g. `/unregistergroup` or an inline button). It should ask what to do with the current tracked members of that group: kick them, or leave them in place.
-- **Per-group policy editing in `/creator`**: registration now requires choosing an unverified-member policy per group, but the policy cannot yet be changed afterwards. Add a per-group policy editor to the `/creator` flow so creators can review and update each managed group's current policy without re-registering the group.
 
 ### GDPR compliance
 

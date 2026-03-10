@@ -26,6 +26,11 @@ func (s groupUnregistrationStoreStub) ManagedGroupByChatID(ctx context.Context, 
 func (s groupUnregistrationStoreStub) ListTrackedGroupMemberIDs(ctx context.Context, chatID int64) ([]int64, error) {
 	return s.listTrackedFn(ctx, chatID)
 }
+func (s groupUnregistrationStoreStub) CreateMemberCleanupJob(_ context.Context, job core.MemberCleanupJob) (core.MemberCleanupJob, error) {
+	job.ID = "job-1"
+	job.TotalTargets = len(job.Targets)
+	return job, nil
+}
 func (s groupUnregistrationStoreStub) DeleteManagedGroup(ctx context.Context, chatID int64) error {
 	return s.deleteFn(ctx, chatID)
 }
@@ -36,14 +41,6 @@ type groupUnregistrationCleanerStub struct {
 
 func (s groupUnregistrationCleanerStub) DeleteEventSubsForCreator(ctx context.Context, creatorID string) error {
 	return s.deleteFn(ctx, creatorID)
-}
-
-type groupUnregistrationKickerStub struct {
-	kickFn func(context.Context, int64, int64) error
-}
-
-func (s groupUnregistrationKickerStub) kick(ctx context.Context, groupChatID int64, telegramUserID int64) error {
-	return s.kickFn(ctx, groupChatID, telegramUserID)
 }
 
 type groupUnregistrationObserverStub struct {
@@ -63,7 +60,7 @@ func TestUnregisterGroupNotManaged(t *testing.T) {
 		groupByChatFn:  func(context.Context, int64) (core.ManagedGroup, bool, error) { return core.ManagedGroup{}, false, nil },
 		listTrackedFn:  func(context.Context, int64) ([]int64, error) { return nil, nil },
 		deleteFn:       func(context.Context, int64) error { return nil },
-	}, nil, nil, obs)
+	}, nil, obs)
 
 	got, err := uc.UnregisterGroup(t.Context(), 7, 100, core.CreatorResetKeepMembers)
 	if err != nil {
@@ -91,7 +88,7 @@ func TestUnregisterGroupNotOwner(t *testing.T) {
 		},
 		listTrackedFn: func(context.Context, int64) ([]int64, error) { return nil, nil },
 		deleteFn:      func(context.Context, int64) error { return nil },
-	}, nil, nil, obs)
+	}, nil, obs)
 
 	got, err := uc.UnregisterGroup(t.Context(), 7, 100, core.CreatorResetKeepMembers)
 	if err != nil {
@@ -129,7 +126,7 @@ func TestUnregisterGroupSuccess(t *testing.T) {
 			cleaned = true
 			return nil
 		},
-	}, nil, obs)
+	}, obs)
 
 	got, err := uc.UnregisterGroup(t.Context(), 7, 100, core.CreatorResetKeepMembers)
 	if err != nil {
@@ -159,7 +156,7 @@ func TestUnregisterGroupCleanupLag(t *testing.T) {
 		deleteFn:      func(context.Context, int64) error { return nil },
 	}, groupUnregistrationCleanerStub{
 		deleteFn: func(context.Context, string) error { return errors.New("boom") },
-	}, nil, obs)
+	}, obs)
 
 	got, err := uc.UnregisterGroup(t.Context(), 7, 100, core.CreatorResetKeepMembers)
 	if err != nil {
@@ -178,7 +175,6 @@ func TestUnregisterGroupKickTrackedMembers(t *testing.T) {
 	t.Parallel()
 
 	obs := &groupUnregistrationObserverStub{}
-	var kicked [][2]int64
 	uc := NewGroupUnregistrationUseCase(groupUnregistrationStoreStub{
 		ownedCreatorFn: func(context.Context, int64) (core.Creator, bool, error) {
 			return core.Creator{ID: "c1"}, true, nil
@@ -188,24 +184,13 @@ func TestUnregisterGroupKickTrackedMembers(t *testing.T) {
 		},
 		listTrackedFn: func(context.Context, int64) ([]int64, error) { return []int64{9, 8}, nil },
 		deleteFn:      func(context.Context, int64) error { return nil },
-	}, nil, groupUnregistrationKickerStub{
-		kickFn: func(_ context.Context, groupChatID int64, telegramUserID int64) error {
-			kicked = append(kicked, [2]int64{groupChatID, telegramUserID})
-			if telegramUserID == 8 {
-				return errors.New("boom")
-			}
-			return nil
-		},
-	}.kick, obs)
+	}, nil, obs)
 
 	got, err := uc.UnregisterGroup(t.Context(), 7, 100, core.CreatorResetKickTrackedMembers)
 	if err != nil {
 		t.Fatalf("UnregisterGroup() error = %v", err)
 	}
-	if got.TargetedMembershipCount != 2 || got.KickFailureCount != 1 || got.MemberAction != core.CreatorResetKickTrackedMembers {
+	if got.TargetedMembershipCount != 2 || !got.CleanupQueued || got.CleanupQueueFailed || got.MemberAction != core.CreatorResetKickTrackedMembers {
 		t.Fatalf("got = %+v", got)
-	}
-	if !slices.Equal(kicked, [][2]int64{{100, 9}, {100, 8}}) {
-		t.Fatalf("kicked = %v, want %v", kicked, [][2]int64{{100, 9}, {100, 8}})
 	}
 }
