@@ -132,6 +132,8 @@ func TestMainMenuAndWithMainMenuMarkup(t *testing.T) {
 	creatorCallbacks := CreatorMenuCallbacks{
 		Refresh:         "creator:refresh",
 		ManageGroups:    "creator:open:groups",
+		Grace:           "creator:open:grace",
+		GraceActive:     true,
 		Blocklist:       "creator:exec:blocklist",
 		BlocklistActive: true,
 		Reset:           "reset:open:creator",
@@ -160,8 +162,8 @@ func TestMainMenuAndWithMainMenuMarkup(t *testing.T) {
 	}
 
 	reconnectMenu := CreatorStatusMenuMarkup("en", "https://example.com/reconnect", creatorCallbacks)
-	if reconnectMenu == nil || len(reconnectMenu.InlineKeyboard) != 4 {
-		t.Fatalf("CreatorStatusMenuMarkup(%q, reconnectURL) = %+v, want 4 rows", "en", reconnectMenu)
+	if reconnectMenu == nil || len(reconnectMenu.InlineKeyboard) != 5 {
+		t.Fatalf("CreatorStatusMenuMarkup(%q, reconnectURL) = %+v, want 5 rows", "en", reconnectMenu)
 	}
 	if reconnectMenu.InlineKeyboard[0][0].URL != "https://example.com/reconnect" {
 		t.Errorf("CreatorStatusMenuMarkup(%q, reconnectURL) first url = %q, want %q", "en", reconnectMenu.InlineKeyboard[0][0].URL, "https://example.com/reconnect")
@@ -178,17 +180,26 @@ func TestMainMenuAndWithMainMenuMarkup(t *testing.T) {
 	if reconnectMenu.InlineKeyboard[1][0].IconCustomEmojiID != manageButtonEmojiID {
 		t.Errorf("CreatorStatusMenuMarkup(%q, reconnectURL) manage icon = %q, want %q", "en", reconnectMenu.InlineKeyboard[1][0].IconCustomEmojiID, manageButtonEmojiID)
 	}
-	if reconnectMenu.InlineKeyboard[2][0].CallbackData != creatorCallbacks.Blocklist {
-		t.Errorf("CreatorStatusMenuMarkup(%q, reconnectURL) blocklist callback = %+v, want CallbackData=%q", "en", reconnectMenu.InlineKeyboard[2][0], creatorCallbacks.Blocklist)
+	if reconnectMenu.InlineKeyboard[2][0].CallbackData != creatorCallbacks.Grace {
+		t.Errorf("CreatorStatusMenuMarkup(%q, reconnectURL) grace callback = %+v, want CallbackData=%q", "en", reconnectMenu.InlineKeyboard[2][0], creatorCallbacks.Grace)
 	}
-	if reconnectMenu.InlineKeyboard[2][0].IconCustomEmojiID != blocklistButtonEmojiID {
-		t.Errorf("CreatorStatusMenuMarkup(%q, reconnectURL) blocklist icon = %q, want %q", "en", reconnectMenu.InlineKeyboard[2][0].IconCustomEmojiID, blocklistButtonEmojiID)
+	if reconnectMenu.InlineKeyboard[2][0].IconCustomEmojiID != graceButtonEmojiID {
+		t.Errorf("CreatorStatusMenuMarkup(%q, reconnectURL) grace icon = %q, want %q", "en", reconnectMenu.InlineKeyboard[2][0].IconCustomEmojiID, graceButtonEmojiID)
 	}
 	if reconnectMenu.InlineKeyboard[2][0].Style != "success" {
-		t.Errorf("CreatorStatusMenuMarkup(%q, reconnectURL) blocklist style = %q, want %q", "en", reconnectMenu.InlineKeyboard[2][0].Style, "success")
+		t.Errorf("CreatorStatusMenuMarkup(%q, reconnectURL) grace style = %q, want %q", "en", reconnectMenu.InlineKeyboard[2][0].Style, "success")
 	}
-	if reconnectMenu.InlineKeyboard[3][0].CallbackData != creatorCallbacks.Reset {
-		t.Errorf("CreatorStatusMenuMarkup(%q, reconnectURL) reset callback = %+v, want CallbackData=%q", "en", reconnectMenu.InlineKeyboard[3][0], creatorCallbacks.Reset)
+	if reconnectMenu.InlineKeyboard[3][0].CallbackData != creatorCallbacks.Blocklist {
+		t.Errorf("CreatorStatusMenuMarkup(%q, reconnectURL) blocklist callback = %+v, want CallbackData=%q", "en", reconnectMenu.InlineKeyboard[3][0], creatorCallbacks.Blocklist)
+	}
+	if reconnectMenu.InlineKeyboard[3][0].IconCustomEmojiID != blocklistButtonEmojiID {
+		t.Errorf("CreatorStatusMenuMarkup(%q, reconnectURL) blocklist icon = %q, want %q", "en", reconnectMenu.InlineKeyboard[3][0].IconCustomEmojiID, blocklistButtonEmojiID)
+	}
+	if reconnectMenu.InlineKeyboard[3][0].Style != "success" {
+		t.Errorf("CreatorStatusMenuMarkup(%q, reconnectURL) blocklist style = %q, want %q", "en", reconnectMenu.InlineKeyboard[3][0].Style, "success")
+	}
+	if reconnectMenu.InlineKeyboard[4][0].CallbackData != creatorCallbacks.Reset {
+		t.Errorf("CreatorStatusMenuMarkup(%q, reconnectURL) reset callback = %+v, want CallbackData=%q", "en", reconnectMenu.InlineKeyboard[4][0], creatorCallbacks.Reset)
 	}
 
 	extra := WithMainMenu("en", viewerCallbacks, []telego.InlineKeyboardButton{CallbackButton("X", "x")})
@@ -200,8 +211,8 @@ func TestMainMenuAndWithMainMenuMarkup(t *testing.T) {
 	}
 
 	creatorExtra := WithCreatorMainMenu("en", creatorCallbacks, []telego.InlineKeyboardButton{CallbackButton("X", "x")})
-	if creatorExtra == nil || len(creatorExtra.InlineKeyboard) != 5 {
-		t.Errorf("WithCreatorMainMenu(%q, rows=1) = %+v, want 5 rows", "en", creatorExtra)
+	if creatorExtra == nil || len(creatorExtra.InlineKeyboard) != 6 {
+		t.Errorf("WithCreatorMainMenu(%q, rows=1) = %+v, want 6 rows", "en", creatorExtra)
 	}
 	if creatorExtra.InlineKeyboard[1][0].CallbackData != creatorCallbacks.Refresh {
 		t.Errorf("WithCreatorMainMenu(%q, rows=1) refresh callback = %+v, want CallbackData=%q", "en", creatorExtra.InlineKeyboard[1][0], creatorCallbacks.Refresh)
@@ -209,16 +220,19 @@ func TestMainMenuAndWithMainMenuMarkup(t *testing.T) {
 	if creatorExtra.InlineKeyboard[2][0].CallbackData != creatorCallbacks.ManageGroups {
 		t.Errorf("WithCreatorMainMenu(%q, rows=1) manage callback = %+v, want CallbackData=%q", "en", creatorExtra.InlineKeyboard[2][0], creatorCallbacks.ManageGroups)
 	}
-	if creatorExtra.InlineKeyboard[3][0].CallbackData != creatorCallbacks.Blocklist {
-		t.Errorf("WithCreatorMainMenu(%q, rows=1) blocklist callback = %+v, want CallbackData=%q", "en", creatorExtra.InlineKeyboard[3][0], creatorCallbacks.Blocklist)
+	if creatorExtra.InlineKeyboard[3][0].CallbackData != creatorCallbacks.Grace {
+		t.Errorf("WithCreatorMainMenu(%q, rows=1) grace callback = %+v, want CallbackData=%q", "en", creatorExtra.InlineKeyboard[3][0], creatorCallbacks.Grace)
 	}
-	if creatorExtra.InlineKeyboard[4][0].CallbackData != creatorCallbacks.Reset {
-		t.Errorf("WithCreatorMainMenu(%q, rows=1) reset callback = %+v, want CallbackData=%q", "en", creatorExtra.InlineKeyboard[4][0], creatorCallbacks.Reset)
+	if creatorExtra.InlineKeyboard[4][0].CallbackData != creatorCallbacks.Blocklist {
+		t.Errorf("WithCreatorMainMenu(%q, rows=1) blocklist callback = %+v, want CallbackData=%q", "en", creatorExtra.InlineKeyboard[4][0], creatorCallbacks.Blocklist)
+	}
+	if creatorExtra.InlineKeyboard[5][0].CallbackData != creatorCallbacks.Reset {
+		t.Errorf("WithCreatorMainMenu(%q, rows=1) reset callback = %+v, want CallbackData=%q", "en", creatorExtra.InlineKeyboard[5][0], creatorCallbacks.Reset)
 	}
 
 	creatorReconnectExtra := WithCreatorStatusMenu("en", "https://example.com/reconnect", creatorCallbacks, []telego.InlineKeyboardButton{CallbackButton("X", "x")})
-	if creatorReconnectExtra == nil || len(creatorReconnectExtra.InlineKeyboard) != 5 {
-		t.Errorf("WithCreatorStatusMenu(%q, reconnectURL, rows=1) = %+v, want 5 rows", "en", creatorReconnectExtra)
+	if creatorReconnectExtra == nil || len(creatorReconnectExtra.InlineKeyboard) != 6 {
+		t.Errorf("WithCreatorStatusMenu(%q, reconnectURL, rows=1) = %+v, want 6 rows", "en", creatorReconnectExtra)
 	}
 	if creatorReconnectExtra.InlineKeyboard[1][0].URL != "https://example.com/reconnect" {
 		t.Errorf("WithCreatorStatusMenu(%q, reconnectURL, rows=1) reconnect url = %q, want %q", "en", creatorReconnectExtra.InlineKeyboard[1][0].URL, "https://example.com/reconnect")
@@ -226,8 +240,11 @@ func TestMainMenuAndWithMainMenuMarkup(t *testing.T) {
 	if creatorReconnectExtra.InlineKeyboard[2][0].CallbackData != creatorCallbacks.ManageGroups {
 		t.Errorf("WithCreatorStatusMenu(%q, reconnectURL, rows=1) manage callback = %+v, want CallbackData=%q", "en", creatorReconnectExtra.InlineKeyboard[2][0], creatorCallbacks.ManageGroups)
 	}
-	if creatorReconnectExtra.InlineKeyboard[3][0].CallbackData != creatorCallbacks.Blocklist {
-		t.Errorf("WithCreatorStatusMenu(%q, reconnectURL, rows=1) blocklist callback = %+v, want CallbackData=%q", "en", creatorReconnectExtra.InlineKeyboard[3][0], creatorCallbacks.Blocklist)
+	if creatorReconnectExtra.InlineKeyboard[3][0].CallbackData != creatorCallbacks.Grace {
+		t.Errorf("WithCreatorStatusMenu(%q, reconnectURL, rows=1) grace callback = %+v, want CallbackData=%q", "en", creatorReconnectExtra.InlineKeyboard[3][0], creatorCallbacks.Grace)
+	}
+	if creatorReconnectExtra.InlineKeyboard[4][0].CallbackData != creatorCallbacks.Blocklist {
+		t.Errorf("WithCreatorStatusMenu(%q, reconnectURL, rows=1) blocklist callback = %+v, want CallbackData=%q", "en", creatorReconnectExtra.InlineKeyboard[4][0], creatorCallbacks.Blocklist)
 	}
 
 	inactiveCallbacks := CreatorMenuCallbacks{

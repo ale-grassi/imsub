@@ -120,6 +120,58 @@ func TestBuildCreatorStatusViewWithBlocklistEnabled(t *testing.T) {
 	}
 }
 
+func TestBuildCreatorStatusViewWithGraceEnabled(t *testing.T) {
+	t.Parallel()
+
+	if err := i18n.Ensure(); err != nil {
+		t.Fatalf("i18n.Ensure failed: %v", err)
+	}
+
+	view := buildCreatorStatusView("en", "", core.Creator{
+		TwitchLogin:          "creator",
+		SubscriptionEndGrace: core.SubscriptionEndGrace48h,
+	}, core.Status{}, []core.ManagedGroup{{ChatID: 1, GroupName: "VIP"}})
+	if !strings.Contains(view.text, "48 hours") {
+		t.Fatalf("buildCreatorStatusView() text = %q, want grace period line", view.text)
+	}
+	found := false
+	for _, row := range view.opts.Markup.InlineKeyboard {
+		for _, button := range row {
+			if button.CallbackData == creatorGraceOpenCallback() {
+				found = true
+				if button.Style != "success" {
+					t.Fatalf("grace button style = %q, want success", button.Style)
+				}
+				if button.IconCustomEmojiID != "5258318620722733379" {
+					t.Fatalf("grace button icon = %q, want %q", button.IconCustomEmojiID, "5258318620722733379")
+				}
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("buildCreatorStatusView() markup = %+v, want grace button", view.opts.Markup.InlineKeyboard)
+	}
+}
+
+func TestBuildCreatorGracePickerView(t *testing.T) {
+	t.Parallel()
+
+	if err := i18n.Ensure(); err != nil {
+		t.Fatalf("i18n.Ensure failed: %v", err)
+	}
+
+	view := buildCreatorGracePickerView("en", core.Creator{TwitchLogin: "creator", SubscriptionEndGrace: core.SubscriptionEndGrace24h})
+	if !strings.Contains(view.text, "24 hours") {
+		t.Fatalf("buildCreatorGracePickerView() text = %q, want current grace", view.text)
+	}
+	if view.opts.Markup == nil || len(view.opts.Markup.InlineKeyboard) != 5 {
+		t.Fatalf("buildCreatorGracePickerView() markup = %+v, want 5 rows", view.opts.Markup)
+	}
+	if got := view.opts.Markup.InlineKeyboard[2][0].CallbackData; got != creatorGraceExecuteCallback(core.SubscriptionEndGrace48h) {
+		t.Fatalf("buildCreatorGracePickerView() 48h callback = %q, want %q", got, creatorGraceExecuteCallback(core.SubscriptionEndGrace48h))
+	}
+}
+
 func TestBuildCreatorManagedGroupsView(t *testing.T) {
 	t.Parallel()
 

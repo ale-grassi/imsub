@@ -19,8 +19,23 @@ other = "Ricollega account creator"
 [btn_manage_groups]
 other = "Gestisci gruppi"
 
+[btn_grace_period]
+other = "Periodo di tolleranza"
+
 [btn_blocklist_sync]
 other = "Sync blocklist"
+
+[btn_grace_period_off]
+other = "Disattivato"
+
+[btn_grace_period_24h]
+other = "24 ore"
+
+[btn_grace_period_48h]
+other = "48 ore"
+
+[btn_grace_period_72h]
+other = "72 ore"
 
 [btn_group_policy_observe]
 other = "Ignora"
@@ -163,6 +178,18 @@ other = "ℹ️ <b>Nessuna modifica</b>\n<b>%s</b> usa gia' questa policy."
 [creator_group_policy_not_owner]
 other = "⚠️ Solo il creator che ha collegato questo gruppo puo' cambiare la sua policy."
 
+[creator_grace_picker_html]
+other = "⏳ <b>Tolleranza dopo fine abbonamento</b>\n\n<b>Creator:</b> %s\n<b>Impostazione attuale:</b> %s\n\nScegli per quanto tempo i viewer devono mantenere l'accesso dopo che Twitch invia <code>channel.subscription.end</code>.\n\nDurante la tolleranza, ImSub rimuove subito l'idoneita' ai nuovi inviti ma rinvia l'espulsione dai gruppi protetti fino alla scadenza."
+
+[creator_grace_enabled]
+other = "• Tolleranza fine abbonamento: ▶️ <b>%s</b>"
+
+[creator_grace_disabled]
+other = "• Tolleranza fine abbonamento: ⏸️ <b>Disattivata</b>"
+
+[creator_grace_updated]
+other = "✅ Tolleranza fine abbonamento aggiornata a <b>%s</b>."
+
 [creator_blocklist_enabled]
 other = "• Sync ban Twitch: ▶️ <b>Attiva</b>"
 
@@ -195,6 +222,12 @@ other = "• Subscriber attuali in cache: %s"
 
 [creator_banned_users_cached]
 other = "• Utenti bannati in cache: <b>%d</b>"
+
+[sub_grace_start]
+other = "⚠️ <b>Abbonamento terminato</b>\n\nIl tuo abbonamento Twitch come <b>%s</b> non e' piu' attivo, ma il creator ha abilitato un periodo di tolleranza.\n\nPuoi mantenere l'accesso fino a <b>%s</b>. Se non rinnovi prima di allora, ImSub ti rimuovera' dai gruppi Telegram protetti."
+
+[sub_grace_expired]
+other = "⚠️ <b>Periodo di tolleranza scaduto</b>\n\nIl tuo abbonamento Twitch come <b>%s</b> non e' stato rinnovato durante la finestra di tolleranza, quindi ImSub ha rimosso il tuo accesso ai gruppi protetti."
 
 [creator_userinfo_fail]
 other = "⚠️ <b>Impossibile leggere i dati dell'account Twitch</b>\nRiprova con /creator tra poco."

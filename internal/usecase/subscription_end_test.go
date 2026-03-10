@@ -12,10 +12,18 @@ import (
 
 type subscriptionEndServiceStub struct {
 	prepareFn func(context.Context, string, string, string, string) (core.PreparedEnd, error)
+	cancelFn  func(context.Context, string, string) error
 }
 
 func (s subscriptionEndServiceStub) PrepareEnd(ctx context.Context, broadcasterID, broadcasterLogin, twitchUserID, twitchLogin string) (core.PreparedEnd, error) {
 	return s.prepareFn(ctx, broadcasterID, broadcasterLogin, twitchUserID, twitchLogin)
+}
+
+func (s subscriptionEndServiceStub) CancelGrace(ctx context.Context, broadcasterID, twitchUserID string) error {
+	if s.cancelFn != nil {
+		return s.cancelFn(ctx, broadcasterID, twitchUserID)
+	}
+	return nil
 }
 
 type subscriptionEndObserverStub struct {

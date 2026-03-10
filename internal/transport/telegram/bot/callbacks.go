@@ -53,6 +53,7 @@ type callbackAction struct {
 	scope       resetScope
 	target      string
 	policy      core.GroupPolicy
+	grace       core.SubscriptionEndGrace
 	resetAction core.CreatorResetGroupAction
 	chatID      int64
 	threadID    int
@@ -74,6 +75,9 @@ func (a callbackAction) String() string {
 	}
 	if a.policy != "" {
 		parts = append(parts, string(a.policy))
+	}
+	if a.grace != "" {
+		parts = append(parts, string(a.grace))
 	}
 	if a.chatID != 0 {
 		parts = append(parts, strconv.FormatInt(a.chatID, 10))
@@ -230,6 +234,16 @@ func parseCreatorPickExecuteAction(action callbackAction, parts []string) (callb
 		return action, true
 	case 4:
 		action.target = parts[2]
+		if action.target == creatorCallbackTargetGrace {
+			if action.verb != callbackVerbExecute {
+				return callbackAction{}, false
+			}
+			action.grace = core.SubscriptionEndGrace(parts[3])
+			if !validSubscriptionEndGrace(action.grace) {
+				return callbackAction{}, false
+			}
+			return action, true
+		}
 		if action.target != creatorCallbackTargetGroup {
 			return callbackAction{}, false
 		}
@@ -274,11 +288,12 @@ const (
 	creatorCallbackTargetGroup        = "group"
 	creatorCallbackTargetGroupConfirm = "group_confirm"
 	creatorCallbackTargetBlocklist    = "blocklist"
+	creatorCallbackTargetGrace        = "grace"
 	creatorCallbackTargetPolicy       = "policy"
 )
 
 func validCreatorOpenTarget(target string) bool {
-	return target == creatorCallbackTargetGroups || target == creatorCallbackTargetBlocklist
+	return target == creatorCallbackTargetGroups || target == creatorCallbackTargetBlocklist || target == creatorCallbackTargetGrace
 }
 
 func validCreatorOpenChatTarget(target string) bool {
@@ -321,6 +336,15 @@ func validGroupPolicy(p core.GroupPolicy) bool {
 	}
 }
 
+func validSubscriptionEndGrace(g core.SubscriptionEndGrace) bool {
+	switch g {
+	case core.SubscriptionEndGraceOff, core.SubscriptionEndGrace24h, core.SubscriptionEndGrace48h, core.SubscriptionEndGrace72h:
+		return true
+	default:
+		return false
+	}
+}
+
 func viewerRefreshCallback() string {
 	return callbackAction{domain: callbackDomainViewer, verb: callbackVerbRefresh}.String()
 }
@@ -335,6 +359,10 @@ func creatorReconnectCallback() string {
 
 func creatorManageGroupsCallback() string {
 	return callbackAction{domain: callbackDomainCreator, verb: callbackVerbOpen, target: creatorCallbackTargetGroups}.String()
+}
+
+func creatorGraceOpenCallback() string {
+	return callbackAction{domain: callbackDomainCreator, verb: callbackVerbOpen, target: creatorCallbackTargetGrace}.String()
 }
 
 func creatorGroupPickCallback(chatID int64) string {
@@ -377,6 +405,10 @@ func creatorGroupExecuteWithActionCallback(chatID int64, action core.CreatorRese
 
 func creatorBlocklistToggleCallback() string {
 	return callbackAction{domain: callbackDomainCreator, verb: callbackVerbExecute, target: creatorCallbackTargetBlocklist}.String()
+}
+
+func creatorGraceExecuteCallback(grace core.SubscriptionEndGrace) string {
+	return callbackAction{domain: callbackDomainCreator, verb: callbackVerbExecute, target: creatorCallbackTargetGrace, grace: grace}.String()
 }
 
 func groupRegisterPolicyCallback(chatID int64, threadID int, policy core.GroupPolicy) string {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html"
 	"strings"
+	"time"
 
 	"imsub/internal/core"
 	"imsub/internal/platform/i18n"
@@ -51,7 +52,7 @@ func buildCreatorReconnectRequiredView(lang, reconnectURL string) sharedView {
 	return sharedView{
 		text: i18n.Translate(lang, msgCreatorReconnectNeeded),
 		opts: client.MessageOptions{
-			Markup: ui.CreatorStatusMenuMarkup(lang, reconnectURL, creatorStatusMenuCallbacks(false, false, false)),
+			Markup: ui.CreatorStatusMenuMarkup(lang, reconnectURL, creatorStatusMenuCallbacks(false, false, false, false)),
 		},
 	}
 }
@@ -59,6 +60,28 @@ func buildCreatorReconnectRequiredView(lang, reconnectURL string) sharedView {
 func buildSubscriptionEndView(lang, viewerLogin, broadcasterLogin string) sharedView {
 	return sharedView{
 		text: fmt.Sprintf(i18n.Translate(lang, msgSubEndPartial), html.EscapeString(viewerLogin)),
+		opts: client.MessageOptions{
+			Markup: ui.SubEndSubscribeMarkup(lang, broadcasterLogin),
+		},
+	}
+}
+
+func buildSubscriptionGraceStartView(lang, viewerLogin, broadcasterLogin string, dueAt time.Time) sharedView {
+	return sharedView{
+		text: fmt.Sprintf(
+			i18n.Translate(lang, msgSubGraceStart),
+			html.EscapeString(viewerLogin),
+			html.EscapeString(dueAt.UTC().Format("2006-01-02 15:04 UTC")),
+		),
+		opts: client.MessageOptions{
+			Markup: ui.SubEndSubscribeMarkup(lang, broadcasterLogin),
+		},
+	}
+}
+
+func buildSubscriptionGraceExpiredView(lang, viewerLogin, broadcasterLogin string) sharedView {
+	return sharedView{
+		text: fmt.Sprintf(i18n.Translate(lang, msgSubGraceExpired), html.EscapeString(viewerLogin)),
 		opts: client.MessageOptions{
 			Markup: ui.SubEndSubscribeMarkup(lang, broadcasterLogin),
 		},

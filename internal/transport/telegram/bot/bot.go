@@ -125,7 +125,7 @@ func viewerMainMenuMarkup(lang string) *telego.InlineKeyboardMarkup {
 	return telegramui.MainMenuMarkup(lang, viewerMainMenuCallbacks())
 }
 
-func creatorStatusMenuCallbacks(hasManageGroups, isActive, blocklistActive bool) telegramui.CreatorMenuCallbacks {
+func creatorStatusMenuCallbacks(hasManageGroups, isActive bool, graceActive, blocklistActive bool) telegramui.CreatorMenuCallbacks {
 	callbacks := telegramui.CreatorMenuCallbacks{
 		Refresh: creatorRefreshCallback(),
 		Reset:   resetOpenCallback(resetOriginCreator),
@@ -134,6 +134,8 @@ func creatorStatusMenuCallbacks(hasManageGroups, isActive, blocklistActive bool)
 		callbacks.ManageGroups = creatorManageGroupsCallback()
 	}
 	if isActive {
+		callbacks.Grace = creatorGraceOpenCallback()
+		callbacks.GraceActive = graceActive
 		callbacks.Blocklist = creatorBlocklistToggleCallback()
 		callbacks.BlocklistActive = blocklistActive
 	}
@@ -398,6 +400,11 @@ func (c *Bot) HandleSubscriptionStart(ctx context.Context, broadcasterID, broadc
 	if c.viewerAccess == nil || c.store == nil {
 		return nil
 	}
+	if c.subscriptionEnd != nil {
+		if err := c.subscriptionEnd.CancelGrace(ctx, broadcasterID, twitchUserID); err != nil {
+			c.log().Warn("cancel subscription-end grace failed", "broadcaster_id", broadcasterID, "twitch_user_id", twitchUserID, "error", err)
+		}
+	}
 	telegramUserID, found, err := c.store.ResolveTelegramUserIDByTwitch(ctx, twitchUserID)
 	if err != nil {
 		return fmt.Errorf("resolve telegram user by twitch: %w", err)
@@ -437,6 +444,11 @@ func (c *Bot) HandleSubscriptionEnd(ctx context.Context, broadcasterID, broadcas
 		return fmt.Errorf("prepare subscription end: %w", err)
 	}
 	if !res.Prepared.Found {
+		return nil
+	}
+	if res.Prepared.Mode == core.SubscriptionEndModeGrace {
+		view := buildSubscriptionGraceStartView(res.Prepared.Language, res.Prepared.ViewerLogin, res.Prepared.BroadcasterLogin, res.Prepared.GraceUntil)
+		c.sendMsg(ctx, res.Prepared.TelegramUserID, view.text, &view.opts)
 		return nil
 	}
 

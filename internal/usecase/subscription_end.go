@@ -16,6 +16,7 @@ const (
 
 type subscriptionEndService interface {
 	PrepareEnd(ctx context.Context, broadcasterID, broadcasterLogin, twitchUserID, twitchLogin string) (core.PreparedEnd, error)
+	CancelGrace(ctx context.Context, broadcasterID, twitchUserID string) error
 }
 
 // SubscriptionEndResult is the application-layer result for a subscription-end event.
@@ -51,6 +52,15 @@ func (u *SubscriptionEndUseCase) Prepare(ctx context.Context, broadcasterID, bro
 		ResultLabel: subscriptionEndResultApplied,
 		Prepared:    res,
 	}, nil
+}
+
+// CancelGrace removes a pending delayed subscription-end removal after a
+// resubscribe event.
+func (u *SubscriptionEndUseCase) CancelGrace(ctx context.Context, broadcasterID, twitchUserID string) error {
+	if err := u.svc.CancelGrace(ctx, broadcasterID, twitchUserID); err != nil {
+		return fmt.Errorf("cancel subscription-end grace: %w", err)
+	}
+	return nil
 }
 
 func (u *SubscriptionEndUseCase) recordResult(ctx context.Context, result string) {

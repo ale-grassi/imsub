@@ -16,6 +16,7 @@ const (
 	btnRefresh          = "btn_refresh"
 	btnReconnect        = "btn_reconnect_creator"
 	btnManageGroups     = "btn_manage_groups"
+	btnGracePeriod      = "btn_grace_period"
 	btnBlocklistSync    = "btn_blocklist_sync"
 	btnReset            = "btn_reset"
 	btnSubscribe        = "btn_subscribe"
@@ -35,6 +36,7 @@ const (
 	backButtonEmojiID      = "5258236805890710909"
 	manageButtonEmojiID    = "5258096772776991776"
 	blocklistButtonEmojiID = "5275969776668134187"
+	graceButtonEmojiID     = "5258318620722733379"
 	groupButtonEmojiID     = "5258513401784573443"
 	unregisterEmojiID      = "5258084656674250503"
 )
@@ -49,7 +51,9 @@ type MainMenuCallbacks struct {
 type CreatorMenuCallbacks struct {
 	Refresh         string
 	ManageGroups    string
+	Grace           string
 	Blocklist       string
+	GraceActive     bool
 	BlocklistActive bool
 	Reset           string
 }
@@ -76,6 +80,9 @@ func CreatorStatusMenuMarkup(lang, reconnectURL string, callbacks CreatorMenuCal
 	}
 	if strings.TrimSpace(callbacks.ManageGroups) != "" {
 		rows = append(rows, tu.InlineKeyboardRow(ManageButton(i18n.Translate(lang, btnManageGroups), callbacks.ManageGroups)))
+	}
+	if strings.TrimSpace(callbacks.Grace) != "" {
+		rows = append(rows, tu.InlineKeyboardRow(GraceButton(i18n.Translate(lang, btnGracePeriod), callbacks.Grace, callbacks.GraceActive)))
 	}
 	if strings.TrimSpace(callbacks.Blocklist) != "" {
 		rows = append(rows, tu.InlineKeyboardRow(BlocklistButton(i18n.Translate(lang, btnBlocklistSync), callbacks.Blocklist, callbacks.BlocklistActive)))
@@ -224,6 +231,15 @@ func ManageButton(text, data string) telego.InlineKeyboardButton {
 // BlocklistButton creates a creator ban-sync toggle button.
 func BlocklistButton(text, data string, active bool) telego.InlineKeyboardButton {
 	button := IconCallbackButton(text, data, blocklistButtonEmojiID)
+	if active {
+		return button.WithStyle("success")
+	}
+	return button
+}
+
+// GraceButton creates a creator subscription-end grace toggle button.
+func GraceButton(text, data string, active bool) telego.InlineKeyboardButton {
+	button := IconCallbackButton(text, data, graceButtonEmojiID)
 	if active {
 		return button.WithStyle("success")
 	}

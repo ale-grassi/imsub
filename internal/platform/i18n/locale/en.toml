@@ -19,8 +19,23 @@ other = "Reconnect Creator Account"
 [btn_manage_groups]
 other = "Manage groups"
 
+[btn_grace_period]
+other = "Grace period"
+
 [btn_blocklist_sync]
 other = "Blocklist sync"
+
+[btn_grace_period_off]
+other = "Off"
+
+[btn_grace_period_24h]
+other = "24 hours"
+
+[btn_grace_period_48h]
+other = "48 hours"
+
+[btn_grace_period_72h]
+other = "72 hours"
 
 [btn_group_policy_observe]
 other = "Ignore"
@@ -163,6 +178,18 @@ other = "ℹ️ <b>No change</b>\n<b>%s</b> is already using that policy."
 [creator_group_policy_not_owner]
 other = "⚠️ Only the creator who linked this group can change its policy."
 
+[creator_grace_picker_html]
+other = "⏳ <b>Subscription-end grace period</b>\n\n<b>Creator:</b> %s\n<b>Current setting:</b> %s\n\nChoose how long viewers should keep access after Twitch sends <code>channel.subscription.end</code>.\n\nDuring grace, ImSub removes invite eligibility immediately but delays group removal until the selected window expires."
+
+[creator_grace_enabled]
+other = "• Subscription-end grace: ▶️ <b>%s</b>"
+
+[creator_grace_disabled]
+other = "• Subscription-end grace: ⏸️ <b>Off</b>"
+
+[creator_grace_updated]
+other = "✅ Subscription-end grace updated to <b>%s</b>."
+
 [creator_blocklist_enabled]
 other = "• Twitch ban sync: ▶️ <b>Enabled</b>"
 
@@ -195,6 +222,12 @@ other = "• Current subscribers cached: %s"
 
 [creator_banned_users_cached]
 other = "• Cached banned users: <b>%d</b>"
+
+[sub_grace_start]
+other = "⚠️ <b>Subscription ended</b>\n\nYour Twitch subscription as <b>%s</b> is no longer active, but the creator enabled a grace period.\n\nYou can keep access until <b>%s</b>. If you do not resubscribe before then, ImSub will remove you from the protected Telegram groups."
+
+[sub_grace_expired]
+other = "⚠️ <b>Grace period expired</b>\n\nYour Twitch subscription as <b>%s</b> was not renewed during the grace window, so ImSub removed your protected Telegram access."
 
 [creator_userinfo_fail]
 other = "⚠️ <b>Could not read Twitch account details</b>\nRun /creator again in a moment."

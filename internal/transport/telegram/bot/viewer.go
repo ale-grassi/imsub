@@ -25,6 +25,8 @@ const (
 	msgOAuthSaveFail     = "oauth_save_fail"
 	msgSubStartReady     = "sub_start_ready"
 	msgSubEndPartial     = "sub_end_partial"
+	msgSubGraceStart     = "sub_grace_start"
+	msgSubGraceExpired   = "sub_grace_expired"
 
 	btnLinkTwitch = "btn_link_twitch"
 	btnJoin       = "btn_join"

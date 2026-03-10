@@ -157,6 +157,7 @@ func Run() error {
 	resetSvc.SetEventSubCleaner(eventSubSvc)
 	flowController.SetViewerAccessUseCase(viewerAccessUC)
 	flowController.SetResetUseCase(usecase.NewResetUseCase(resetSvc, eventSink))
+	subscriptionGraceTask := jobs.NewSubscriptionGraceTask(s, tgGroups, flowController, logger)
 	memberCleanupTask := jobs.NewMemberCleanupTask(s, tgGroups, flowController, logger)
 	eventSubSvc.SetObserver(eventSink)
 	blocklistSvc.SetObserver(eventSink)
@@ -242,6 +243,12 @@ func Run() error {
 		return jobRunner.RunScheduled(gctx, jobs.Schedule{
 			Task:     gracePolicyTask,
 			Interval: 1 * time.Hour,
+		})
+	})
+	g.Go(func() error {
+		return jobRunner.RunScheduled(gctx, jobs.Schedule{
+			Task:     subscriptionGraceTask,
+			Interval: 15 * time.Minute,
 		})
 	})
 	g.Go(func() error {

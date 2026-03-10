@@ -54,7 +54,23 @@ type Creator struct {
 	LastBanSyncAt        time.Time
 	LastNoticeAt         time.Time
 	BlocklistSyncEnabled bool
+	SubscriptionEndGrace SubscriptionEndGrace
 }
+
+// SubscriptionEndGrace describes how long access should be retained after a
+// Twitch subscription-end notification before group removal is enforced.
+type SubscriptionEndGrace string
+
+const (
+	// SubscriptionEndGraceOff disables delayed removal.
+	SubscriptionEndGraceOff SubscriptionEndGrace = "off"
+	// SubscriptionEndGrace24h delays removal by 24 hours.
+	SubscriptionEndGrace24h SubscriptionEndGrace = "24h"
+	// SubscriptionEndGrace48h delays removal by 48 hours.
+	SubscriptionEndGrace48h SubscriptionEndGrace = "48h"
+	// SubscriptionEndGrace72h delays removal by 72 hours.
+	SubscriptionEndGrace72h SubscriptionEndGrace = "72h"
+)
 
 // GroupPolicy describes what the bot should do with users discovered in a group
 // but not yet verified as tracked members.

@@ -107,7 +107,9 @@ type controllerStore interface {
 	DeleteOAuthState(ctx context.Context, state string) (core.OAuthStatePayload, error)
 	Creator(ctx context.Context, creatorID string) (core.Creator, bool, error)
 	OwnedCreatorForUser(ctx context.Context, ownerTelegramID int64) (core.Creator, bool, error)
+	UpdateCreatorSubscriptionEndGrace(ctx context.Context, creatorID string, grace core.SubscriptionEndGrace) error
 	ResolveTelegramUserIDByTwitch(ctx context.Context, twitchUserID string) (int64, bool, error)
+	DeleteSubscriptionEndGrace(ctx context.Context, creatorID, twitchUserID string) error
 	ManagedGroupByChatID(ctx context.Context, chatID int64) (core.ManagedGroup, bool, error)
 	ListManagedGroups(ctx context.Context) ([]core.ManagedGroup, error)
 	DeleteManagedGroup(ctx context.Context, chatID int64) error

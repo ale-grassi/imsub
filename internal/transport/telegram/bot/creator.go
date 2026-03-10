@@ -54,6 +54,10 @@ const (
 	msgCreatorGroupPolicyUpdated             = "creator_group_policy_updated_html"
 	msgCreatorGroupPolicySame                = "creator_group_policy_same_html"
 	msgCreatorGroupPolicyDenied              = "creator_group_policy_not_owner"
+	msgCreatorGracePickerHTML                = "creator_grace_picker_html"
+	msgCreatorGraceEnabled                   = "creator_grace_enabled"
+	msgCreatorGraceDisabled                  = "creator_grace_disabled"
+	msgCreatorGraceUpdated                   = "creator_grace_updated"
 	msgCreatorBlocklistEnabled               = "creator_blocklist_enabled"
 	msgCreatorBlocklistDisabled              = "creator_blocklist_disabled"
 	msgCreatorBlocklistOnNotice              = "creator_blocklist_on_notice"
@@ -62,6 +66,10 @@ const (
 	btnRegisterCreatorOpen = "btn_register_creator_open"
 	btnReconnectCreator    = "btn_reconnect_creator"
 	btnManageGroup         = "btn_manage_group"
+	btnGracePeriodOff      = "btn_grace_period_off"
+	btnGracePeriod24h      = "btn_grace_period_24h"
+	btnGracePeriod48h      = "btn_grace_period_48h"
+	btnGracePeriod72h      = "btn_grace_period_72h"
 	btnChangeGroupPolicy   = "btn_change_group_policy"
 	btnConfirmGroupPolicy  = "btn_confirm_group_policy"
 	btnUnregisterGroup     = "btn_unregister_group"
@@ -83,6 +91,9 @@ func (c *Bot) handleCreatorCallback(ctx context.Context, userID int64, editMsgID
 	case callbackVerbOpen:
 		if action.target == creatorCallbackTargetGroups {
 			return c.replyCreatorManagedGroups(ctx, userID, editMsgID, lang, "")
+		}
+		if action.target == creatorCallbackTargetGrace {
+			return c.replyCreatorGracePicker(ctx, userID, editMsgID, lang)
 		}
 		if action.target == creatorCallbackTargetGroupConfirm {
 			return c.replyCreatorGroupUnregisterConfirm(ctx, userID, editMsgID, lang, action.chatID)
@@ -119,6 +130,9 @@ func (c *Bot) handleCreatorCallback(ctx context.Context, userID int64, editMsgID
 		}
 		if action.target == creatorCallbackTargetBlocklist {
 			return c.toggleCreatorBlocklist(ctx, userID, editMsgID, lang)
+		}
+		if action.target == creatorCallbackTargetGrace {
+			return c.updateCreatorGrace(ctx, userID, editMsgID, lang, action.grace)
 		}
 	case callbackVerbCancel:
 		c.log().Warn("unsupported creator callback verb", "telegram_user_id", userID, "verb", action.verb)
@@ -365,6 +379,31 @@ func creatorBlocklistStatusText(lang string, creator core.Creator, active bool) 
 		return i18n.Translate(lang, msgCreatorBlocklistEnabled)
 	}
 	return i18n.Translate(lang, msgCreatorBlocklistDisabled)
+}
+
+func creatorGraceStatusText(lang string, creator core.Creator, active bool) string {
+	if !active {
+		return ""
+	}
+	if creator.SubscriptionEndGrace.Enabled() {
+		return fmt.Sprintf(i18n.Translate(lang, msgCreatorGraceEnabled), formatCreatorGraceValue(lang, creator.SubscriptionEndGrace))
+	}
+	return i18n.Translate(lang, msgCreatorGraceDisabled)
+}
+
+func formatCreatorGraceValue(lang string, grace core.SubscriptionEndGrace) string {
+	switch grace {
+	case core.SubscriptionEndGraceOff:
+		return i18n.Translate(lang, btnGracePeriodOff)
+	case core.SubscriptionEndGrace24h:
+		return i18n.Translate(lang, btnGracePeriod24h)
+	case core.SubscriptionEndGrace48h:
+		return i18n.Translate(lang, btnGracePeriod48h)
+	case core.SubscriptionEndGrace72h:
+		return i18n.Translate(lang, btnGracePeriod72h)
+	default:
+		return i18n.Translate(lang, btnGracePeriodOff)
+	}
 }
 
 func formatStatusTime(ts time.Time) string {
@@ -616,6 +655,34 @@ func (c *Bot) toggleCreatorBlocklist(ctx context.Context, telegramUserID int64, 
 	return c.replyCreatorStatusWithNotice(ctx, telegramUserID, editMsgID, lang, i18n.Translate(lang, noticeKey))
 }
 
+func (c *Bot) replyCreatorGracePicker(ctx context.Context, telegramUserID int64, editMsgID int, lang string) string {
+	res, ok := c.loadCreatorStatusResult(ctx, telegramUserID, lang, editMsgID)
+	if !ok {
+		return ""
+	}
+	view := buildCreatorGracePickerView(lang, res.Creator)
+	c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
+	return view.text
+}
+
+func (c *Bot) updateCreatorGrace(ctx context.Context, telegramUserID int64, editMsgID int, lang string, grace core.SubscriptionEndGrace) string {
+	res, ok := c.loadCreatorStatusResult(ctx, telegramUserID, lang, editMsgID)
+	if !ok {
+		return ""
+	}
+	if !validSubscriptionEndGrace(grace) {
+		return ""
+	}
+	if err := c.store.UpdateCreatorSubscriptionEndGrace(ctx, res.Creator.ID, grace); err != nil {
+		c.log().Warn("update creator subscription-end grace failed", "telegram_user_id", telegramUserID, "creator_id", res.Creator.ID, "grace", grace, "error", err)
+		view := buildCreatorStatusErrorView(lang)
+		c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
+		return view.text
+	}
+	notice := fmt.Sprintf(i18n.Translate(lang, msgCreatorGraceUpdated), formatCreatorGraceValue(lang, grace))
+	return c.replyCreatorStatusWithNotice(ctx, telegramUserID, editMsgID, lang, notice)
+}
+
 func (c *Bot) loadCreatorStatusResult(ctx context.Context, telegramUserID int64, lang string, editMsgID int) (usecase.CreatorStatusResult, bool) {
 	statusCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -712,7 +779,8 @@ func buildCreatorStatusView(lang, reconnectURL string, creator core.Creator, sta
 	statusDetails := creatorStatusDetailsText(status, lang)
 	isActive := len(groups) > 0
 	blocklistStatus := creatorBlocklistStatusText(lang, creator, isActive)
-	accountStatusDetails := joinNonEmptyLines(statusDetails, blocklistStatus)
+	graceStatus := creatorGraceStatusText(lang, creator, isActive)
+	accountStatusDetails := joinNonEmptyLines(statusDetails, graceStatus, blocklistStatus)
 	statusMenuRows := creatorStatusMenuRows(lang, groups)
 
 	if len(groups) == 0 {
@@ -726,7 +794,7 @@ func buildCreatorStatusView(lang, reconnectURL string, creator core.Creator, sta
 			),
 			opts: client.MessageOptions{
 				DisablePreview: true,
-				Markup:         ui.WithCreatorStatusMenu(lang, reconnectURL, creatorStatusMenuCallbacks(false, false, false), statusMenuRows...),
+				Markup:         ui.WithCreatorStatusMenu(lang, reconnectURL, creatorStatusMenuCallbacks(false, false, false, false), statusMenuRows...),
 			},
 		}
 	}
@@ -745,7 +813,26 @@ func buildCreatorStatusView(lang, reconnectURL string, creator core.Creator, sta
 		),
 		opts: client.MessageOptions{
 			DisablePreview: true,
-			Markup:         ui.WithCreatorStatusMenu(lang, reconnectURL, creatorStatusMenuCallbacks(len(groups) > 1, true, creator.BlocklistSyncEnabled), statusMenuRows...),
+			Markup:         ui.WithCreatorStatusMenu(lang, reconnectURL, creatorStatusMenuCallbacks(len(groups) > 1, true, creator.SubscriptionEndGrace.Enabled(), creator.BlocklistSyncEnabled), statusMenuRows...),
+		},
+	}
+}
+
+func buildCreatorGracePickerView(lang string, creator core.Creator) sharedView {
+	return sharedView{
+		text: fmt.Sprintf(
+			i18n.Translate(lang, msgCreatorGracePickerHTML),
+			html.EscapeString(creator.TwitchLogin),
+			html.EscapeString(formatCreatorGraceValue(lang, creator.SubscriptionEndGrace)),
+		),
+		opts: client.MessageOptions{
+			Markup: tu.InlineKeyboard(
+				tu.InlineKeyboardRow(ui.CallbackButton(i18n.Translate(lang, btnGracePeriodOff), creatorGraceExecuteCallback(core.SubscriptionEndGraceOff))),
+				tu.InlineKeyboardRow(ui.CallbackButton(i18n.Translate(lang, btnGracePeriod24h), creatorGraceExecuteCallback(core.SubscriptionEndGrace24h))),
+				tu.InlineKeyboardRow(ui.CallbackButton(i18n.Translate(lang, btnGracePeriod48h), creatorGraceExecuteCallback(core.SubscriptionEndGrace48h))),
+				tu.InlineKeyboardRow(ui.CallbackButton(i18n.Translate(lang, btnGracePeriod72h), creatorGraceExecuteCallback(core.SubscriptionEndGrace72h))),
+				tu.InlineKeyboardRow(ui.BackButton(i18n.Translate(lang, btnBack), creatorMenuCallback())),
+			),
 		},
 	}
 }

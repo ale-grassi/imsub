@@ -41,6 +41,19 @@ type memberCleanupNotifier interface {
 	NotifyMemberCleanupComplete(ctx context.Context, result core.MemberCleanupResult) error
 }
 
+type subscriptionGraceStore interface {
+	ListDueSubscriptionEndGrace(ctx context.Context, now time.Time, limit int64) ([]core.PendingSubscriptionEndGrace, error)
+	ClaimSubscriptionEndGrace(ctx context.Context, jobID string, ttl time.Duration) (bool, error)
+	DeleteSubscriptionEndGrace(ctx context.Context, creatorID, twitchUserID string) error
+	IsCreatorSubscriber(ctx context.Context, creatorID, twitchUserID string) (bool, error)
+	ListManagedGroupsByCreator(ctx context.Context, creatorID string) ([]core.ManagedGroup, error)
+	RemoveTrackedGroupMember(ctx context.Context, chatID, telegramUserID int64) error
+}
+
+type subscriptionGraceNotifier interface {
+	NotifySubscriptionGraceExpired(ctx context.Context, result core.ExpiredSubscriptionGraceResult) error
+}
+
 type subscriberTask struct {
 	reconciler subscriberReconciler
 }
@@ -96,6 +109,16 @@ type memberCleanupTask struct {
 	maxTargetsPerRun int
 }
 
+type subscriptionGraceTask struct {
+	store    subscriptionGraceStore
+	kicker   groupKicker
+	notifier subscriptionGraceNotifier
+	logger   *slog.Logger
+	lockTTL  time.Duration
+	maxJobs  int64
+	now      func() time.Time
+}
+
 // NewEventSubTask builds the EventSub reconciliation task.
 func NewEventSubTask(r eventSubReconciler) Task {
 	return eventSubTask{reconciler: r}
@@ -128,6 +151,23 @@ func NewMemberCleanupTask(store memberCleanupStore, kicker groupKicker, notifier
 		logger:           logger,
 		lockTTL:          15 * time.Minute,
 		maxTargetsPerRun: 50,
+	}
+}
+
+// NewSubscriptionGraceTask builds the periodic sweep that enforces delayed
+// subscription-end removals.
+func NewSubscriptionGraceTask(store subscriptionGraceStore, kicker groupKicker, notifier subscriptionGraceNotifier, logger *slog.Logger) Task {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return subscriptionGraceTask{
+		store:    store,
+		kicker:   kicker,
+		notifier: notifier,
+		logger:   logger,
+		lockTTL:  10 * time.Minute,
+		maxJobs:  100,
+		now:      func() time.Time { return time.Now().UTC() },
 	}
 }
 
@@ -300,6 +340,92 @@ func (t memberCleanupTask) processJob(ctx context.Context, job core.MemberCleanu
 }
 
 func (t memberCleanupTask) Classify(err error) string {
+	switch {
+	case err == nil:
+		return "ok"
+	case errors.Is(err, core.ErrPartialReconcile):
+		return "partial_failure"
+	default:
+		return taskResultFailed
+	}
+}
+
+func (t subscriptionGraceTask) Name() string { return "process_subscription_end_grace" }
+
+func (t subscriptionGraceTask) Run(ctx context.Context) error {
+	if t.store == nil || t.kicker == nil {
+		return nil
+	}
+	jobs, err := t.store.ListDueSubscriptionEndGrace(ctx, t.now(), t.maxJobs)
+	if err != nil {
+		return fmt.Errorf("list due subscription-end grace jobs: %w", err)
+	}
+	var partialErrs []error
+	for _, job := range jobs {
+		claimed, err := t.store.ClaimSubscriptionEndGrace(ctx, job.ID, t.lockTTL)
+		if err != nil {
+			partialErrs = append(partialErrs, fmt.Errorf("claim subscription-end grace job %s: %w", job.ID, err))
+			continue
+		}
+		if !claimed {
+			continue
+		}
+		if err := t.processJob(ctx, job); err != nil {
+			partialErrs = append(partialErrs, fmt.Errorf("process subscription-end grace job %s: %w", job.ID, err))
+		}
+	}
+	if len(partialErrs) > 0 {
+		return errors.Join(append([]error{core.ErrPartialReconcile}, partialErrs...)...)
+	}
+	return nil
+}
+
+func (t subscriptionGraceTask) processJob(ctx context.Context, job core.PendingSubscriptionEndGrace) error {
+	subscriber, err := t.store.IsCreatorSubscriber(ctx, job.CreatorID, job.TwitchUserID)
+	if err != nil {
+		return fmt.Errorf("check creator subscriber: %w", err)
+	}
+	if subscriber {
+		if err := t.store.DeleteSubscriptionEndGrace(ctx, job.CreatorID, job.TwitchUserID); err != nil {
+			return fmt.Errorf("delete subscription-end grace for resubscribed viewer: %w", err)
+		}
+		return nil
+	}
+
+	groups, err := t.store.ListManagedGroupsByCreator(ctx, job.CreatorID)
+	if err != nil {
+		return fmt.Errorf("list managed groups by creator: %w", err)
+	}
+	for _, group := range groups {
+		if err := t.kicker.KickFromGroup(ctx, group.ChatID, job.TelegramUserID); err != nil {
+			t.logger.Warn("subscription grace kick failed", "creator_id", job.CreatorID, "chat_id", group.ChatID, "telegram_user_id", job.TelegramUserID, "error", err)
+			continue
+		}
+		if err := t.store.RemoveTrackedGroupMember(ctx, group.ChatID, job.TelegramUserID); err != nil {
+			t.logger.Warn("subscription grace tracked membership cleanup failed", "creator_id", job.CreatorID, "chat_id", group.ChatID, "telegram_user_id", job.TelegramUserID, "error", err)
+		}
+	}
+	if err := t.store.DeleteSubscriptionEndGrace(ctx, job.CreatorID, job.TwitchUserID); err != nil {
+		return fmt.Errorf("delete subscription-end grace job: %w", err)
+	}
+	if t.notifier != nil && job.TelegramUserID != 0 && len(groups) > 0 {
+		lang := job.Language
+		if lang == "" {
+			lang = "en"
+		}
+		if err := t.notifier.NotifySubscriptionGraceExpired(ctx, core.ExpiredSubscriptionGraceResult{
+			TelegramUserID:   job.TelegramUserID,
+			Language:         lang,
+			ViewerLogin:      job.ViewerLogin,
+			BroadcasterLogin: job.CreatorLogin,
+		}); err != nil {
+			t.logger.Warn("subscription grace expired notification failed", "creator_id", job.CreatorID, "telegram_user_id", job.TelegramUserID, "error", err)
+		}
+	}
+	return nil
+}
+
+func (t subscriptionGraceTask) Classify(err error) string {
 	switch {
 	case err == nil:
 		return "ok"

@@ -557,6 +557,28 @@ func (s *routeTestStore) Creator(_ context.Context, creatorID string) (core.Crea
 	return core.Creator{}, false, nil
 }
 
+func (s *routeTestStore) UpdateCreatorSubscriptionEndGrace(_ context.Context, creatorID string, grace core.SubscriptionEndGrace) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.creatorByID == nil {
+		s.creatorByID = make(map[string]core.Creator)
+	}
+	creator, ok := s.creatorByID[creatorID]
+	if !ok && s.ownedCreatorOK && s.ownedCreator.ID == creatorID {
+		creator = s.ownedCreator
+		ok = true
+	}
+	if !ok {
+		return nil
+	}
+	creator.SubscriptionEndGrace = grace
+	s.creatorByID[creatorID] = creator
+	if s.ownedCreatorOK && s.ownedCreator.ID == creatorID {
+		s.ownedCreator = creator
+	}
+	return nil
+}
+
 func (s *routeTestStore) ResolveTelegramUserIDByTwitch(_ context.Context, twitchUserID string) (int64, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -564,6 +586,10 @@ func (s *routeTestStore) ResolveTelegramUserIDByTwitch(_ context.Context, twitch
 		return 0, false, nil
 	}
 	return s.viewerIdentity.TelegramUserID, true, nil
+}
+
+func (s *routeTestStore) DeleteSubscriptionEndGrace(context.Context, string, string) error {
+	return nil
 }
 
 func (s *routeTestStore) ManagedGroupByChatID(_ context.Context, chatID int64) (core.ManagedGroup, bool, error) {
@@ -825,6 +851,12 @@ func (routeTestStoreStub) LoadCreatorsByIDs(context.Context, []string, func(core
 func (routeTestStoreStub) UpsertCreator(context.Context, core.Creator) error { return nil }
 func (routeTestStoreStub) ResolveTelegramUserIDByTwitch(context.Context, string) (int64, bool, error) {
 	return 0, false, nil
+}
+func (routeTestStoreStub) UpdateCreatorSubscriptionEndGrace(context.Context, string, core.SubscriptionEndGrace) error {
+	return nil
+}
+func (routeTestStoreStub) DeleteSubscriptionEndGrace(context.Context, string, string) error {
+	return nil
 }
 func (routeTestStoreStub) DeleteCreatorData(context.Context, int64) (int, []string, error) {
 	return 0, nil, nil

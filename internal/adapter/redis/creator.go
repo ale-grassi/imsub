@@ -60,6 +60,7 @@ func (s *Store) parseCreatorHash(vals map[string]string, fallbackID string) core
 		LastBanSyncAt:        parseCreatorTimeField(s.log(), fallbackID, vals, "last_ban_sync_at"),
 		LastNoticeAt:         parseCreatorTimeField(s.log(), fallbackID, vals, "last_reconnect_notice_at"),
 		BlocklistSyncEnabled: vals["blocklist_sync_enabled"] == "1",
+		SubscriptionEndGrace: parseSubscriptionEndGrace(vals["subscription_end_grace"]),
 	}
 	if c.TwitchLogin == "" {
 		c.TwitchLogin = vals["name"]
@@ -89,6 +90,17 @@ func parseCreatorScopes(raw string) []string {
 		}
 	}
 	return out
+}
+
+func parseSubscriptionEndGrace(raw string) core.SubscriptionEndGrace {
+	switch core.SubscriptionEndGrace(raw) {
+	case core.SubscriptionEndGraceOff:
+		return core.SubscriptionEndGraceOff
+	case core.SubscriptionEndGrace24h, core.SubscriptionEndGrace48h, core.SubscriptionEndGrace72h:
+		return core.SubscriptionEndGrace(raw)
+	default:
+		return core.SubscriptionEndGraceOff
+	}
 }
 
 // Creator returns the creator with the given ID, or false if not found.
@@ -255,6 +267,7 @@ func (s *Store) UpsertCreator(ctx context.Context, c core.Creator) error {
 		"auth_status":            string(c.AuthStatus),
 		"auth_error_code":        c.AuthErrorCode,
 		"blocklist_sync_enabled": boolToRedis(c.BlocklistSyncEnabled),
+		"subscription_end_grace": string(parseSubscriptionEndGrace(string(c.SubscriptionEndGrace))),
 	})
 	if !c.AuthStatusAt.IsZero() {
 		pipe.HSet(ctx, keyCreator(c.ID), "auth_status_changed_at", c.AuthStatusAt.UTC().Format(time.RFC3339))
@@ -400,6 +413,18 @@ func (s *Store) UpdateCreatorBlocklistSyncEnabled(ctx context.Context, creatorID
 	}
 	if err := s.rdb.HSet(ctx, keyCreator(creatorID), fields).Err(); err != nil {
 		return fmt.Errorf("redis hset creator blocklist sync enabled: %w", err)
+	}
+	return nil
+}
+
+// UpdateCreatorSubscriptionEndGrace stores the creator's subscription-end grace window.
+func (s *Store) UpdateCreatorSubscriptionEndGrace(ctx context.Context, creatorID string, grace core.SubscriptionEndGrace) error {
+	fields := map[string]any{
+		"subscription_end_grace": string(parseSubscriptionEndGrace(string(grace))),
+		"updated_at":             time.Now().UTC().Format(time.RFC3339),
+	}
+	if err := s.rdb.HSet(ctx, keyCreator(creatorID), fields).Err(); err != nil {
+		return fmt.Errorf("redis hset creator subscription-end grace: %w", err)
 	}
 	return nil
 }

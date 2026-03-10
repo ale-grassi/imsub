@@ -25,6 +25,19 @@ type fakeMemberCleanupStore struct {
 	saveJob func(ctx context.Context, job core.MemberCleanupJob) error
 }
 
+type fakeSubscriptionGraceStore struct {
+	listDueFn             func(ctx context.Context, now time.Time, limit int64) ([]core.PendingSubscriptionEndGrace, error)
+	claimFn               func(ctx context.Context, jobID string, ttl time.Duration) (bool, error)
+	deleteFn              func(ctx context.Context, creatorID, twitchUserID string) error
+	isSubscriberFn        func(ctx context.Context, creatorID, twitchUserID string) (bool, error)
+	listManagedGroupsByFn func(ctx context.Context, creatorID string) ([]core.ManagedGroup, error)
+	removeTrackedMemberFn func(ctx context.Context, chatID, telegramUserID int64) error
+}
+
+type fakeSubscriptionGraceNotifier struct {
+	results []core.ExpiredSubscriptionGraceResult
+}
+
 func (f *fakeStore) ListCreators(ctx context.Context) ([]core.Creator, error) {
 	if f.listCreatorsFn != nil {
 		return f.listCreatorsFn(ctx)
@@ -79,6 +92,53 @@ func (f *fakeMemberCleanupStore) SaveMemberCleanupJob(ctx context.Context, job c
 	if f.saveJob != nil {
 		return f.saveJob(ctx, job)
 	}
+	return nil
+}
+
+func (f *fakeSubscriptionGraceStore) ListDueSubscriptionEndGrace(ctx context.Context, now time.Time, limit int64) ([]core.PendingSubscriptionEndGrace, error) {
+	if f.listDueFn != nil {
+		return f.listDueFn(ctx, now, limit)
+	}
+	return nil, nil
+}
+
+func (f *fakeSubscriptionGraceStore) ClaimSubscriptionEndGrace(ctx context.Context, jobID string, ttl time.Duration) (bool, error) {
+	if f.claimFn != nil {
+		return f.claimFn(ctx, jobID, ttl)
+	}
+	return true, nil
+}
+
+func (f *fakeSubscriptionGraceStore) DeleteSubscriptionEndGrace(ctx context.Context, creatorID, twitchUserID string) error {
+	if f.deleteFn != nil {
+		return f.deleteFn(ctx, creatorID, twitchUserID)
+	}
+	return nil
+}
+
+func (f *fakeSubscriptionGraceStore) IsCreatorSubscriber(ctx context.Context, creatorID, twitchUserID string) (bool, error) {
+	if f.isSubscriberFn != nil {
+		return f.isSubscriberFn(ctx, creatorID, twitchUserID)
+	}
+	return false, nil
+}
+
+func (f *fakeSubscriptionGraceStore) ListManagedGroupsByCreator(ctx context.Context, creatorID string) ([]core.ManagedGroup, error) {
+	if f.listManagedGroupsByFn != nil {
+		return f.listManagedGroupsByFn(ctx, creatorID)
+	}
+	return nil, nil
+}
+
+func (f *fakeSubscriptionGraceStore) RemoveTrackedGroupMember(ctx context.Context, chatID, telegramUserID int64) error {
+	if f.removeTrackedMemberFn != nil {
+		return f.removeTrackedMemberFn(ctx, chatID, telegramUserID)
+	}
+	return nil
+}
+
+func (f *fakeSubscriptionGraceNotifier) NotifySubscriptionGraceExpired(_ context.Context, result core.ExpiredSubscriptionGraceResult) error {
+	f.results = append(f.results, result)
 	return nil
 }
 
@@ -386,5 +446,59 @@ func TestMemberCleanupTaskProcessJobCapsWorkPerRun(t *testing.T) {
 	}
 	if result.FailedCount != 1 {
 		t.Fatalf("result failed = %d, want 1 remaining target", result.FailedCount)
+	}
+}
+
+func TestSubscriptionGraceTaskEnforcesDueJobs(t *testing.T) {
+	t.Parallel()
+
+	deleted := 0
+	removed := 0
+	store := &fakeSubscriptionGraceStore{
+		listDueFn: func(_ context.Context, now time.Time, limit int64) ([]core.PendingSubscriptionEndGrace, error) {
+			return []core.PendingSubscriptionEndGrace{{
+				ID:             "c1:u1",
+				CreatorID:      "c1",
+				CreatorLogin:   "creator",
+				TwitchUserID:   "u1",
+				TelegramUserID: 7,
+				ViewerLogin:    "viewer",
+				Language:       "it",
+				DueAt:          now.Add(-time.Minute),
+			}}, nil
+		},
+		deleteFn: func(_ context.Context, creatorID, twitchUserID string) error {
+			if creatorID != "c1" || twitchUserID != "u1" {
+				t.Fatalf("DeleteSubscriptionEndGrace() = (%q, %q), want (c1, u1)", creatorID, twitchUserID)
+			}
+			deleted++
+			return nil
+		},
+		listManagedGroupsByFn: func(_ context.Context, creatorID string) ([]core.ManagedGroup, error) {
+			return []core.ManagedGroup{{ChatID: 100, CreatorID: creatorID}, {ChatID: 101, CreatorID: creatorID}}, nil
+		},
+		removeTrackedMemberFn: func(_ context.Context, chatID, telegramUserID int64) error {
+			removed++
+			return nil
+		},
+	}
+	kicker := &fakeGroupKicker{}
+	notifier := &fakeSubscriptionGraceNotifier{}
+	task := NewSubscriptionGraceTask(store, kicker, notifier, nil)
+
+	if err := task.Run(t.Context()); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if got := kicker.snapshot(); len(got) != 2 {
+		t.Fatalf("kicks = %#v, want 2 group kicks", got)
+	}
+	if removed != 2 {
+		t.Fatalf("removed tracked members = %d, want 2", removed)
+	}
+	if deleted != 1 {
+		t.Fatalf("deleted jobs = %d, want 1", deleted)
+	}
+	if len(notifier.results) != 1 || notifier.results[0].TelegramUserID != 7 {
+		t.Fatalf("notifications = %+v, want one result for telegram user 7", notifier.results)
 	}
 }

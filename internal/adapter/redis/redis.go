@@ -127,6 +127,11 @@ func keyMemberCleanupJobSeq() string          { return "imsub:cleanup_jobs:seq" 
 func keyMemberCleanupJobLock(jobID string) string {
 	return "imsub:cleanup_job_lock:" + jobID
 }
+func keySubscriptionEndGraceJob(jobID string) string { return "imsub:sub_end_grace:" + jobID }
+func keySubscriptionEndGraceDue() string             { return "imsub:sub_end_grace:due" }
+func keySubscriptionEndGraceLock(jobID string) string {
+	return "imsub:sub_end_grace_lock:" + jobID
+}
 
 // --- Lua scripts ---
 
