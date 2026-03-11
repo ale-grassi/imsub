@@ -7,7 +7,7 @@ GITLEAKS ?= gitleaks
 export GOCACHE ?= /tmp/gocache
 export GOLANGCI_LINT_CACHE ?= /tmp/golangci-lint
 
-.PHONY: help fmt fmt-check vet test test-integration build check ci-check deploy status logs lint style-check cover cover-open vuln secrets-scan redis-proxy
+.PHONY: help fmt fmt-check vet test test-integration build check ci-check deploy status logs lint style-check cover cover-open vuln secrets-scan redis-proxy message-gallery message-gallery-md
 
 help:
 	@echo "Targets:"
@@ -24,6 +24,8 @@ help:
 	@echo "  make vuln     - run govulncheck against all packages"
 	@echo "  make secrets-scan - scan repository for leaked secrets (gitleaks)"
 	@echo "  make redis-proxy - open an interactive Fly Redis proxy"
+	@echo "  make message-gallery - generate Telegram message gallery HTML at /tmp/imsub-message-gallery.html"
+	@echo "  make message-gallery-md - generate Telegram message gallery Markdown at /tmp/imsub-message-gallery.md"
 	@echo "  make check    - fmt + test + build"
 	@echo "  make ci-check - run the full local equivalent of CI checks"
 	@echo "  make deploy   - deploy to Fly app $(APP)"
@@ -50,7 +52,7 @@ test:
 
 test-integration:
 	$(GO) test -race -count=1 -tags=integration ./tests/integration/...
-	
+
 build:
 	$(GO) build ./...
 
@@ -79,6 +81,12 @@ secrets-scan:
 
 redis-proxy:
 	flyctl redis proxy
+
+message-gallery:
+	$(GO) run ./cmd/imsub-message-gallery --out ./imsub-message-gallery.html
+
+message-gallery-md:
+	$(GO) run ./cmd/imsub-message-gallery --format md --out ./imsub-message-gallery.md
 
 check: fmt test build
 

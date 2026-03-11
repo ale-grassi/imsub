@@ -41,7 +41,8 @@
         "GitHub.vscode-pull-request-github",
         "GitHub.copilot-chat",
         "google.gemini-cli-vscode-ide-companion",
-        "Redis.redis-for-vscode"
+        "Redis.redis-for-vscode",
+        "ms-vscode.live-server"
       ]
     }
   },
