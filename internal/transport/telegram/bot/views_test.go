@@ -3,8 +3,10 @@ package bot
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"imsub/internal/core"
+	"imsub/internal/platform/i18n"
 )
 
 func TestJoinNonEmptyLines(t *testing.T) {
@@ -36,11 +38,23 @@ func TestBuildMainMenuTextView(t *testing.T) {
 	}
 }
 
-func TestBuildViewerStatusErrorView(t *testing.T) {
+func TestBuildViewerErrorViewIncludesMainMenu(t *testing.T) {
 	t.Parallel()
-	view := buildViewerStatusErrorView("en")
-	if view.text == "" {
-		t.Fatalf("buildViewerStatusErrorView() = %+v, want text", view)
+	view := buildViewerErrorView("en")
+	if view.text != i18n.Translate("en", msgViewerError) {
+		t.Fatalf("buildViewerErrorView() text = %q, want %q", view.text, i18n.Translate("en", msgViewerError))
+	}
+	if view.opts.Markup == nil {
+		t.Fatalf("buildViewerErrorView() = %+v, want markup", view)
+	}
+	if got := len(view.opts.Markup.InlineKeyboard); got != 2 {
+		t.Fatalf("buildViewerErrorView() rows = %d, want 2", got)
+	}
+	if got, want := view.opts.Markup.InlineKeyboard[0][0].CallbackData, viewerMainMenuCallbacks().Refresh; got != want {
+		t.Fatalf("buildViewerErrorView() refresh callback = %q, want %q", got, want)
+	}
+	if got, want := view.opts.Markup.InlineKeyboard[1][0].CallbackData, viewerMainMenuCallbacks().Reset; got != want {
+		t.Fatalf("buildViewerErrorView() reset callback = %q, want %q", got, want)
 	}
 }
 
@@ -70,21 +84,36 @@ func TestBuildCreatorReconnectRequiredViewIncludesMarkup(t *testing.T) {
 
 func TestBuildSubscriptionEndViewIncludesSubscribeMarkup(t *testing.T) {
 	t.Parallel()
-	view := buildSubscriptionEndView("en", "viewer1", "streamer1")
+	view := buildSubscriptionEndView("en", "streamer1")
 	if view.text == "" || view.opts.Markup == nil {
 		t.Fatalf("buildSubscriptionEndView() = %+v, want text and markup", view)
 	}
 }
 
-func TestBuildSubscriptionEndViewEscapesViewerLogin(t *testing.T) {
+func TestBuildSubscriptionEndViewEscapesBroadcasterLogin(t *testing.T) {
 	t.Parallel()
 
-	view := buildSubscriptionEndView("en", "<viewer>", "streamer1")
-	if !strings.Contains(view.text, "&lt;viewer&gt;") {
-		t.Fatalf("buildSubscriptionEndView() text = %q, want escaped viewer login", view.text)
+	view := buildSubscriptionEndView("en", "<streamer>")
+	if !strings.Contains(view.text, "&lt;streamer&gt;") {
+		t.Fatalf("buildSubscriptionEndView() text = %q, want escaped broadcaster login", view.text)
 	}
-	if strings.Contains(view.text, "<viewer>") {
-		t.Fatalf("buildSubscriptionEndView() text = %q, did not expect raw viewer login", view.text)
+	if strings.Contains(view.text, "<streamer>") {
+		t.Fatalf("buildSubscriptionEndView() text = %q, did not expect raw broadcaster login", view.text)
+	}
+}
+
+func TestGraceRemainingHoursRoundsUp(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, time.March, 11, 10, 0, 0, 0, time.UTC)
+	if got := graceRemainingHours(now.Add(72*time.Hour-time.Minute), now); got != 72 {
+		t.Fatalf("graceRemainingHours() = %d, want 72", got)
+	}
+	if got := graceRemainingHours(now.Add(30*time.Minute), now); got != 1 {
+		t.Fatalf("graceRemainingHours() = %d, want 1", got)
+	}
+	if got := graceRemainingHours(now, now); got != 0 {
+		t.Fatalf("graceRemainingHours() = %d, want 0", got)
 	}
 }
 

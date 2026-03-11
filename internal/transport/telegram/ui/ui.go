@@ -61,7 +61,7 @@ type CreatorMenuCallbacks struct {
 func buildMainMenuMarkup(lang string, callbacks MainMenuCallbacks) *telego.InlineKeyboardMarkup {
 	return tu.InlineKeyboard(
 		tu.InlineKeyboardRow(RefreshButton(i18n.Translate(lang, btnRefresh), callbacks.Refresh)),
-		tu.InlineKeyboardRow(DeleteButton(i18n.Translate(lang, btnReset), callbacks.Reset)),
+		tu.InlineKeyboardRow(ManageButton(i18n.Translate(lang, btnReset), callbacks.Reset)),
 	)
 }
 
@@ -87,7 +87,7 @@ func CreatorStatusMenuMarkup(lang, reconnectURL string, callbacks CreatorMenuCal
 	if strings.TrimSpace(callbacks.Blocklist) != "" {
 		rows = append(rows, tu.InlineKeyboardRow(BlocklistButton(i18n.Translate(lang, btnBlocklistSync), callbacks.Blocklist, callbacks.BlocklistActive)))
 	}
-	rows = append(rows, tu.InlineKeyboardRow(DeleteButton(i18n.Translate(lang, btnReset), callbacks.Reset)))
+	rows = append(rows, tu.InlineKeyboardRow(ManageButton(i18n.Translate(lang, btnReset), callbacks.Reset)))
 	return tu.InlineKeyboard(rows...)
 }
 

@@ -69,8 +69,8 @@ func TestBuildCreatorStatusViewWithSingleGroup(t *testing.T) {
 	if !strings.Contains(view.text, i18n.Translate("en", msgCreatorBlocklistDisabled)) {
 		t.Fatalf("buildCreatorStatusView() text = %q, want disabled blocklist status", view.text)
 	}
-	if !strings.Contains(view.text, "Cached banned users") {
-		t.Fatalf("buildCreatorStatusView() text = %q, want cached banned users line", view.text)
+	if !strings.Contains(view.text, "Synced banned users") {
+		t.Fatalf("buildCreatorStatusView() text = %q, want synced banned users line", view.text)
 	}
 }
 
@@ -192,7 +192,7 @@ func TestBuildCreatorGroupSettingsView(t *testing.T) {
 	if view.text == "" || view.opts.Markup == nil {
 		t.Fatalf("buildCreatorGroupSettingsView() = %+v, want non-empty text and markup", view)
 	}
-	if !strings.Contains(view.text, "notice") || !strings.Contains(view.text, "Ignore, but warn") {
+	if !strings.Contains(view.text, "notice") || !strings.Contains(view.text, "Allow, but warn") {
 		t.Fatalf("buildCreatorGroupSettingsView() text = %q, want notice and current policy", view.text)
 	}
 	if got := view.opts.Markup.InlineKeyboard[0][0].IconCustomEmojiID; got != "5258318620722733379" {
@@ -211,7 +211,7 @@ func TestBuildCreatorGroupPolicyPickerView(t *testing.T) {
 	if view.text == "" || view.opts.Markup == nil {
 		t.Fatalf("buildCreatorGroupPolicyPickerView() = %+v, want non-empty text and markup", view)
 	}
-	if !strings.Contains(view.text, "Ignore and track") {
+	if !strings.Contains(view.text, "Allow and track") {
 		t.Fatalf("buildCreatorGroupPolicyPickerView() text = %q, want current policy line", view.text)
 	}
 	if got := view.opts.Markup.InlineKeyboard[0][0].IconCustomEmojiID; got != "5253959125838090076" {
@@ -233,7 +233,7 @@ func TestBuildCreatorGroupPolicyConfirmView(t *testing.T) {
 	if view.text == "" || view.opts.Markup == nil {
 		t.Fatalf("buildCreatorGroupPolicyConfirmView() = %+v, want non-empty text and markup", view)
 	}
-	if !strings.Contains(view.text, "Current policy") || !strings.Contains(view.text, "Grace 7 days") {
+	if !strings.Contains(view.text, "Current policy") || !strings.Contains(view.text, "Allow for 7 days") {
 		t.Fatalf("buildCreatorGroupPolicyConfirmView() text = %q, want current and new policy", view.text)
 	}
 }

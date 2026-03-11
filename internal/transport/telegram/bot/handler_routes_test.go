@@ -280,7 +280,7 @@ func TestRegisterTelegramHandlersCreatorManageGroupsFlow(t *testing.T) {
 	h.assertEditMessageHasCallback(t, body, creatorGroupExecuteWithActionCallback(-1001, core.CreatorResetKeepMembers))
 	h.assertEditMessageHasCallback(t, body, creatorGroupExecuteWithActionCallback(-1001, core.CreatorResetKickTrackedMembers))
 	h.assertEditMessageHasCallback(t, body, creatorGroupPickCallback(-1001))
-	h.assertEditMessageTextContains(t, body, "Unregister group")
+	h.assertEditMessageTextContains(t, body, "Unlink this group?")
 
 	h.handleUpdate(t, telego.Update{
 		UpdateID: 38,
@@ -1011,7 +1011,7 @@ func TestRegisterTelegramHandlersRegisterGroupAlwaysPromptsForPolicy(t *testing.
 	})
 
 	body := h.caller.lastSendMessageBody()
-	h.assertEditMessageTextContains(t, body, "Choose group policy")
+	h.assertEditMessageTextContains(t, body, "Choose a group policy")
 	h.assertEditMessageLacksCallback(t, body, creatorRefreshCallback())
 	h.assertEditMessageHasCallback(t, body, groupRegisterPolicyCallback(-1005, 0, core.GroupPolicyObserve))
 	h.assertEditMessageHasCallback(t, body, groupRegisterPolicyCallback(-1005, 0, core.GroupPolicyObserveWarn))
@@ -1058,8 +1058,8 @@ func TestRegisterTelegramHandlersRegisterGroupPromptIncludesExistingMemberWarnin
 	})
 
 	body := h.caller.lastSendMessageBody()
-	h.assertEditMessageTextContains(t, body, "Choose group policy")
-	h.assertEditMessageTextContains(t, body, "already have <b>4 non-admin member(s)</b>")
+	h.assertEditMessageTextContains(t, body, "Choose a group policy")
+	h.assertEditMessageTextContains(t, body, "4 existing non-admin members detected")
 	h.assertEditMessageHasCallback(t, body, groupRegisterPolicyCallback(-1006, 0, core.GroupPolicyObserve))
 	h.assertEditMessageHasCallback(t, body, groupRegisterPolicyCallback(-1006, 0, core.GroupPolicyObserveWarn))
 	h.assertEditMessageHasCallback(t, body, groupRegisterPolicyCallback(-1006, 0, core.GroupPolicyKick))
@@ -1329,7 +1329,7 @@ func TestRegisterTelegramHandlersMyChatMemberRemovalAutoUnregistersManagedGroup(
 	if got := body.ChatID; got != 77 {
 		t.Fatalf("sendMessage chat_id = %d, want owner DM chat_id 77", got)
 	}
-	if !strings.Contains(body.Text, "Group unregistered automatically") {
+	if !strings.Contains(body.Text, "Group unlinked automatically") {
 		t.Fatalf("sendMessage text = %q, want auto-unregister owner notice", body.Text)
 	}
 }
@@ -1405,7 +1405,7 @@ func TestRegisterTelegramHandlersMyChatMemberRemovalCleanupLagStillNotifiesOwner
 	}
 	h.caller.assertExactMethods(t, "sendMessage")
 	body := parseSendMessageRequest(t, h.caller.lastSendMessageBody())
-	if !strings.Contains(body.Text, "Subscriber cleanup could not finish immediately") {
+	if !strings.Contains(body.Text, "background cleanup tasks are still pending") {
 		t.Fatalf("sendMessage text = %q, want cleanup-lag owner notice", body.Text)
 	}
 }

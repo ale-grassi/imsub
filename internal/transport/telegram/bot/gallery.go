@@ -86,35 +86,12 @@ func PreviewScenarios() []PreviewScenario {
 			},
 		},
 		{
-			ID:    "viewer-oauth-exchange-fail",
+			ID:    "viewer-error",
 			Group: "Viewer",
-			Title: "Viewer OAuth exchange failure",
+			Title: "Generic viewer error",
+			Notes: "Covers OAuth failures and status load failures while keeping Refresh and Reset available.",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(buildViewerOAuthFailureView(lang, msgOAuthExchangeFail))
-			},
-		},
-		{
-			ID:    "viewer-oauth-userinfo-fail",
-			Group: "Viewer",
-			Title: "Viewer OAuth user info failure",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildViewerOAuthFailureView(lang, msgOAuthUserInfoFail))
-			},
-		},
-		{
-			ID:    "viewer-oauth-save-fail",
-			Group: "Viewer",
-			Title: "Viewer OAuth save failure",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildViewerOAuthFailureView(lang, msgOAuthSaveFail))
-			},
-		},
-		{
-			ID:    "viewer-status-error",
-			Group: "Viewer",
-			Title: "Viewer status load error",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildViewerStatusErrorView(lang))
+				return previewFromShared(buildViewerErrorView(lang))
 			},
 		},
 		{
@@ -130,27 +107,19 @@ func PreviewScenarios() []PreviewScenario {
 			},
 		},
 		{
-			ID:    "subscription-end",
-			Group: "Viewer",
-			Title: "Subscription ended notification",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildSubscriptionEndView(lang, "viewer_name", "streamer_one"))
-			},
-		},
-		{
 			ID:    "subscription-grace-start",
 			Group: "Viewer",
-			Title: "Grace period started",
+			Title: "Grace period active",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(buildSubscriptionGraceStartView(lang, "viewer_name", "streamer_one", sampleTime(72*time.Hour)))
+				return previewFromShared(buildSubscriptionGraceStartView(lang, "streamer_one", sampleTime(72*time.Hour)))
 			},
 		},
 		{
-			ID:    "subscription-grace-expired",
+			ID:    "subscription-end",
 			Group: "Viewer",
-			Title: "Grace period expired",
+			Title: "Subscription expired",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(buildSubscriptionGraceExpiredView(lang, "viewer_name", "streamer_one"))
+				return previewFromShared(buildSubscriptionEndView(lang, "streamer_one"))
 			},
 		},
 		{

@@ -20,10 +20,10 @@ other = "Reconnect Creator Account"
 other = "Manage groups"
 
 [btn_grace_period]
-other = "Grace period"
+other = "After sub ends"
 
 [btn_blocklist_sync]
-other = "Blocklist sync"
+other = "Twitch ban sync"
 
 [btn_grace_period_off]
 other = "Off"
@@ -38,19 +38,19 @@ other = "48 hours"
 other = "72 hours"
 
 [btn_group_policy_observe]
-other = "Ignore"
+other = "Allow and track"
 
 [btn_group_policy_observe_warn]
-other = "Ignore, but warn on join"
+other = "Allow, but warn"
 
 [btn_group_policy_kick]
-other = "Kick immediately"
+other = "Remove immediately"
 
 [btn_group_policy_grace]
-other = "Grace 7 days, then kick"
+other = "Allow 7 days, then remove"
 
 [btn_manage_group]
-other = "Manage Group - %s"
+other = "Manage: %s"
 
 [btn_change_group_policy]
 other = "Change policy"
@@ -62,19 +62,19 @@ other = "Apply policy"
 other = "Connect Creator Account"
 
 [btn_reset]
-other = "Delete linked data"
+other = "Manage data"
 
 [btn_reset_all_data]
-other = "Delete all data"
+other = "All data"
 
 [btn_reset_confirm]
-other = "Delete"
+other = "Delete now"
 
 [btn_reset_creator_data]
-other = "Delete creator data"
+other = "Creator data"
 
 [btn_reset_viewer_data]
-other = "Delete viewer data"
+other = "Viewer data"
 
 [btn_subscribe]
 other = "Subscribe on Twitch"
@@ -95,22 +95,22 @@ other = "Your creator setup is active. Use /creator to review status, /registerg
 other = "Your viewer account is connected. Use /start to refresh your access or /reset to delete linked data."
 
 [creator_eventsub_active]
-other = "• Subscriber sync: ✅ <b>Active</b>"
+other = "• Subscription sync: ✅ <b>Running</b>"
 
 [creator_eventsub_fail]
-other = "Your creator account is connected, but subscriber sync is not active yet. Open <code>/creator</code> in DM and reconnect to retry setup."
+other = "Your creator account is connected, but subscription sync is not active yet. Open <code>/creator</code> in private chat and reconnect to try again."
 
 [creator_auth_healthy]
-other = "• Creator auth: ✅ <b>Healthy</b>"
+other = "• Twitch connection: ✅ <b>Connected</b>"
 
 [creator_auth_reconnect_required]
-other = "• Creator auth: ⚠️ <b>Reconnect required</b> — use the button below to restore subscriber syncing"
+other = "• Twitch connection: ⚠️ <b>Reconnect required</b>"
 
 [creator_eventsub_inactive]
-other = "• Subscriber sync: ⚠️ <b>Action needed</b> — open /creator in DM to retry setup"
+other = "• Subscription sync: ⚠️ <b>Needs attention</b> — open <code>/creator</code> in private chat to try again"
 
 [creator_eventsub_unknown]
-other = "• Subscriber sync: ⚠️ <b>Status unavailable right now</b> — check /creator again shortly"
+other = "• Subscription sync: ⚠️ <b>Status unavailable right now</b> — check <code>/creator</code> again shortly"
 
 [creator_exchange_fail]
 other = "⚠️ <b>Creator setup did not finish</b>\nTwitch authorization was interrupted.\nReturn here and run /creator again."
@@ -134,16 +134,16 @@ other = "🛡️ <b>Change group policy</b>\n\n<b>Group:</b> %s\n<b>Creator:</b>
 other = "⚠️ <b>Confirm group policy change</b>\n\n<b>Group:</b> %s\n<b>Creator:</b> %s\n\n<b>Current policy</b>\n%s\n\n<b>New policy</b>\n%s\n\nThis change applies going forward to unverified members ImSub observes in this group."
 
 [creator_register_info]
-other = "🎙️ <b>Creator Setup</b>\n\nConnect your Twitch creator account so ImSub can verify subscribers and manage access to your Telegram group.\n\n<b>❔ Setup steps</b>\n1. Tap <b>Connect Creator Account</b>\n2. Approve access on Twitch\n3. Run /registergroup in your Telegram group\n\n⚠️ You must be an <b>admin</b> in that group.\n\nIf the button does not open Twitch, use <b>Copy link</b> below."
+other = "🎙️ <b>Set up your creator account</b>\n\nConnect your <b>Twitch creator account</b> so ImSub can verify subscribers and protect your Telegram group.\n\n⚠️ <b>Creator only</b>\nThese steps are only for creators who want to protect a group.\nIf you want to join a group as a subscriber, use <code>/start</code> instead.\n\n<b>Get started</b>\n1. Tap <b>Connect Creator Account</b>\n2. Log in on Twitch and approve access\n3. In the group you want to protect, run <code>/registergroup</code>\n   You must be an admin in that group.\n\n<i>If you have any problem, copy the link using the button below and paste it into a browser. If the problem persists, paste it into your browser's incognito mode.</i>"
 
 [creator_reconnect_info]
-other = "🔄 <b>Reconnect Creator Account</b>\n\nYour creator account needs a fresh Twitch authorization so ImSub can continue syncing subscribers.\n\n<b>Steps</b>\n1. Tap <b>Reconnect Creator Account</b>\n2. Approve access on Twitch\n3. Return to Telegram and check <b>/creator</b> again\n\nIf the button does not open Twitch, use <b>Copy link</b> below."
+other = "🔄 <b>Reconnect Creator Account</b>\n\nYour creator account needs a fresh Twitch authorization so ImSub can continue syncing subscribers.\n\n<b>Steps</b>\n1. Tap <b>Reconnect Creator Account</b>\n2. Log in on Twitch and approve access\n3. Return to Telegram and check <b>/creator</b> again\n\n<i>If you have any problem, copy the link using the button below and paste it into a browser. If the problem persists, paste it into your browser's incognito mode.</i>"
 
 [creator_registered_html]
-other = "✅ <b>Creator account connected</b>\n🎙️ <b>Twitch:</b> %s\n\n<b>Setup status</b>\n%s\n%s\n%s\n%s\n\n➡️ <b>Next step</b>\nIf your group is not linked yet, run /registergroup in the Telegram group you want to protect. You must be an <b>admin</b> there.\n\n<b>Current group status</b>\n%s"
+other = "✅ <b>Creator dashboard</b>\n🎙️ <b>Twitch:</b> %s\n\n<b>Status</b>\n%s\n%s\n%s\n%s\n\n<b>Protected groups</b>\n%s\n\n<i>Use the buttons below to manage your groups or change access settings.</i>"
 
 [creator_registered_no_group_html]
-other = "✅ <b>Creator account connected</b>\n🎙️ <b>Twitch:</b> %s\n\n<b>Account status</b>\n%s\n%s\n\n➡️ <b>Next step</b>\nRun /registergroup in the Telegram group you want to protect. You must be an <b>admin</b> there.\n\n⏳ Subscriber syncing will start automatically after the group is linked.\n\n<b>Current group status</b>\n%s"
+other = "✅ <b>Creator dashboard</b>\n🎙️ <b>Twitch:</b> %s\n\n<b>Status</b>\n%s\n%s\n\n<b>Next step</b>\nGo to the Telegram group you want to protect and run <code>/registergroup</code>.\n<i>You must be an admin there.</i>\n\n⏳ Subscription sync starts after the first group is linked.\n\n<b>Protected groups</b>\n%s"
 
 [creator_scope_missing]
 other = "⚠️ <b>Missing Twitch permission</b>\nThe required creator access was not granted.\nRun /creator again and approve access."
@@ -152,19 +152,19 @@ other = "⚠️ <b>Missing Twitch permission</b>\nThe required creator access wa
 other = "⚠️ <b>Wrong Twitch creator account</b>\nThe reconnect finished with a different Twitch creator account than the one already linked here.\n\nIf you want to replace the creator account, run /reset first."
 
 [creator_reconnect_needed]
-other = "⚠️ <b>Creator reconnect required</b>\n\nImSub could not refresh your Twitch creator access, so subscriber syncing is currently stale.\n\nUse the button below to reconnect your creator account."
+other = "⚠️ <b>Reconnect your creator account</b>\n\nImSub lost access to your Twitch creator connection, so <b>subscription sync is paused</b>.\n\nTap the button below to reconnect and restore automatic access checks."
 
 [creator_unregister_confirm_html]
-other = "⚠️ <b>Unregister group</b>\n\nChoose what to do with tracked members before unlinking <b>%s</b> from creator <b>%s</b>.\n\nIf you keep members, they will stay in the Telegram group after unregistration.\nIf you kick tracked members, ImSub will try to remove currently tracked members before the group is unregistered."
+other = "⚠️ <b>Unlink this group?</b>\n\n<b>Group:</b> %s\n<b>Creator:</b> %s\n\nChoose what should happen to <b>tracked members</b> before ImSub stops managing this group.\n\n• <b>Keep members</b> - everyone stays in the Telegram group\n• <b>Remove tracked members</b> - ImSub removes tracked members first, then unlinks the group"
 
 [creator_group_unregistered_html]
-other = "✅ <b>Group unregistered</b>\n<b>%s</b> was removed from your creator account."
+other = "✅ <b>Group unlinked</b>\n<b>%s</b> was removed from your creator setup."
 
 [creator_group_unregistered_kicked_html]
-other = "✅ <b>Group unregistered</b>\n<b>%s</b> was removed from your creator account.\n\nTracked-member cleanup was queued in the background for %d membership(s). I will DM you when it finishes."
+other = "✅ <b>Group unlinked</b>\n<b>%s</b> was removed from your creator setup.\n\nTracked-member cleanup was queued in the background for %d membership(s). I will DM you when it finishes."
 
 [creator_group_unregistered_kick_all_failed_html]
-other = "⚠️ <b>Group unregistered</b>\n<b>%s</b> was removed from your creator account, but ImSub could not queue tracked-member cleanup for %d membership(s).\n\nPlease review the group manually and remove leftover members if needed."
+other = "⚠️ <b>Group unlinked</b>\n<b>%s</b> was removed from your creator setup, but ImSub could not queue tracked-member cleanup for %d membership(s).\n\nPlease review the group manually and remove leftover members if needed."
 
 [creator_group_unavailable_html]
 other = "⚠️ That group is no longer linked to your creator account."
@@ -179,16 +179,16 @@ other = "ℹ️ <b>No change</b>\n<b>%s</b> is already using that policy."
 other = "⚠️ Only the creator who linked this group can change its policy."
 
 [creator_grace_picker_html]
-other = "⏳ <b>Subscription-end grace period</b>\n\n<b>Creator:</b> %s\n<b>Current setting:</b> %s\n\nChoose how long viewers should keep access after Twitch sends <code>channel.subscription.end</code>.\n\nDuring grace, ImSub removes invite eligibility immediately but delays group removal until the selected window expires."
+other = "⏳ <b>Subscription grace period</b>\n\n<b>Creator:</b> %s\n<b>Current setting:</b> %s\n\nChoose how long viewers can keep access after their Twitch subscription ends.\n\n<i>During grace, users cannot get new invite links, but they stay in the group until the selected time expires.</i>"
 
 [creator_grace_enabled]
-other = "• Subscription-end grace: ▶️ <b>%s</b>"
+other = "• After sub ends: ▶️ <b>%s</b>"
 
 [creator_grace_disabled]
-other = "• Subscription-end grace: ⏸️ <b>Off</b>"
+other = "• After sub ends: ⏸️ <b>Off</b>"
 
 [creator_grace_updated]
-other = "✅ Subscription-end grace updated to <b>%s</b>."
+other = "✅ <b>Grace period updated</b> to <b>%s</b>."
 
 [creator_blocklist_enabled]
 other = "• Twitch ban sync: ▶️ <b>Enabled</b>"
@@ -203,7 +203,7 @@ other = "▶️ Twitch ban sync enabled. ImSub will revoke access for permanentl
 other = "⏸️ Twitch ban sync disabled. Existing blocklist cache is no longer enforced."
 
 [creator_last_sync_at]
-other = "• Last successful sync: <b>%s</b>"
+other = "• Last sync: <b>%s</b>"
 
 [creator_reconnect_since]
 other = "• Reconnect required since: <b>%s</b>"
@@ -218,16 +218,13 @@ other = "<b>⏳ syncing...</b>"
 other = "<b>%d</b>"
 
 [creator_subscribers_cached]
-other = "• Current subscribers cached: %s"
+other = "• Active subscribers: %s"
 
 [creator_banned_users_cached]
-other = "• Cached banned users: <b>%d</b>"
+other = "• Synced banned users: <b>%d</b>"
 
 [sub_grace_start]
-other = "⚠️ <b>Subscription ended</b>\n\nYour Twitch subscription as <b>%s</b> is no longer active, but the creator enabled a grace period.\n\nYou can keep access until <b>%s</b>. If you do not resubscribe before then, ImSub will remove you from the protected Telegram groups."
-
-[sub_grace_expired]
-other = "⚠️ <b>Grace period expired</b>\n\nYour Twitch subscription as <b>%s</b> was not renewed during the grace window, so ImSub removed your protected Telegram access."
+other = "⚠️ <b>Subscription expired</b>\n\nYour subscription to <b>%s</b> has expired.\n\nRenew within <b>%d hours</b> to keep access to this creator's subscribers-only Telegram group(s)."
 
 [creator_userinfo_fail]
 other = "⚠️ <b>Could not read Twitch account details</b>\nRun /creator again in a moment."
@@ -237,6 +234,9 @@ other = "I couldn't create the creator connection link right now. Try /creator a
 
 [err_load_status]
 other = "I couldn't load your account status right now. Tap Refresh in a moment or try the command again."
+
+[err_viewer_generic]
+other = "‼️⚠️ Something went wrong. Use the buttons below to try again."
 
 [err_reset]
 other = "I couldn't delete your linked data right now. Try again."
@@ -251,25 +251,25 @@ other = "Set up your creator account first with <code>/creator</code> in DM."
 other = "This command must be used in a group chat."
 
 [group_registered]
-other = "✅ <b>Group linked</b>\n\nThis group is now connected to <b>%s</b>.\n\n⏳ Subscriber access will start syncing shortly.\n📩 Open <code>/creator</code> in DM to check status."
+other = "✅ <b>Group linked</b>\n\n<b>Creator:</b> %s\n\n⏳ Subscriber sync will start shortly.\nUse <code>/creator</code> in private chat to check status."
 
 [group_policy_prompt_html]
-other = "🛡️ <b>Choose group policy</b>\n\nSelect how ImSub should handle members who are present in the group but are not verified yet through ImSub.\n\nThis choice becomes the default behavior for this group immediately after registration."
+other = "🛡️ <b>Choose a group policy</b>\n\nSelect how ImSub should handle <b>unverified members</b> in this group.\n\nThis becomes the default rule for members ImSub can observe after registration."
 
 [group_policy_existing_members_html]
-other = "⚠️ This group appears to already have <b>%d non-admin member(s)</b>.\n\nTelegram does <b>not</b> give ImSub the full list of members already inside a group, so ImSub cannot immediately verify, warn, or remove everyone who is already here.\n\nImSub will apply the policy below only to members it can <b>observe from now on</b>, such as new joins and users it later sees in the group.\n\nIf you need strict access control from the start, remove existing unverified members manually and let them rejoin through ImSub."
+other = "⚠️ <b>%d existing non-admin members detected</b>\n\nImSub cannot see or verify members who were already in the group before setup.\n\n<b>This policy only applies to people ImSub can observe from now on</b>, such as:\n• new join requests\n• new joins\n• users the bot sees later in the group\n\n<i>For strict access control, remove existing unverified members manually and let them rejoin through ImSub.</i>"
 
 [group_policy_observe_line]
-other = "• Unverified member policy: <b>Ignore and track</b>"
+other = "• Unverified-member policy: <b>Allow and track</b>"
 
 [group_policy_observe_warn_line]
-other = "• Unverified member policy: <b>Ignore, but warn in this group when an unverified user joins</b>"
+other = "• Unverified-member policy: <b>Allow, but warn when someone joins</b>"
 
 [group_policy_kick_line]
-other = "• Unverified member policy: <b>Kick observed unverified members immediately</b>"
+other = "• Unverified-member policy: <b>Remove observed unverified members immediately</b>"
 
 [group_policy_grace_line]
-other = "• Unverified member policy: <b>Grace 7 days, then kick if still unverified</b>"
+other = "• Unverified-member policy: <b>Allow for 7 days, then remove if still unverified</b>"
 
 [group_untracked_join_warning_html]
 other = "⚠️ <b>Unverified member detected</b>\n\nA user joined this group, but ImSub cannot confirm their subscription yet.\n\nThis group is currently configured to <b>allow the join</b> and keep tracking them.\n\nFor strict access control, ask members to verify with <code>/start</code> and rejoin through an ImSub invite."
@@ -284,10 +284,10 @@ other = "✅ Group settings look good."
 other = "⚙️ <b>Group settings need attention</b>"
 
 [group_warn_public]
-other = "• The group is <b>public</b> (has a username). Anyone can find and join it, bypassing subscription checks. Make the group <b>private</b> by removing its username in group settings."
+other = "• <b>Make the group private.</b> It currently has a username, so anyone can find and join it outside ImSub."
 
 [group_warn_untracked_users]
-other = "• The group has <b>%d non-admin member(s)</b> who are not tracked by the bot. These users joined before ImSub was set up and their subscription status is not verified. Consider removing them and letting them rejoin through ImSub."
+other = "• <b>Review existing members.</b> There are <b>%d non-admin members</b> who joined before ImSub was set up and are not verified."
 
 [group_warn_join_by_request]
 other = "• ImSub invite links require approval before a user can join. If an admin shares a different invite link, users could join without subscription verification. To preserve access control, only use invite links generated by ImSub."
@@ -296,19 +296,19 @@ other = "• ImSub invite links require approval before a user can join. If an a
 other = "• ImSub is not a <b>group administrator</b>. Promote the bot to administrator before registering this group."
 
 [group_warn_bot_no_invite]
-other = "• ImSub is missing the <b>Invite Users</b> administrator permission. This is required to create join-request invite links."
+other = "• <b>Grant ImSub the Invite Users admin permission.</b> This is required to create join-request invite links."
 
 [group_warn_bot_no_restrict]
-other = "• ImSub is missing the <b>Ban Users</b> administrator permission. This is required to remove users whose subscription ends."
+other = "• <b>Grant ImSub the Ban Users admin permission.</b> This is required to remove users whose subscription ends."
 
 [group_bot_status_changed]
 other = "⏳ ImSub detected a bot status change in this group. Checking setup..."
 
 [group_bot_removed_owner_dm]
-other = "⚠️ <b>Group unregistered automatically</b>\n\nImSub was removed from <b>%s</b>, so the group has been unregistered from your creator setup.\n\nOpen <code>/creator</code> in DM if you want to review your status or register the group again."
+other = "⚠️ <b>Group unlinked automatically</b>\n\nImSub was removed from <b>%s</b>, so the bot can no longer protect that group.\n\nThe group was removed from your creator setup.\nUse <code>/creator</code> if you want to review your status or link it again."
 
 [group_bot_removed_cleanup_lag_dm]
-other = "⚠️ <b>Group unregistered automatically</b>\n\nImSub was removed from <b>%s</b>, so the group has been unregistered from your creator setup.\n\nSubscriber cleanup could not finish immediately and will be retried later.\n\nOpen <code>/creator</code> in DM if you want to review your status or register the group again."
+other = "⚠️ <b>Group unlinked automatically</b>\n\nImSub was removed from <b>%s</b>, so the bot can no longer protect that group.\n\nThe group was removed from your creator setup.\nSome background cleanup tasks are still pending and may finish later.\n\nUse <code>/creator</code> if you want to review your status or link it again."
 
 [group_already_linked]
 other = "❗️ This group is already linked to <b>%s</b>.\n\nUse <code>/unregistergroup</code> to unlink it first if you want to make changes."
@@ -320,49 +320,40 @@ other = "⚠️ Your creator account <b>%s</b> is already linked to group <b>%s<
 other = "⚠️ This group is already linked to another creator account (<b>%s</b>). Each group can only be managed by one creator. The other creator must use <code>/unregistergroup</code> first."
 
 [group_registered_dm]
-other = "🎉 <b>Group registered</b>\n\nYour group <b>%s</b> is now linked to your creator account <b>%s</b>.\n\n⏳ ImSub will start syncing your Twitch subscribers shortly. Once syncing is active, only users with an active subscription will be able to join the group.\n\n❔ <b>What happens next</b>\n• Subscriber sync activates automatically\n• Current subscribers can use /start to get a join link\n• When a subscription ends, the user is removed from the group\n\nUse /creator to check your setup status at any time."
+other = "✅ <b>Group linked successfully</b>\n\n<b>Group:</b> %s\n<b>Creator:</b> %s\n\n<b>What happens next</b>\n• ImSub starts syncing your Twitch subscribers\n• Eligible viewers can use <code>/start</code> to get a join link\n• Review any setup notes below to make sure access control is working as expected\n\nUse <code>/creator</code> any time to check status or manage this group."
 
 [link_prompt_html]
-other = "😊 <b>Welcome to ImSub, %s</b>\n\nImSub checks your <b>Twitch subscriptions</b> and unlocks the Telegram groups you can access.\n\n❔ <b>What to do</b>\n1. Tap <b>Connect Twitch</b>\n2. Approve access on Twitch\n3. Come back here to see your group access\n\n⚠️ <b>Having issues?</b>\nCopy and paste the link below into a private browser window."
+other = "😊 <b>Welcome, %s</b>\n\nConnect your <b>Twitch account</b> to see which <b>Telegram groups</b> you can join.\n\n<b>Get started</b>\n1. Tap <b>Connect Twitch</b>\n2. Log in on Twitch and approve access\n3. Come back here to see your available groups\n\n<i>If you have any problem, copy the link using the button below and paste it into a browser. If the problem persists, paste it into your browser's incognito mode.</i>"
 
 [linked_status_no_subs_html]
-other = "🎉 <b>Your Twitch account is connected.</b>\n🔗 <b>Twitch:</b> %s\n\n❗️ No active subscriptions are currently detected for this account.\nIf you just subscribed, wait a bit and tap <b>Refresh</b>.\n\nIf this is the wrong Twitch account, use /reset or tap <b>Delete linked data</b> below."
+other = "✅ <b>Twitch connected</b>\n🔗 <b>Account:</b> %s\n\n<b>No active subscriptions found</b>\nYou don't have any active subscriptions linked to subscribers-only Telegram groups right now.\n\n<i>Tap <b>Refresh</b> to check again, or use /reset if this is the wrong Twitch account.</i>"
 
 [linked_status_with_subs_html]
-other = "🎉 <b>Twitch connected</b>\n🔗 <b>Account:</b> %s\n\n🎉 <b>Active subscriptions found</b>\n%s\n\n⬇️ Tap the button below to join the matching Telegram group."
+other = "✅ <b>Twitch connected</b>\n🔗 <b>Account:</b> %s\n\n<b>Active subscriptions</b>\n%s\n\n<i>Tap <b>Refresh</b> to check again, or use /reset if this is the wrong Twitch account.</i>"
 
 [linked_status_with_subs_no_groups_html]
-other = "🎉 <b>Twitch connected</b>\n🔗 <b>Account:</b> %s\n\n🎉 <b>Active subscriptions found</b>\n%s\n\n⏳ <b>No Telegram groups are available yet</b>\nThese creators have not linked a subscriber group to ImSub yet.\n\nTap <b>Refresh</b> and check again later."
-
-[oauth_exchange_fail]
-other = "⚠️ <b>Twitch authorization did not finish</b>\nReturn to Telegram and try again."
-
-[oauth_save_fail]
-other = "⚠️ <b>Could not save your Twitch link</b>\nIf the wrong Twitch account was used, run /reset and try again."
-
-[oauth_userinfo_fail]
-other = "⚠️ <b>Could not read Twitch account details</b>\nReturn to Telegram and try again in a moment."
+other = "✅ <b>Twitch connected</b>\n🔗 <b>Account:</b> %s\n\n<b>No new Telegram groups available</b>\nYou have active subscriptions, but there are no new subscribers-only Telegram groups to join right now.\n\n<b>Active subscriptions</b>\n%s\n\n<i>Tap <b>Refresh</b> to check again, or use /reset if this is the wrong Twitch account.</i>"
 
 [reset_choose_scope_html]
-other = "🗑️ <b>Choose What to Delete</b>\n\nYou currently have both viewer and creator data linked to this Telegram account.\n\n🔗 <b>Viewer account:</b> %s\n🎙️ <b>Creator account:</b> %s\n\nSelect the data you want to remove below."
+other = "🗑️ <b>Choose what to delete</b>\n\nThis Telegram account currently has:\n• <b>Viewer account:</b> %s\n• <b>Creator account:</b> %s\n\nSelect the data you want to remove."
 
 [reset_confirm_both_html]
-other = "🗑️ <b>Delete All Linked Data</b>\n\n🔗 <b>Viewer account:</b> %s\n🎙️ <b>Creator account:</b> %s\n🗑️ <b>Creator records to delete:</b> %d\n🚫 <b>Groups that may remove access:</b> %d\n👥 <b>Managed groups owned:</b> %d\n%s\n\nIf you continue:\n• both viewer and creator data will be deleted\n• your creator group registrations will be removed\n• tracked members will be handled according to the selected option above\n\n➡️ To connect again later, use /start or /creator."
+other = "⚠️ <b>Delete all linked data?</b>\n\n<b>Viewer account:</b> %s\n<b>Creator account:</b> %s\n<b>Creator account(s) to remove:</b> %d\n<b>Viewer groups that may be affected:</b> %d\n<b>Managed groups:</b> %d\n%s\n\n<i>You can connect again later with <code>/start</code> or <code>/creator</code>.</i>"
 
 [reset_confirm_creator_html]
-other = "❗️ <b>Delete Creator Data</b>\n\n🎙️ <b>Creator account:</b> %s\n🗑️ <b>Creator records to delete:</b> %d\n👥 <b>Managed groups owned:</b> %d\n%s\n\nIf you continue:\n• your creator setup will be deleted\n• linked creator registrations will be removed\n• tracked members will be handled according to the selected option above\n\n➡️ To set it up again later, use /creator."
+other = "⚠️ <b>Delete creator data?</b>\n\n<b>Creator account:</b> %s\n<b>Managed groups:</b> %d\n%s\n\n<b>If you continue</b>\n• your creator setup will be removed from ImSub\n• your managed groups will be unlinked\n• tracked members will be processed in the background\n\n<i>You can connect again later with <code>/creator</code>.</i>"
 
 [reset_confirm_viewer_html]
-other = "🗑️ <b>Delete Viewer Data</b>\n\n🔗 <b>Twitch account:</b> %s\n🚫 <b>Groups that may remove access:</b> %d\n\nIf you continue:\n• your linked viewer account data will be deleted\n• you may lose access to those Telegram groups\n\n➡️ To connect again later, use /start."
+other = "⚠️ <b>Delete viewer data?</b>\n\n<b>Viewer account:</b> %s\n<b>Viewer groups that may be affected:</b> %d\n\n<i>You can connect again later with <code>/start</code>.</i>"
 
 [reset_done_both_html]
-other = "✅ <b>Linked data deleted</b>\n\n🔗 <b>Removed viewer account:</b> %s\n🚫 <b>Groups processed:</b> %d\n🎙️ <b>Removed creator account:</b> %s\n🗑️ <b>Creator records deleted:</b> %d\n👥 <b>Managed groups cleaned up:</b> %d\n%s\n\nIf you want to set things up again:\n• use /start for viewer access\n• use /creator for creator setup"
+other = "✅ <b>All linked data deleted</b>\n\n<b>Removed viewer account:</b> %s\n<b>Viewer groups processed:</b> %d\n<b>Removed creator account:</b> %s\n<b>Creator account(s) deleted:</b> %d\n<b>Managed groups:</b> %d\n%s\n\n<b>Want to connect again?</b>\n• use <code>/start</code> for viewer access\n• use <code>/creator</code> for creator setup"
 
 [reset_done_creator_html]
-other = "✅ <b>Creator data deleted</b>\n\n🎙️ <b>Removed creator account:</b> %s\n🗑️ <b>Creator records deleted:</b> %d\n👥 <b>Managed groups cleaned up:</b> %d\n%s\n\n➡️ To set it up again, use /creator."
+other = "✅ <b>Creator data deleted</b>\n\n<b>Removed creator account:</b> %s\n<b>Managed groups unlinked:</b> %d\n%s\n\n<b>Want to connect again?</b>\nUse <code>/creator</code> for creator setup."
 
 [reset_done_viewer_html]
-other = "✅ <b>Viewer data deleted</b>\n\n🔗 <b>Removed Twitch account:</b> %s\n🚫 <b>Groups processed:</b> %d\n\n➡️ To connect again, use /start."
+other = "✅ <b>Viewer data deleted</b>\n\n<b>Removed viewer account:</b> %s\n<b>Viewer groups processed:</b> %d\n\n<b>Want to connect again?</b>\nUse <code>/start</code> for viewer access."
 
 [reset_exit_html]
 other = "❗️ <b>No changes made</b>\n\nYour linked data is safe and remains untouched.\n\n➡️ Press /start to view and manage your data."
@@ -377,13 +368,10 @@ other = "🗑️ <b>Choose What To Do With Group Members</b>\n\n🎙️ <b>Creat
 other = "🗑️ <b>Choose What To Do With Group Members</b>\n\n🔗 <b>Viewer account:</b> %s\n🎙️ <b>Creator account:</b> %s\n👥 <b>Managed groups owned:</b> %d\n\nChoose how ImSub should handle tracked members in those groups when your creator data is deleted."
 
 [reset_action_keep_line]
-other = "• tracked members will stay in their groups"
+other = "• current group members stay where they are"
 
 [reset_action_kick_line]
-other = "• tracked members will be scheduled for background cleanup after creator data is deleted"
-
-[reset_creator_groups_line]
-other = "• Managed groups cleaned up: %d"
+other = "• ImSub will try to remove currently tracked members in the background after the creator setup is deleted"
 
 [reset_creator_kick_targets_line]
 other = "• Tracked memberships targeted for kick: %d"
@@ -404,25 +392,25 @@ other = "Keep members"
 other = "Kick tracked members"
 
 [sub_end_partial]
-other = "⚠️ <b>Subscription ended</b>\n\nYour subscription to <b>%s</b> is no longer active, so your Telegram group access was removed.\n\n➡️ After you resubscribe on Twitch, come back here and use /start to get a new join link."
+other = "⚠️ <b>Subscription expired</b>\n\nYour subscription to <b>%s</b> has expired, so you were removed from this creator's subscribers-only Telegram group(s).\n\n🔄 <b>Access again</b>\n1. Resubscribe on Twitch\n2. Come back here and use <code>/start</code>"
 
 [sub_start_ready]
-other = "🎉 <b>Subscription active</b>\n\nYour subscription to <b>%s</b> is active. Here are your fresh Telegram join links."
+other = "🎉 <b>Subscription active</b>\n\nYour subscription to <b>%s</b> is active."
 
 [user_generic_name]
 other = "there"
 
 [group_unregistered]
-other = "🎉 <b>Group has been Unregistered</b>"
+other = "✅ <b>Group unlinked</b>"
 
 [group_unregister_prompt_html]
-other = "⚠️ <b>Unregister group</b>\n\nChoose what to do with tracked members before this group is unregistered.\n\nIf you keep members, they will stay in the Telegram group after unregistration.\nIf you kick tracked members, ImSub will try to remove currently tracked members before the group is unregistered."
+other = "⚠️ <b>Unlink this group?</b>\n\nChoose what should happen to <b>tracked members</b> before ImSub stops managing this group.\n\n• <b>Keep members</b> - everyone stays in the Telegram group\n• <b>Remove tracked members</b> - ImSub removes tracked members first, then unlinks the group"
 
 [group_unregistered_kicked_html]
-other = "🎉 <b>Group has been Unregistered</b>\n\nTracked-member cleanup was queued in the background for %d membership(s). I will DM you when it finishes."
+other = "✅ <b>Group unlinked</b>\n\nTracked-member cleanup was queued in the background for %d membership(s). I will DM you when it finishes."
 
 [group_unregistered_kick_all_failed_html]
-other = "⚠️ <b>Group has been Unregistered</b>\n\nImSub could not queue tracked-member cleanup for %d membership(s).\n\nPlease review the group manually and remove leftover members if needed."
+other = "⚠️ <b>Group unlinked</b>\n\nImSub could not queue tracked-member cleanup for %d membership(s).\n\nPlease review the group manually and remove leftover members if needed."
 
 [cleanup_group_done_dm_html]
 other = "✅ <b>Tracked-member cleanup finished</b>\n\n<b>Group:</b> %s\n• Targeted memberships: %d\n• Removed successfully: %d\n• Failed after retries: %d"

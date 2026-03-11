@@ -19,14 +19,11 @@ import (
 )
 
 const (
-	msgLinkPromptHTML    = "link_prompt_html"
-	msgOAuthExchangeFail = "oauth_exchange_fail"
-	msgOAuthUserInfoFail = "oauth_userinfo_fail"
-	msgOAuthSaveFail     = "oauth_save_fail"
-	msgSubStartReady     = "sub_start_ready"
-	msgSubEndPartial     = "sub_end_partial"
-	msgSubGraceStart     = "sub_grace_start"
-	msgSubGraceExpired   = "sub_grace_expired"
+	msgLinkPromptHTML = "link_prompt_html"
+	msgViewerError    = "err_viewer_generic"
+	msgSubStartReady  = "sub_start_ready"
+	msgSubEndPartial  = "sub_end_partial"
+	msgSubGraceStart  = "sub_grace_start"
 
 	btnLinkTwitch = "btn_link_twitch"
 	btnJoin       = "btn_join"
@@ -46,7 +43,7 @@ func (c *Bot) handleViewerStart(ctx context.Context, telegramUserID int64, editM
 func (c *Bot) handleViewerStartForUser(ctx context.Context, telegramUserID int64, editMsgID int, lang, userName string) string {
 	access, err := c.viewerAccess.LoadAccess(ctx, telegramUserID)
 	if err != nil {
-		view := buildViewerStatusErrorView(lang)
+		view := buildViewerErrorView(lang)
 		c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
 		return view.text
 	}
@@ -60,7 +57,7 @@ func (c *Bot) handleViewerStartForUser(ctx context.Context, telegramUserID int64
 		}
 		state, err := c.createOAuthState(ctx, payload, 10*time.Minute)
 		if err != nil {
-			view := buildViewerStatusErrorView(lang)
+			view := buildViewerErrorView(lang)
 			c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
 			return view.text
 		}
@@ -91,34 +88,25 @@ func (c *Bot) handleViewerStartForUser(ctx context.Context, telegramUserID int64
 func (c *Bot) HandleViewerOAuthCallback(ctx context.Context, code string, payload core.OAuthStatePayload, lang string) (label string, twitchDisplayName string, err error) {
 	res, flowErr := c.viewerOAuth.Complete(ctx, code, payload, lang)
 	if flowErr != nil {
+		view := buildViewerErrorView(lang)
+		wrappedErr := fmt.Errorf("viewer unexpected fail: %w", flowErr)
 		var fe *core.FlowError
 		if errors.As(flowErr, &fe) {
 			switch fe.Kind {
 			case core.KindTokenExchange:
-				view := buildViewerOAuthFailureView(lang, msgOAuthExchangeFail)
-				c.sendMsg(ctx, payload.TelegramUserID, view.text, &view.opts)
-				return res.ResultLabel, "", fmt.Errorf("viewer token exchange failed: %w", flowErr)
+				wrappedErr = fmt.Errorf("viewer token exchange failed: %w", flowErr)
 			case core.KindUserInfo:
-				view := buildViewerOAuthFailureView(lang, msgOAuthUserInfoFail)
-				c.sendMsg(ctx, payload.TelegramUserID, view.text, &view.opts)
-				return res.ResultLabel, "", fmt.Errorf("viewer user info failed: %w", flowErr)
+				wrappedErr = fmt.Errorf("viewer user info failed: %w", flowErr)
 			case core.KindSave:
-				view := buildViewerOAuthFailureView(lang, msgOAuthSaveFail)
-				c.sendMsg(ctx, payload.TelegramUserID, view.text, &view.opts)
-				return res.ResultLabel, "", fmt.Errorf("viewer save failed: %w", flowErr)
+				wrappedErr = fmt.Errorf("viewer save failed: %w", flowErr)
 			case core.KindScopeMissing, core.KindStore:
-				view := buildViewerOAuthFailureView(lang, msgOAuthSaveFail)
-				c.sendMsg(ctx, payload.TelegramUserID, view.text, &view.opts)
-				return res.ResultLabel, "", fmt.Errorf("viewer other fail: %w", flowErr)
+				wrappedErr = fmt.Errorf("viewer other fail: %w", flowErr)
 			case core.KindCreatorMismatch:
-				view := buildViewerOAuthFailureView(lang, msgOAuthSaveFail)
-				c.sendMsg(ctx, payload.TelegramUserID, view.text, &view.opts)
-				return res.ResultLabel, "", fmt.Errorf("viewer creator mismatch fail: %w", flowErr)
+				wrappedErr = fmt.Errorf("viewer creator mismatch fail: %w", flowErr)
 			}
 		}
-		view := buildViewerOAuthFailureView(lang, msgOAuthSaveFail)
 		c.sendMsg(ctx, payload.TelegramUserID, view.text, &view.opts)
-		return res.ResultLabel, "", fmt.Errorf("viewer unexpected fail: %w", flowErr)
+		return res.ResultLabel, "", wrappedErr
 	}
 	if res.DisplacedUserID != 0 {
 		c.kickDisplacedUser(ctx, res.DisplacedUserID)
@@ -130,7 +118,7 @@ func (c *Bot) HandleViewerOAuthCallback(ctx context.Context, code string, payloa
 	access, buildErr := c.viewerAccess.LoadAccess(ctx, payload.TelegramUserID)
 	if buildErr != nil {
 		c.log().Warn("load viewer access failed after viewer oauth callback", "telegram_user_id", payload.TelegramUserID, "error", buildErr)
-		view := buildOAuthLoadStatusErrorView(lang)
+		view := buildViewerErrorView(lang)
 		c.sendMsg(ctx, payload.TelegramUserID, view.text, &view.opts)
 		return resultLoadStatusFailed, res.TwitchDisplayName, fmt.Errorf("load viewer access: %w", buildErr)
 	}

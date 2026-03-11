@@ -11,6 +11,10 @@ var htmlCustomEmojiReplacer = strings.NewReplacer(customEmojiHTMLReplacements().
 
 var htmlCustomEmojiReplacementTable = []customEmojiReplacement{
 	{
+		standard: "‼️⚠️",
+		customID: "5420323339723881652",
+	},
+	{
 		standard: "⏳",
 		customID: "5386367538735104399",
 	},

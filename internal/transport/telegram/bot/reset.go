@@ -32,7 +32,6 @@ const (
 	msgResetExitHTML                   = "reset_exit_html"
 	msgResetActionKeepLine             = "reset_action_keep_line"
 	msgResetActionKickLine             = "reset_action_kick_line"
-	msgResetCreatorGroupsLine          = "reset_creator_groups_line"
 	msgResetCreatorKickTargetsLine     = "reset_creator_kick_targets_line"
 	msgResetCreatorKickFailuresLine    = "reset_creator_kick_failures_line"
 	btnResetKeepMembers                = "btn_reset_keep_members"
@@ -239,7 +238,6 @@ func (c *Bot) buildResetConfirmView(ctx context.Context, telegramUserID int64, l
 		return resetConfirmView{text: fmt.Sprintf(
 			i18n.Translate(lang, msgResetConfirmCreatorHTML),
 			html.EscapeString(scopes.Creator.TwitchLogin),
-			1,
 			c.resetCreatorGroupCount(ctx, telegramUserID),
 			resetActionSummaryText(lang, action),
 		)}
@@ -408,7 +406,6 @@ func renderResetExecutionResult(lang string, res usecase.ResetResult) string {
 		return fmt.Sprintf(
 			i18n.Translate(lang, msgResetDoneCreatorHTML),
 			html.EscapeString(strings.Join(res.DeletedNames, ", ")),
-			res.DeletedCount,
 			res.CreatorCleanup.ManagedGroupCount,
 			renderResetCreatorCleanupResult(lang, res.CreatorCleanup),
 		)
@@ -439,9 +436,7 @@ func resetActionSummaryText(lang string, action core.CreatorResetGroupAction) st
 }
 
 func renderResetCreatorCleanupResult(lang string, cleanup core.CreatorGroupCleanupSummary) string {
-	lines := []string{
-		fmt.Sprintf(i18n.Translate(lang, msgResetCreatorGroupsLine), cleanup.ManagedGroupCount),
-	}
+	lines := []string{}
 	if cleanup.Action == core.CreatorResetKickTrackedMembers {
 		lines = append(lines, fmt.Sprintf(i18n.Translate(lang, msgResetCreatorKickTargetsLine), cleanup.TargetedMembershipCount))
 		if cleanup.QueueFailed {

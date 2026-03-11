@@ -122,11 +122,11 @@ func TestMainMenuAndWithMainMenuMarkup(t *testing.T) {
 	if menu.InlineKeyboard[1][0].CallbackData != viewerCallbacks.Reset {
 		t.Errorf("MainMenuMarkup(%q) second callback = %+v, want CallbackData=%q", "en", menu.InlineKeyboard[1][0], viewerCallbacks.Reset)
 	}
-	if menu.InlineKeyboard[1][0].IconCustomEmojiID != deleteButtonEmojiID {
-		t.Errorf("MainMenuMarkup(%q) second icon = %q, want %q", "en", menu.InlineKeyboard[1][0].IconCustomEmojiID, deleteButtonEmojiID)
+	if menu.InlineKeyboard[1][0].IconCustomEmojiID != manageButtonEmojiID {
+		t.Errorf("MainMenuMarkup(%q) second icon = %q, want %q", "en", menu.InlineKeyboard[1][0].IconCustomEmojiID, manageButtonEmojiID)
 	}
-	if menu.InlineKeyboard[1][0].Style != "danger" {
-		t.Errorf("MainMenuMarkup(%q) second style = %q, want %q", "en", menu.InlineKeyboard[1][0].Style, "danger")
+	if menu.InlineKeyboard[1][0].Style != "" {
+		t.Errorf("MainMenuMarkup(%q) second style = %q, want empty", "en", menu.InlineKeyboard[1][0].Style)
 	}
 
 	creatorCallbacks := CreatorMenuCallbacks{
@@ -154,11 +154,11 @@ func TestMainMenuAndWithMainMenuMarkup(t *testing.T) {
 	if creatorMenu.InlineKeyboard[1][0].CallbackData != "reset:open:creator" {
 		t.Errorf("CreatorMainMenuMarkup(%q) second callback = %+v, want CallbackData=%q", "en", creatorMenu.InlineKeyboard[1][0], "reset:open:creator")
 	}
-	if creatorMenu.InlineKeyboard[1][0].IconCustomEmojiID != deleteButtonEmojiID {
-		t.Errorf("CreatorMainMenuMarkup(%q) second icon = %q, want %q", "en", creatorMenu.InlineKeyboard[1][0].IconCustomEmojiID, deleteButtonEmojiID)
+	if creatorMenu.InlineKeyboard[1][0].IconCustomEmojiID != manageButtonEmojiID {
+		t.Errorf("CreatorMainMenuMarkup(%q) second icon = %q, want %q", "en", creatorMenu.InlineKeyboard[1][0].IconCustomEmojiID, manageButtonEmojiID)
 	}
-	if creatorMenu.InlineKeyboard[1][0].Style != "danger" {
-		t.Errorf("CreatorMainMenuMarkup(%q) second style = %q, want %q", "en", creatorMenu.InlineKeyboard[1][0].Style, "danger")
+	if creatorMenu.InlineKeyboard[1][0].Style != "" {
+		t.Errorf("CreatorMainMenuMarkup(%q) second style = %q, want empty", "en", creatorMenu.InlineKeyboard[1][0].Style)
 	}
 
 	reconnectMenu := CreatorStatusMenuMarkup("en", "https://example.com/reconnect", creatorCallbacks)
@@ -200,6 +200,12 @@ func TestMainMenuAndWithMainMenuMarkup(t *testing.T) {
 	}
 	if reconnectMenu.InlineKeyboard[4][0].CallbackData != creatorCallbacks.Reset {
 		t.Errorf("CreatorStatusMenuMarkup(%q, reconnectURL) reset callback = %+v, want CallbackData=%q", "en", reconnectMenu.InlineKeyboard[4][0], creatorCallbacks.Reset)
+	}
+	if reconnectMenu.InlineKeyboard[4][0].IconCustomEmojiID != manageButtonEmojiID {
+		t.Errorf("CreatorStatusMenuMarkup(%q, reconnectURL) reset icon = %q, want %q", "en", reconnectMenu.InlineKeyboard[4][0].IconCustomEmojiID, manageButtonEmojiID)
+	}
+	if reconnectMenu.InlineKeyboard[4][0].Style != "" {
+		t.Errorf("CreatorStatusMenuMarkup(%q, reconnectURL) reset style = %q, want empty", "en", reconnectMenu.InlineKeyboard[4][0].Style)
 	}
 
 	extra := WithMainMenu("en", viewerCallbacks, []telego.InlineKeyboardButton{CallbackButton("X", "x")})
@@ -288,7 +294,7 @@ func TestLinkedStatusWithNoGroupsMessage(t *testing.T) {
 	}
 
 	got := LinkedStatusWithJoinStateHTML("en", "alice", []string{"Creator One"}, false)
-	if !strings.Contains(got, "No Telegram groups are available yet") {
-		t.Errorf("LinkedStatusWithJoinStateHTML(%q, %q, %v, %t) = %q, want message containing %q", "en", "alice", []string{"Creator One"}, false, got, "No Telegram groups are available yet")
+	if !strings.Contains(got, "No new Telegram groups available") {
+		t.Errorf("LinkedStatusWithJoinStateHTML(%q, %q, %v, %t) = %q, want message containing %q", "en", "alice", []string{"Creator One"}, false, got, "No new Telegram groups available")
 	}
 }

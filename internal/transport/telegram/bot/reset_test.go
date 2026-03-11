@@ -77,7 +77,7 @@ func TestBuildResetExecutionViewCreatorIncludesCleanup(t *testing.T) {
 	if view.text == "" {
 		t.Fatalf("buildResetExecutionView() = %+v, want text", view)
 	}
-	if !containsAll(view.text, "Managed groups cleaned up", "Tracked memberships targeted for kick") {
+	if !containsAll(view.text, "Managed groups unlinked", "Tracked memberships targeted for kick") {
 		t.Fatalf("buildResetExecutionView() text = %q, want creator cleanup details", view.text)
 	}
 }

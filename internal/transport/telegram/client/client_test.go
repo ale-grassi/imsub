@@ -119,6 +119,22 @@ func TestSendTransformsPlayPauseEmojiForHTML(t *testing.T) {
 	caller.assertJSONFieldContains(t, "sendMessage", "text", `<tg-emoji emoji-id="5359543311897998264">⏸️</tg-emoji>`)
 }
 
+func TestSendTransformsCombinedWarningEmojiForHTML(t *testing.T) {
+	t.Parallel()
+
+	caller := &recordingCaller{
+		results: map[string]json.RawMessage{
+			"sendMessage": json.RawMessage(`{"message_id":99,"date":0,"chat":{"id":100,"type":"private"}}`),
+		},
+	}
+	c := newTestClient(t, caller)
+
+	c.Send(t.Context(), 100, "‼️⚠️ Something went wrong", nil)
+
+	caller.assertJSONFieldContains(t, "sendMessage", "text", `<tg-emoji emoji-id="5420323339723881652">‼️⚠️</tg-emoji>`)
+	caller.assertJSONFieldNotContains(t, "sendMessage", "text", `<tg-emoji emoji-id="5447644880824181073">⚠️</tg-emoji>`)
+}
+
 func TestSendLeavesPlainTextEmojiUntouched(t *testing.T) {
 	t.Parallel()
 
@@ -368,6 +384,22 @@ func (c *recordingCaller) assertJSONFieldContains(t *testing.T, method, field, w
 	}
 	if !strings.Contains(got, wantSubstring) {
 		t.Fatalf("%s payload[%q] = %q, want substring %q", method, field, got, wantSubstring)
+	}
+}
+
+func (c *recordingCaller) assertJSONFieldNotContains(t *testing.T, method, field, wantSubstring string) {
+	t.Helper()
+
+	payload, ok := c.request[method]
+	if !ok {
+		t.Fatalf("request for method %q not recorded", method)
+	}
+	got, ok := payload[field].(string)
+	if !ok {
+		t.Fatalf("%s payload[%q] = %#v, want string not containing %q", method, field, payload[field], wantSubstring)
+	}
+	if strings.Contains(got, wantSubstring) {
+		t.Fatalf("%s payload[%q] = %q, did not expect substring %q", method, field, got, wantSubstring)
 	}
 }
 

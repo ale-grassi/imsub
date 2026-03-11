@@ -568,7 +568,7 @@ func (c *Bot) HandleSubscriptionEnd(ctx context.Context, broadcasterID, broadcas
 		return nil
 	}
 	if res.Prepared.Mode == core.SubscriptionEndModeGrace {
-		view := buildSubscriptionGraceStartView(res.Prepared.Language, res.Prepared.ViewerLogin, res.Prepared.BroadcasterLogin, res.Prepared.GraceUntil)
+		view := buildSubscriptionGraceStartView(res.Prepared.Language, res.Prepared.BroadcasterLogin, res.Prepared.GraceUntil)
 		c.sendMsg(ctx, res.Prepared.TelegramUserID, view.text, &view.opts)
 		return nil
 	}
@@ -579,7 +579,7 @@ func (c *Bot) HandleSubscriptionEnd(ctx context.Context, broadcasterID, broadcas
 		}
 	}
 
-	view := buildSubscriptionEndView(res.Prepared.Language, res.Prepared.ViewerLogin, res.Prepared.BroadcasterLogin)
+	view := buildSubscriptionEndView(res.Prepared.Language, res.Prepared.BroadcasterLogin)
 	c.sendMsg(ctx, res.Prepared.TelegramUserID, view.text, &view.opts)
 	return nil
 }

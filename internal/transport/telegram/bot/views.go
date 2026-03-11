@@ -3,6 +3,7 @@ package bot
 import (
 	"fmt"
 	"html"
+	"math"
 	"strings"
 	"time"
 
@@ -34,9 +35,10 @@ func buildMainMenuTextView(lang, key string) sharedView {
 	}
 }
 
-func buildViewerStatusErrorView(lang string) sharedView {
-	return buildMainMenuTextView(lang, msgErrLoadStatus)
+func buildViewerErrorView(lang string) sharedView {
+	return buildMainMenuTextView(lang, msgViewerError)
 }
+
 func buildCreatorStatusErrorView(lang string) sharedView {
 	return buildTextView(lang, msgErrLoadStatus)
 }
@@ -57,21 +59,22 @@ func buildCreatorReconnectRequiredView(lang, reconnectURL string) sharedView {
 	}
 }
 
-func buildSubscriptionEndView(lang, viewerLogin, broadcasterLogin string) sharedView {
+func buildSubscriptionEndView(lang, broadcasterLogin string) sharedView {
 	return sharedView{
-		text: fmt.Sprintf(i18n.Translate(lang, msgSubEndPartial), html.EscapeString(viewerLogin)),
+		text: fmt.Sprintf(i18n.Translate(lang, msgSubEndPartial), html.EscapeString(broadcasterLogin)),
 		opts: client.MessageOptions{
 			Markup: ui.SubEndSubscribeMarkup(lang, broadcasterLogin),
 		},
 	}
 }
 
-func buildSubscriptionGraceStartView(lang, viewerLogin, broadcasterLogin string, dueAt time.Time) sharedView {
+func buildSubscriptionGraceStartView(lang, broadcasterLogin string, dueAt time.Time) sharedView {
+	remainingHours := graceRemainingHours(dueAt, time.Now().UTC())
 	return sharedView{
 		text: fmt.Sprintf(
 			i18n.Translate(lang, msgSubGraceStart),
-			html.EscapeString(viewerLogin),
-			html.EscapeString(dueAt.UTC().Format("2006-01-02 15:04 UTC")),
+			html.EscapeString(broadcasterLogin),
+			remainingHours,
 		),
 		opts: client.MessageOptions{
 			Markup: ui.SubEndSubscribeMarkup(lang, broadcasterLogin),
@@ -79,13 +82,8 @@ func buildSubscriptionGraceStartView(lang, viewerLogin, broadcasterLogin string,
 	}
 }
 
-func buildSubscriptionGraceExpiredView(lang, viewerLogin, broadcasterLogin string) sharedView {
-	return sharedView{
-		text: fmt.Sprintf(i18n.Translate(lang, msgSubGraceExpired), html.EscapeString(viewerLogin)),
-		opts: client.MessageOptions{
-			Markup: ui.SubEndSubscribeMarkup(lang, broadcasterLogin),
-		},
-	}
+func buildSubscriptionGraceExpiredView(lang, broadcasterLogin string) sharedView {
+	return buildSubscriptionEndView(lang, broadcasterLogin)
 }
 
 func buildSubscriptionStartView(lang, broadcasterLogin string, targets core.JoinTargets) sharedView {
@@ -109,13 +107,9 @@ func buildGroupBotRemovedOwnerView(lang, groupName string, cleanupLag bool) shar
 	}
 }
 
-func buildViewerOAuthFailureView(lang, key string) sharedView { return buildTextView(lang, key) }
-
 func buildCreatorOAuthFailureView(lang, key string) sharedView {
 	return buildTextView(lang, key)
 }
-
-func buildOAuthLoadStatusErrorView(lang string) sharedView { return buildViewerStatusErrorView(lang) }
 
 func joinNonEmptyLines(lines ...string) string {
 	out := make([]string, 0, len(lines))
@@ -149,4 +143,15 @@ func renderWarningBlock(title string, warnings []string) string {
 	lines = append(lines, title)
 	lines = append(lines, warnings...)
 	return joinNonEmptyLines(lines...)
+}
+
+func graceRemainingHours(dueAt, now time.Time) int {
+	if dueAt.IsZero() {
+		return 0
+	}
+	remaining := dueAt.UTC().Sub(now.UTC())
+	if remaining <= 0 {
+		return 0
+	}
+	return int(math.Ceil(remaining.Hours()))
 }
