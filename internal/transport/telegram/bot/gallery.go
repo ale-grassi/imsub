@@ -139,14 +139,6 @@ func PreviewScenarios() []PreviewScenario {
 			},
 		},
 		{
-			ID:    "creator-reconnect-required",
-			Group: "Creator",
-			Title: "Creator reconnect-required notification",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildCreatorReconnectRequiredView(lang, "https://example.com/oauth/creator/reconnect"))
-			},
-		},
-		{
 			ID:    "creator-status-no-groups",
 			Group: "Creator",
 			Title: "Creator dashboard with no linked groups",
@@ -178,119 +170,30 @@ func PreviewScenarios() []PreviewScenario {
 			},
 		},
 		{
-			ID:    "creator-status-eventsub-inactive",
-			Group: "Creator",
-			Title: "Creator dashboard with EventSub inactive",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildCreatorStatusView(lang, "", sampleCreator(), core.Status{
-					EventSub:           core.EventSubInactive,
-					Auth:               core.CreatorAuthHealthy,
-					SubscriberCount:    23,
-					HasSubscriberCount: true,
-				}, []core.ManagedGroup{sampleGroup("VIP Lounge", 1001, core.GroupPolicyObserve)}))
-			},
-		},
-		{
-			ID:    "creator-status-eventsub-unknown",
-			Group: "Creator",
-			Title: "Creator dashboard with EventSub unknown",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildCreatorStatusView(lang, "", sampleCreator(), core.Status{
-					EventSub:           core.EventSubUnknown,
-					Auth:               core.CreatorAuthHealthy,
-					BannedUserCount:    2,
-					HasBannedUserCount: true,
-				}, []core.ManagedGroup{sampleGroup("VIP Lounge", 1001, core.GroupPolicyObserve)}))
-			},
-		},
-		{
-			ID:    "creator-status-auth-reconnect",
-			Group: "Creator",
-			Title: "Creator dashboard with reconnect required",
-			Render: func(lang string) PreviewView {
-				status := core.Status{
-					EventSub:           core.EventSubInactive,
-					Auth:               core.CreatorAuthReconnectRequired,
-					AuthStatusAt:       sampleTime(-6 * time.Hour),
-					SubscriberCount:    12,
-					HasSubscriberCount: true,
-				}
-				return previewFromShared(buildCreatorStatusView(lang, "https://example.com/oauth/creator/reconnect", sampleCreator(), status, []core.ManagedGroup{sampleGroup("VIP Lounge", 1001, core.GroupPolicyObserve)}))
-			},
-		},
-		{
-			ID:    "creator-eventsub-fail",
-			Group: "Creator",
-			Title: "Creator EventSub failure note",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildTextView(lang, msgCreatorEventSubFail))
-			},
-		},
-		{
-			ID:    "creator-exchange-fail",
-			Group: "Creator",
-			Title: "Creator OAuth exchange failure",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildCreatorOAuthFailureView(lang, msgCreatorExchangeFail))
-			},
-		},
-		{
-			ID:    "creator-scope-missing",
-			Group: "Creator",
-			Title: "Creator OAuth scope missing",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildCreatorOAuthFailureView(lang, msgCreatorScopeMissing))
-			},
-		},
-		{
-			ID:    "creator-userinfo-fail",
-			Group: "Creator",
-			Title: "Creator OAuth user info failure",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildCreatorOAuthFailureView(lang, msgCreatorUserInfoFail))
-			},
-		},
-		{
-			ID:    "creator-store-fail",
-			Group: "Creator",
-			Title: "Creator OAuth/store failure",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildCreatorOAuthFailureView(lang, msgCreatorStoreFail))
-			},
-		},
-		{
 			ID:    "creator-reconnect-mismatch",
 			Group: "Creator",
 			Title: "Creator reconnect mismatch",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(buildCreatorOAuthFailureView(lang, msgCreatorReconnectMismatch))
+				return previewFromShared(buildTextView(lang, msgCreatorReconnectMismatch))
 			},
 		},
 		{
 			ID:    "creator-manage-groups",
 			Group: "Creator",
-			Title: "Manage linked groups",
+			Title: "Manage groups",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(buildCreatorManagedGroupsView(lang, sampleCreator(), []core.ManagedGroup{
+				return previewFromShared(buildCreatorManagedGroupsView(lang, []core.ManagedGroup{
 					sampleGroup("VIP Lounge", 1001, core.GroupPolicyObserveWarn),
 					sampleGroup("Patrons", 1002, core.GroupPolicyKick),
 				}, ""))
 			},
 		},
 		{
-			ID:    "creator-manage-groups-empty",
-			Group: "Creator",
-			Title: "Manage linked groups empty state",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildCreatorManagedGroupsView(lang, sampleCreator(), nil, ""))
-			},
-		},
-		{
 			ID:    "creator-group-settings",
 			Group: "Creator",
-			Title: "Group settings view",
+			Title: "Group settings",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(buildCreatorGroupSettingsView(lang, sampleCreator(), sampleGroup("VIP Lounge", 1001, core.GroupPolicyObserveWarn), creatorMenuCallback(), "Setup note"))
+				return previewFromShared(buildCreatorGroupSettingsView(lang, sampleGroup("VIP Lounge", 1001, core.GroupPolicyObserveWarn), creatorMenuCallback(), ""))
 			},
 		},
 		{
@@ -298,7 +201,7 @@ func PreviewScenarios() []PreviewScenario {
 			Group: "Creator",
 			Title: "Group policy picker",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(buildCreatorGroupPolicyPickerView(lang, sampleCreator(), sampleGroup("VIP Lounge", 1001, core.GroupPolicyObserve)))
+				return previewFromShared(buildCreatorGroupPolicyPickerView(lang, sampleGroup("VIP Lounge", 1001, core.GroupPolicyObserve)))
 			},
 		},
 		{
@@ -306,7 +209,7 @@ func PreviewScenarios() []PreviewScenario {
 			Group: "Creator",
 			Title: "Group policy change confirmation",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(buildCreatorGroupPolicyConfirmView(lang, sampleCreator(), sampleGroup("VIP Lounge", 1001, core.GroupPolicyObserve), core.GroupPolicyGraceWeek))
+				return previewFromShared(buildCreatorGroupPolicyConfirmView(lang, sampleGroup("VIP Lounge", 1001, core.GroupPolicyObserve), core.GroupPolicyGraceWeek))
 			},
 		},
 		{
@@ -314,7 +217,7 @@ func PreviewScenarios() []PreviewScenario {
 			Group: "Creator",
 			Title: "Creator unlink-group confirmation",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(buildCreatorGroupUnregisterConfirmView(lang, sampleCreator(), sampleGroup("VIP Lounge", 1001, core.GroupPolicyObserve), creatorMenuCallback()))
+				return previewFromShared(buildCreatorGroupUnregisterConfirmView(lang, sampleGroup("VIP Lounge", 1001, core.GroupPolicyObserve), creatorMenuCallback()))
 			},
 		},
 		{
@@ -326,51 +229,11 @@ func PreviewScenarios() []PreviewScenario {
 			},
 		},
 		{
-			ID:    "creator-group-unregistered-cleanup",
-			Group: "Creator",
-			Title: "Creator group unlinked with background cleanup",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildTextViewWithArgs(lang, msgCreatorGroupUnregisteredKicked, "VIP Lounge", 14))
-			},
-		},
-		{
-			ID:    "creator-group-unregistered-cleanup-failed",
-			Group: "Creator",
-			Title: "Creator group unlinked, cleanup queue failed",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildTextViewWithArgs(lang, msgCreatorGroupUnregisteredKickAllFailed, "VIP Lounge", 14))
-			},
-		},
-		{
-			ID:    "creator-group-unavailable",
-			Group: "Creator",
-			Title: "Creator group unavailable notice",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildTextView(lang, msgCreatorGroupUnavailable))
-			},
-		},
-		{
 			ID:    "creator-group-policy-updated",
 			Group: "Creator",
-			Title: "Group policy updated",
+			Title: "Group policy saved",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(buildTextViewWithArgs(lang, msgCreatorGroupPolicyUpdated, "VIP Lounge", formatGroupPolicyLine(lang, core.GroupPolicyKick)))
-			},
-		},
-		{
-			ID:    "creator-group-policy-same",
-			Group: "Creator",
-			Title: "Group policy unchanged",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildTextViewWithArgs(lang, msgCreatorGroupPolicySame, "VIP Lounge"))
-			},
-		},
-		{
-			ID:    "creator-group-policy-denied",
-			Group: "Creator",
-			Title: "Group policy denied",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildTextView(lang, msgCreatorGroupPolicyDenied))
+				return previewFromShared(buildTextViewWithArgs(lang, msgCreatorGroupPolicyUpdated, "VIP Lounge", formatCreatorGroupPolicyValue(lang, core.GroupPolicyKick)))
 			},
 		},
 		{
@@ -442,7 +305,7 @@ func PreviewScenarios() []PreviewScenario {
 		{
 			ID:    "group-policy-prompt-existing-members",
 			Group: "Group/Admin",
-			Title: "Group policy prompt with existing members warning",
+			Title: "Group policy prompt with existing members",
 			Render: func(lang string) PreviewView {
 				return previewFromShared(buildGroupRegistrationPolicyPromptView(lang, 0, -1001, 0, 8))
 			},
@@ -464,70 +327,11 @@ func PreviewScenarios() []PreviewScenario {
 			},
 		},
 		{
-			ID:    "group-registration-already-linked",
+			ID:    "group-registration-settings-ok",
 			Group: "Group/Admin",
-			Title: "Group already linked result",
+			Title: "Group linked with passing settings",
 			Render: func(lang string) PreviewView {
-				view, _ := buildGroupRegistrationView(lang, 0, usecase.RegisterGroupResult{
-					Outcome: usecase.RegisterGroupOutcomeAlreadyLinked,
-					Creator: sampleCreator(),
-					ExistingGroup: core.ManagedGroup{
-						GroupName: "VIP Lounge",
-						Policy:    core.GroupPolicyObserveWarn,
-					},
-				})
-				return previewFromGroupRegistration(view)
-			},
-		},
-		{
-			ID:    "group-registration-taken",
-			Group: "Group/Admin",
-			Title: "Group linked to another creator",
-			Render: func(lang string) PreviewView {
-				view, _ := buildGroupRegistrationView(lang, 0, usecase.RegisterGroupResult{
-					Outcome:          usecase.RegisterGroupOutcomeTakenByOther,
-					OtherCreatorName: "other_streamer",
-				})
-				return previewFromGroupRegistration(view)
-			},
-		},
-		{
-			ID:    "group-registration-not-creator",
-			Group: "Group/Admin",
-			Title: "Group registration by non-creator",
-			Render: func(lang string) PreviewView {
-				view, _ := buildGroupRegistrationView(lang, 0, usecase.RegisterGroupResult{
-					Outcome: usecase.RegisterGroupOutcomeNotCreator,
-				})
-				return previewFromGroupRegistration(view)
-			},
-		},
-		{
-			ID:    "post-registration-group-ok",
-			Group: "Group/Admin",
-			Title: "Post-registration group message with passing settings",
-			Render: func(lang string) PreviewView {
-				out := renderPostRegistrationCopy(postRegistrationCopyInput{
-					lang:          lang,
-					groupName:     "VIP Lounge",
-					creatorName:   "streamer_one",
-					groupBaseText: fmt.Sprintf(i18n.Translate(lang, msgGroupRegistered), html.EscapeString("streamer_one")),
-				}, nil)
-				return PreviewView{Text: out.groupMessage}
-			},
-		},
-		{
-			ID:    "post-registration-dm-warnings",
-			Group: "Group/Admin",
-			Title: "Post-registration owner DM with settings warnings",
-			Render: func(lang string) PreviewView {
-				out := renderPostRegistrationCopy(postRegistrationCopyInput{
-					lang:          lang,
-					groupName:     "VIP Lounge",
-					creatorName:   "streamer_one",
-					groupBaseText: fmt.Sprintf(i18n.Translate(lang, msgGroupRegistered), html.EscapeString("streamer_one")),
-				}, sampleGroupIssues(lang))
-				return PreviewView{Text: out.finalDM}
+				return previewFromShared(buildGroupSettingsCheckResultView(lang, i18n.Translate(lang, msgGroupRegistered), nil))
 			},
 		},
 		{
@@ -539,19 +343,11 @@ func PreviewScenarios() []PreviewScenario {
 			},
 		},
 		{
-			ID:    "group-bot-status-changed",
-			Group: "Group/Admin",
-			Title: "Bot status changed notice",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildGroupBotStatusChangedView(lang))
-			},
-		},
-		{
 			ID:    "group-untracked-join-warning",
 			Group: "Group/Admin",
 			Title: "Unverified member join warning",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(buildGroupUntrackedJoinWarningView(lang))
+				return previewFromShared(buildGroupUntrackedJoinWarningView(lang, 42, "Alex"))
 			},
 		},
 		{
@@ -567,30 +363,7 @@ func PreviewScenarios() []PreviewScenario {
 			Group: "Group/Admin",
 			Title: "Group unlinked result",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(buildGroupUnregisteredView(lang, 0, usecase.UnregisterGroupResult{}))
-			},
-		},
-		{
-			ID:    "group-unregistered-cleanup",
-			Group: "Group/Admin",
-			Title: "Group unlinked with background cleanup",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildGroupUnregisteredView(lang, 0, usecase.UnregisterGroupResult{
-					MemberAction:            core.CreatorResetKickTrackedMembers,
-					TargetedMembershipCount: 11,
-				}))
-			},
-		},
-		{
-			ID:    "group-unregistered-cleanup-failed",
-			Group: "Group/Admin",
-			Title: "Group unlinked, cleanup queue failed",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildGroupUnregisteredView(lang, 0, usecase.UnregisterGroupResult{
-					MemberAction:            core.CreatorResetKickTrackedMembers,
-					TargetedMembershipCount: 11,
-					CleanupQueueFailed:      true,
-				}))
+				return previewFromShared(buildGroupUnregisteredView(lang, 0))
 			},
 		},
 		{
@@ -598,15 +371,7 @@ func PreviewScenarios() []PreviewScenario {
 			Group: "Group/Admin",
 			Title: "Bot removed from managed group",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(buildGroupBotRemovedOwnerView(lang, "VIP Lounge", false))
-			},
-		},
-		{
-			ID:    "group-removed-owner-dm-cleanup-lag",
-			Group: "Group/Admin",
-			Title: "Bot removed from managed group with cleanup lag",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildGroupBotRemovedOwnerView(lang, "VIP Lounge", true))
+				return previewFromShared(buildGroupBotRemovedOwnerView(lang, "VIP Lounge"))
 			},
 		},
 		{
@@ -741,21 +506,6 @@ func PreviewScenarios() []PreviewScenario {
 			Title: "Reset error",
 			Render: func(lang string) PreviewView {
 				return previewFromShared(buildResetErrorView(lang))
-			},
-		},
-		{
-			ID:    "cleanup-group-warning",
-			Group: "Cleanup",
-			Title: "Group cleanup warning",
-			Render: func(lang string) PreviewView {
-				view, _ := buildMemberCleanupResultView(lang, core.MemberCleanupResult{
-					Kind:           core.MemberCleanupKindGroupUnregistration,
-					GroupName:      "VIP Lounge",
-					TargetedCount:  12,
-					SucceededCount: 9,
-					FailedCount:    3,
-				})
-				return previewFromShared(view)
 			},
 		},
 		{

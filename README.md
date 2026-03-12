@@ -46,7 +46,7 @@ Access is enforced continuously: Twitch EventSub webhooks trigger grants and kic
 
 ## How It Works
 
-1. A **Creator** links their Twitch channel via `/creator` and binds a Telegram group with `/registergroup`.
+1. A **Creator** links their Twitch channel via `/creator` and links a Telegram group with `/linkgroup`.
 2. ImSub subscribes to Twitch EventSub events (`channel.subscribe`, `channel.subscription.end`) for that channel.
 3. A **Viewer** runs `/start`, links their Twitch account, and sees join buttons for any group where they have an active subscription.
 4. When a subscription ends, the bot automatically kicks the viewer from the group and notifies them with a resubscribe link.
@@ -111,8 +111,10 @@ For production deployments, see [Deployment](#deployment).
 | `/start` | Private chat | Link a Twitch account and see available groups |
 | `/creator` | Private chat | Link a Twitch creator account or view creator status |
 | `/reset` | Private chat | Guided deletion of viewer data, creator data, or both |
-| `/registergroup` | Group chat | Bind the current group to your creator account (admin only) |
-| `/unregistergroup` | Group chat | Unlink the current group from your creator account (owner only) |
+| `/help` | Private chat | Help desk flow for reports and troubleshooting, with one practical LLM-generated answer per user each week |
+| `/info` | Private chat | Short about screen with project, repository, and license information |
+| `/linkgroup` | Group chat | Link the current group to your creator account (admin only) |
+| `/unlinkgroup` | Group chat | Unlink the current group from your creator account (owner only) |
 
 ---
 
@@ -364,7 +366,7 @@ The bot is mostly state-driven. User actions from Telegram callbacks/commands re
 
 > **Note:** Group membership is group-centric. The canonical tracked set is `imsub:group:tracked:{chat_id}`, with `imsub:user:groups:tracked:{telegram_user_id}` kept as its reverse index.
 
-**Active vs. inactive creator:** A creator is "active" when it owns at least one managed Telegram group, meaning the creator ran `/registergroup` successfully. An "inactive" creator has linked their Twitch account via `/creator` but has not yet bound any group. Most flows (join buttons, kicks, reconciler, reset scans) only operate on active creators.
+**Active vs. inactive creator:** A creator is "active" when it owns at least one managed Telegram group, meaning the creator ran `/linkgroup` successfully. An "inactive" creator has linked their Twitch account via `/creator` but has not yet linked any group. Most flows (join buttons, kicks, reconciler, reset scans) only operate on active creators.
 
 ### Detailed Flows
 
@@ -405,14 +407,14 @@ The bot is mostly state-driven. User actions from Telegram callbacks/commands re
    - Exchanges code for token
    - Verifies required scope `channel:read:subscriptions`
    - Stores creator record + tokens
-   - EventSub and subscriber dump are deferred until `/registergroup`
+   - EventSub and subscriber dump are deferred until `/linkgroup`
 
 </details>
 
 <details>
 <summary><strong>Group Registration Flow</strong></summary>
 
-`/registergroup` checks:
+`/linkgroup` checks:
 
 1. Must be in group chat.
 2. Caller must be admin/creator in that group.
@@ -502,12 +504,13 @@ Planned improvements and open design questions, roughly ordered by impact.
 - **Right to erasure**: the existing reset flow deletes user data, but it should also confirm deletion of all associated records (event logs, untracked membership observations, cached invite links) and return a confirmation receipt.
 - **Consent flow**: before storing any personal data, present a clear consent prompt explaining what data is collected, why, and how long it is retained. Store the consent timestamp.
 - **Data retention policy**: define and enforce retention limits for event logs, untracked membership records, and OAuth tokens. Automatically purge data beyond the retention window.
-- **Privacy policy link**: surface a link to the privacy policy in the `/start` flow and `/help` output.
+- **Privacy policy link**: surface a link to the privacy policy in the `/start`, `/help`, and `/info` flows.
 
 
-### UX polish
+### Support and info
 
-- **`/help` command**: add a `/help` command that explains what the bot does, lists available commands, and provides a way to reach support (e.g. a link to a support channel, a contact username, or an inline form to submit issues). Could later evolve into an FAQ or guided troubleshooting flow.
+- **`/help` help desk**: add a dedicated support flow where users can describe a problem or send a report. Once per week, that report can be analyzed by an LLM to return one automatic but practical, on-context answer or suggested resolution.
+- **`/info` about screen**: add a short "about me" style screen with the project summary, repository link, license, and other basic public information about the bot.
 - **Localization**: add more languages beyond English and Italian.
 - **Inline status refresh**: let viewers check their subscription status without going through the full `/start` flow again.
 

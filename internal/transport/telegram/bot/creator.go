@@ -21,47 +21,32 @@ import (
 )
 
 const (
-	msgErrCreatorLink                        = "err_creator_link"
-	msgCreatorRegisterInfo                   = "creator_register_info"
-	msgCreatorRegisteredNoGroup              = "creator_registered_no_group_html"
-	msgCreatorRegistered                     = "creator_registered_html"
-	msgCreatorEventSubActive                 = "creator_eventsub_active"
-	msgCreatorEventSubInactive               = "creator_eventsub_inactive"
-	msgCreatorEventSubUnknown                = "creator_eventsub_unknown"
-	msgCreatorEventSubFail                   = "creator_eventsub_fail"
-	msgCreatorAuthHealthy                    = "creator_auth_healthy"
-	msgCreatorAuthReconnect                  = "creator_auth_reconnect_required"
-	msgCreatorSubscribersPending             = "creator_subscribers_pending"
-	msgCreatorSubscribersReady               = "creator_subscribers_ready"
-	msgCreatorGroupsNone                     = "creator_groups_none"
-	msgCreatorExchangeFail                   = "creator_exchange_fail"
-	msgCreatorReconnectInfo                  = "creator_reconnect_info"
-	msgCreatorReconnectMismatch              = "creator_reconnect_mismatch"
-	msgCreatorReconnectNeeded                = "creator_reconnect_needed"
-	msgCreatorScopeMissing                   = "creator_scope_missing"
-	msgCreatorUserInfoFail                   = "creator_userinfo_fail"
-	msgCreatorStoreFail                      = "creator_store_fail"
-	msgCreatorManageGroupsHTML               = "creator_manage_groups_html"
-	msgCreatorManageGroupsEmpty              = "creator_manage_groups_empty_html"
-	msgCreatorGroupSettingsHTML              = "creator_group_settings_html"
-	msgCreatorGroupPolicyHTML                = "creator_group_policy_picker_html"
-	msgCreatorGroupPolicyConfirm             = "creator_group_policy_confirm_html"
-	msgCreatorUnregisterConfirm              = "creator_unregister_confirm_html"
-	msgCreatorGroupUnregistered              = "creator_group_unregistered_html"
-	msgCreatorGroupUnregisteredKicked        = "creator_group_unregistered_kicked_html"
-	msgCreatorGroupUnregisteredKickAllFailed = "creator_group_unregistered_kick_all_failed_html"
-	msgCreatorGroupUnavailable               = "creator_group_unavailable_html"
-	msgCreatorGroupPolicyUpdated             = "creator_group_policy_updated_html"
-	msgCreatorGroupPolicySame                = "creator_group_policy_same_html"
-	msgCreatorGroupPolicyDenied              = "creator_group_policy_not_owner"
-	msgCreatorGracePickerHTML                = "creator_grace_picker_html"
-	msgCreatorGraceEnabled                   = "creator_grace_enabled"
-	msgCreatorGraceDisabled                  = "creator_grace_disabled"
-	msgCreatorGraceUpdated                   = "creator_grace_updated"
-	msgCreatorBlocklistEnabled               = "creator_blocklist_enabled"
-	msgCreatorBlocklistDisabled              = "creator_blocklist_disabled"
-	msgCreatorBlocklistOnNotice              = "creator_blocklist_on_notice"
-	msgCreatorBlocklistOffNotice             = "creator_blocklist_off_notice"
+	msgErrCreatorLink            = "err_creator_link"
+	msgCreatorRegisterInfo       = "creator_register_info"
+	msgCreatorRegisteredNoGroup  = "creator_registered_no_group_html"
+	msgCreatorRegistered         = "creator_registered_html"
+	msgCreatorAuthHealthy        = "creator_auth_healthy"
+	msgCreatorAuthReconnect      = "creator_auth_reconnect_required"
+	msgCreatorSubscribersPending = "creator_subscribers_pending"
+	msgCreatorSubscribersReady   = "creator_subscribers_ready"
+	msgCreatorGroupsNone         = "creator_groups_none"
+	msgCreatorReconnectInfo      = "creator_reconnect_info"
+	msgCreatorReconnectMismatch  = "creator_reconnect_mismatch"
+	msgCreatorManageGroupsHTML   = "creator_manage_groups_html"
+	msgCreatorGroupSettingsHTML  = "creator_group_settings_html"
+	msgCreatorGroupPolicyHTML    = "creator_group_policy_picker_html"
+	msgCreatorGroupPolicyConfirm = "creator_group_policy_confirm_html"
+	msgCreatorUnregisterConfirm  = "creator_unregister_confirm_html"
+	msgCreatorGroupUnregistered  = "creator_group_unregistered_html"
+	msgCreatorGroupPolicyUpdated = "creator_group_policy_updated_html"
+	msgCreatorGracePickerHTML    = "creator_grace_picker_html"
+	msgCreatorGraceEnabled       = "creator_grace_enabled"
+	msgCreatorGraceDisabled      = "creator_grace_disabled"
+	msgCreatorGraceUpdated       = "creator_grace_updated"
+	msgCreatorBlocklistEnabled   = "creator_blocklist_enabled"
+	msgCreatorBlocklistDisabled  = "creator_blocklist_disabled"
+	msgCreatorBlocklistOnNotice  = "creator_blocklist_on_notice"
+	msgCreatorBlocklistOffNotice = "creator_blocklist_off_notice"
 
 	btnRegisterCreatorOpen = "btn_register_creator_open"
 	btnReconnectCreator    = "btn_reconnect_creator"
@@ -239,6 +224,11 @@ func (c *Bot) replyCreatorStatus(ctx context.Context, telegramUserID int64, edit
 		if err != nil {
 			c.log().Warn("creatorReconnectURL failed", "telegram_user_id", telegramUserID, "creator_id", res.Creator.ID, "error", err)
 		}
+		if err == nil {
+			view := buildCreatorPromptView(lang, reconnectURL, true)
+			c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
+			return
+		}
 	}
 	view := buildCreatorStatusView(lang, reconnectURL, res.Creator, res.Status, res.Groups)
 
@@ -258,33 +248,27 @@ func (c *Bot) HandleCreatorOAuthCallback(ctx context.Context, code string, paylo
 		if errors.As(flowErr, &fe) {
 			switch fe.Kind {
 			case core.KindTokenExchange:
-				view := buildCreatorOAuthFailureView(lang, msgCreatorExchangeFail)
-				c.sendMsg(ctx, payload.TelegramUserID, view.text, &view.opts)
+				c.sendCreatorReconnectPromptFallback(ctx, payload.TelegramUserID, lang)
 				return res.ResultLabel, "", fmt.Errorf("creator token exchange: %w", flowErr)
 			case core.KindScopeMissing:
-				view := buildCreatorOAuthFailureView(lang, msgCreatorScopeMissing)
-				c.sendMsg(ctx, payload.TelegramUserID, view.text, &view.opts)
+				c.sendCreatorReconnectPromptFallback(ctx, payload.TelegramUserID, lang)
 				return res.ResultLabel, "", fmt.Errorf("creator scope missing: %w", flowErr)
 			case core.KindUserInfo:
-				view := buildCreatorOAuthFailureView(lang, msgCreatorUserInfoFail)
-				c.sendMsg(ctx, payload.TelegramUserID, view.text, &view.opts)
+				c.sendCreatorReconnectPromptFallback(ctx, payload.TelegramUserID, lang)
 				return res.ResultLabel, "", fmt.Errorf("creator user info: %w", flowErr)
 			case core.KindStore:
-				view := buildCreatorOAuthFailureView(lang, msgCreatorStoreFail)
-				c.sendMsg(ctx, payload.TelegramUserID, view.text, &view.opts)
+				c.sendCreatorReconnectPromptFallback(ctx, payload.TelegramUserID, lang)
 				return res.ResultLabel, "", fmt.Errorf("creator store fail: %w", flowErr)
 			case core.KindSave:
-				view := buildCreatorOAuthFailureView(lang, msgCreatorStoreFail)
-				c.sendMsg(ctx, payload.TelegramUserID, view.text, &view.opts)
+				c.sendCreatorReconnectPromptFallback(ctx, payload.TelegramUserID, lang)
 				return res.ResultLabel, "", fmt.Errorf("creator save fail: %w", flowErr)
 			case core.KindCreatorMismatch:
-				view := buildCreatorOAuthFailureView(lang, msgCreatorReconnectMismatch)
+				view := buildTextView(lang, msgCreatorReconnectMismatch)
 				c.sendMsg(ctx, payload.TelegramUserID, view.text, &view.opts)
 				return res.ResultLabel, "", fmt.Errorf("creator reconnect mismatch: %w", flowErr)
 			}
 		}
-		view := buildCreatorOAuthFailureView(lang, msgCreatorStoreFail)
-		c.sendMsg(ctx, payload.TelegramUserID, view.text, &view.opts)
+		c.sendCreatorReconnectPromptFallback(ctx, payload.TelegramUserID, lang)
 		return res.ResultLabel, "", fmt.Errorf("creator unexpected fail: %w", flowErr)
 	}
 	creator := res.Creator
@@ -302,28 +286,38 @@ func (c *Bot) NotifyCreatorReconnectRequired(ctx context.Context, creator core.C
 	if identity, ok, err := c.store.UserIdentity(ctx, creator.OwnerTelegramID); err == nil && ok && identity.Language != "" {
 		lang = identity.Language
 	}
-	reconnectURL, err := c.creatorReconnectURL(ctx, creator.OwnerTelegramID, lang)
+	return c.sendCreatorReconnectPrompt(ctx, creator.OwnerTelegramID, lang)
+}
+
+func (c *Bot) sendCreatorReconnectPrompt(ctx context.Context, telegramUserID int64, lang string) error {
+	reconnectURL, err := c.creatorReconnectURL(ctx, telegramUserID, lang)
 	if err != nil {
 		return fmt.Errorf("creator reconnect url: %w", err)
 	}
-	view := buildCreatorReconnectRequiredView(lang, reconnectURL)
-	if messageID := c.sendMsg(ctx, creator.OwnerTelegramID, view.text, &view.opts); messageID == 0 {
+	view := buildCreatorPromptView(lang, reconnectURL, true)
+	if messageID := c.sendMsg(ctx, telegramUserID, view.text, &view.opts); messageID == 0 {
 		return errReconnectNotificationSend
 	}
 	return nil
 }
 
-func creatorEventSubStatusText(status core.Status, lang string) string {
-	switch status.EventSub {
-	case core.EventSubActive:
-		return i18n.Translate(lang, msgCreatorEventSubActive)
-	case core.EventSubInactive:
-		return i18n.Translate(lang, msgCreatorEventSubInactive)
-	case core.EventSubUnknown:
-		return i18n.Translate(lang, msgCreatorEventSubUnknown)
-	default:
-		return i18n.Translate(lang, msgCreatorEventSubUnknown)
+func (c *Bot) sendCreatorReconnectPromptFallback(ctx context.Context, telegramUserID int64, lang string) {
+	if err := c.sendCreatorReconnectPrompt(ctx, telegramUserID, lang); err != nil {
+		c.log().Warn("sendCreatorReconnectPrompt failed", "telegram_user_id", telegramUserID, "error", err)
+		view := buildCreatorLinkErrorView(lang)
+		c.sendMsg(ctx, telegramUserID, view.text, &view.opts)
 	}
+}
+
+func creatorEventSubStatusText(status core.Status, lang string) string {
+	if status.LastSyncAt.IsZero() {
+		return ""
+	}
+	return fmt.Sprintf(i18n.Translate(lang, "creator_last_sync_at"), telegramDateTimeHTML(status.LastSyncAt, "Dt"))
+}
+
+func creatorSyncDisabledText(lang string) string {
+	return i18n.Translate(lang, "creator_last_sync_disabled")
 }
 
 func creatorAuthStatusText(status core.Status, lang string) string {
@@ -344,16 +338,17 @@ func creatorSubscriberStatusText(status core.Status, lang string) string {
 	return fmt.Sprintf(i18n.Translate(lang, msgCreatorSubscribersReady), status.SubscriberCount)
 }
 
+func telegramDateTimeHTML(ts time.Time, format string) string {
+	unix := ts.UTC().Unix()
+	fallback := html.EscapeString(formatStatusTime(ts))
+	return fmt.Sprintf(`<tg-time unix="%d" format="%s">%s</tg-time>`, unix, html.EscapeString(format), fallback)
+}
+
 func creatorStatusDetailsText(status core.Status, lang string) string {
-	lastSyncLine := ""
-	if !status.LastSyncAt.IsZero() {
-		lastSyncLine = fmt.Sprintf(i18n.Translate(lang, "creator_last_sync_at"), formatStatusTime(status.LastSyncAt))
-	}
-	reconnectLine := ""
 	if status.Auth == core.CreatorAuthReconnectRequired && !status.AuthStatusAt.IsZero() {
-		reconnectLine = fmt.Sprintf(i18n.Translate(lang, "creator_reconnect_since"), formatStatusTime(status.AuthStatusAt))
+		return fmt.Sprintf(i18n.Translate(lang, "creator_reconnect_since"), telegramDateTimeHTML(status.AuthStatusAt, "Dt"))
 	}
-	return joinNonEmptyLines(lastSyncLine, reconnectLine)
+	return ""
 }
 
 func creatorBannedUserCountText(status core.Status, lang string) string {
@@ -413,8 +408,8 @@ func formatStatusTime(ts time.Time) string {
 	return ts.UTC().Format("2006-01-02 15:04 UTC")
 }
 
-// CreatorGroupLines returns HTML bullet lines describing creator-to-group bindings.
-func CreatorGroupLines(lang, creatorName string, groups []core.ManagedGroup) string {
+// CreatorGroupLines returns HTML bullet lines describing managed group names.
+func CreatorGroupLines(lang string, groups []core.ManagedGroup) string {
 	if len(groups) == 0 {
 		return i18n.Translate(lang, msgCreatorGroupsNone)
 	}
@@ -424,11 +419,7 @@ func CreatorGroupLines(lang, creatorName string, groups []core.ManagedGroup) str
 		if groupName == "" {
 			groupName = "-"
 		}
-		lines = append(lines, fmt.Sprintf(
-			"• <b>%s</b> -> <b>%s</b>",
-			html.EscapeString(creatorName),
-			html.EscapeString(groupName),
-		))
+		lines = append(lines, "• "+html.EscapeString(groupName))
 	}
 	return strings.Join(lines, "\n")
 }
@@ -438,10 +429,13 @@ func (c *Bot) replyCreatorManagedGroups(ctx context.Context, telegramUserID int6
 	if !ok {
 		return ""
 	}
+	if len(res.Groups) == 0 {
+		return c.replyCreatorStatusWithNotice(ctx, telegramUserID, editMsgID, lang, notice)
+	}
 	if len(res.Groups) == 1 {
 		return c.replyCreatorGroupSettingsForResult(ctx, telegramUserID, editMsgID, lang, res, res.Groups[0].ChatID, notice)
 	}
-	view := buildCreatorManagedGroupsView(lang, res.Creator, res.Groups, notice)
+	view := buildCreatorManagedGroupsView(lang, res.Groups, notice)
 	c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
 	return ""
 }
@@ -465,21 +459,14 @@ func (c *Bot) replyCreatorGroupSettingsForResult(
 ) string {
 	group, found := findCreatorManagedGroup(res.Groups, groupChatID)
 	if !found {
-		view := buildCreatorManagedGroupsView(
-			lang,
-			res.Creator,
-			res.Groups,
-			i18n.Translate(lang, msgCreatorGroupUnavailable),
-		)
-		c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
-		return ""
+		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, "")
 	}
 
 	backCallback := creatorGroupBackCallback()
 	if len(res.Groups) <= 1 {
 		backCallback = creatorMenuCallback()
 	}
-	view := buildCreatorGroupSettingsView(lang, res.Creator, group, backCallback, notice)
+	view := buildCreatorGroupSettingsView(lang, group, backCallback, notice)
 	c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
 	return ""
 }
@@ -491,9 +478,9 @@ func (c *Bot) replyCreatorGroupPolicyPicker(ctx context.Context, telegramUserID 
 	}
 	group, found := findCreatorManagedGroup(res.Groups, groupChatID)
 	if !found {
-		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, i18n.Translate(lang, msgCreatorGroupUnavailable))
+		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, "")
 	}
-	view := buildCreatorGroupPolicyPickerView(lang, res.Creator, group)
+	view := buildCreatorGroupPolicyPickerView(lang, group)
 	c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
 	return ""
 }
@@ -505,9 +492,9 @@ func (c *Bot) replyCreatorGroupPolicyConfirm(ctx context.Context, telegramUserID
 	}
 	group, found := findCreatorManagedGroup(res.Groups, groupChatID)
 	if !found {
-		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, i18n.Translate(lang, msgCreatorGroupUnavailable))
+		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, "")
 	}
-	view := buildCreatorGroupPolicyConfirmView(lang, res.Creator, group, policy)
+	view := buildCreatorGroupPolicyConfirmView(lang, group, policy)
 	c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
 	return ""
 }
@@ -530,18 +517,11 @@ func (c *Bot) replyCreatorGroupUnregisterConfirmForResult(
 ) string {
 	group, found := findCreatorManagedGroup(res.Groups, groupChatID)
 	if !found {
-		view := buildCreatorManagedGroupsView(
-			lang,
-			res.Creator,
-			res.Groups,
-			i18n.Translate(lang, msgCreatorGroupUnavailable),
-		)
-		c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
-		return ""
+		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, "")
 	}
 
 	backCallback := creatorGroupPickCallback(groupChatID)
-	view := buildCreatorGroupUnregisterConfirmView(lang, res.Creator, group, backCallback)
+	view := buildCreatorGroupUnregisterConfirmView(lang, group, backCallback)
 	c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
 	return ""
 }
@@ -562,7 +542,7 @@ func (c *Bot) executeCreatorGroupUnregister(ctx context.Context, telegramUserID 
 
 	switch res.Outcome {
 	case usecase.UnregisterGroupOutcomeNotManaged:
-		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, i18n.Translate(lang, msgCreatorGroupUnavailable))
+		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, "")
 	case usecase.UnregisterGroupOutcomeNotOwner:
 		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, i18n.Translate(lang, msgGroupUnregisterNotOwner))
 	case usecase.UnregisterGroupOutcomeUnregistered, usecase.UnregisterGroupOutcomeUnregisteredCleanupLag:
@@ -570,18 +550,7 @@ func (c *Bot) executeCreatorGroupUnregister(ctx context.Context, telegramUserID 
 			c.log().Warn("group unregistered from creator menu but eventsub cleanup deferred to reconciliation", "creator_id", res.Creator.ID, "chat_id", groupChatID)
 		}
 		groupName := singleManagedGroupLabel(res.Group)
-		noticeKey := msgCreatorGroupUnregistered
-		args := []any{html.EscapeString(groupName)}
-		if res.MemberAction == core.CreatorResetKickTrackedMembers {
-			if res.CleanupQueueFailed {
-				noticeKey = msgCreatorGroupUnregisteredKickAllFailed
-				args = append(args, res.TargetedMembershipCount)
-			} else {
-				noticeKey = msgCreatorGroupUnregisteredKicked
-				args = append(args, res.TargetedMembershipCount)
-			}
-		}
-		notice := fmt.Sprintf(i18n.Translate(lang, noticeKey), args...)
+		notice := fmt.Sprintf(i18n.Translate(lang, msgCreatorGroupUnregistered), html.EscapeString(groupName))
 		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, notice)
 	default:
 		c.log().Warn("unsupported group unregistration outcome", "chat_id", groupChatID, "outcome", res.Outcome)
@@ -605,19 +574,15 @@ func (c *Bot) executeCreatorGroupPolicyUpdate(ctx context.Context, telegramUserI
 
 	switch res.Outcome {
 	case usecase.UpdateGroupPolicyOutcomeNotManaged:
-		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, i18n.Translate(lang, msgCreatorGroupUnavailable))
+		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, "")
 	case usecase.UpdateGroupPolicyOutcomeNotOwner:
-		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, i18n.Translate(lang, msgCreatorGroupPolicyDenied))
-	case usecase.UpdateGroupPolicyOutcomeUnchanged:
-		groupName := singleManagedGroupLabel(res.Group)
-		notice := fmt.Sprintf(i18n.Translate(lang, msgCreatorGroupPolicySame), html.EscapeString(groupName))
-		return c.replyCreatorGroupSettings(ctx, telegramUserID, editMsgID, lang, groupChatID, notice)
-	case usecase.UpdateGroupPolicyOutcomeUpdated:
+		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, "")
+	case usecase.UpdateGroupPolicyOutcomeUnchanged, usecase.UpdateGroupPolicyOutcomeUpdated:
 		groupName := singleManagedGroupLabel(res.Group)
 		notice := fmt.Sprintf(
 			i18n.Translate(lang, msgCreatorGroupPolicyUpdated),
 			html.EscapeString(groupName),
-			formatGroupPolicyLine(lang, res.Group.Policy),
+			html.EscapeString(formatCreatorGroupPolicyValue(lang, res.Group.Policy)),
 		)
 		return c.replyCreatorGroupSettings(ctx, telegramUserID, editMsgID, lang, groupChatID, notice)
 	default:
@@ -720,6 +685,14 @@ func (c *Bot) replyCreatorStatusWithNotice(ctx context.Context, telegramUserID i
 	reconnectURL := ""
 	if res.Status.Auth == core.CreatorAuthReconnectRequired {
 		reconnectURL, _ = c.creatorReconnectURL(ctx, telegramUserID, lang)
+		if reconnectURL != "" {
+			view := buildCreatorPromptView(lang, reconnectURL, true)
+			if strings.TrimSpace(notice) != "" {
+				view.text = notice + "\n\n" + view.text
+			}
+			c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
+			return view.text
+		}
 	}
 	view := buildCreatorStatusView(lang, reconnectURL, res.Creator, res.Status, res.Groups)
 	if strings.TrimSpace(notice) != "" {
@@ -774,23 +747,29 @@ func buildCreatorPromptView(lang, authURL string, reconnect bool) sharedView {
 
 func buildCreatorStatusView(lang, reconnectURL string, creator core.Creator, status core.Status, groups []core.ManagedGroup) sharedView {
 	profileDisplay := ui.TwitchProfileHTML(creator.TwitchLogin)
-	groupLines := CreatorGroupLines(lang, creator.TwitchLogin, groups)
+	groupLines := CreatorGroupLines(lang, groups)
+	eventSubStatus := creatorEventSubStatusText(status, lang)
 	authStatus := creatorAuthStatusText(status, lang)
 	statusDetails := creatorStatusDetailsText(status, lang)
 	isActive := len(groups) > 0
 	blocklistStatus := creatorBlocklistStatusText(lang, creator, isActive)
 	graceStatus := creatorGraceStatusText(lang, creator, isActive)
-	accountStatusDetails := joinNonEmptyLines(statusDetails, graceStatus, blocklistStatus)
+	summaryBlock := joinNonEmptySections(
+		creatorDashboardSection(lang, "creator_dashboard_setup_status", authStatus, eventSubStatus, statusDetails),
+		creatorDashboardSection(lang, "creator_dashboard_settings", graceStatus, blocklistStatus),
+		creatorDashboardSection(lang, "creator_dashboard_current_data", creatorCacheSummaryText(status, lang)),
+	)
 	statusMenuRows := creatorStatusMenuRows(lang, groups)
 
 	if len(groups) == 0 {
+		noGroupSummaryBlock := joinNonEmptySections(
+			creatorDashboardSection(lang, "creator_dashboard_setup_status", authStatus, creatorSyncDisabledText(lang), statusDetails),
+		)
 		return sharedView{
 			text: fmt.Sprintf(
 				i18n.Translate(lang, msgCreatorRegisteredNoGroup),
 				profileDisplay,
-				authStatus,
-				accountStatusDetails,
-				groupLines,
+				noGroupSummaryBlock,
 			),
 			opts: client.MessageOptions{
 				DisablePreview: true,
@@ -799,16 +778,11 @@ func buildCreatorStatusView(lang, reconnectURL string, creator core.Creator, sta
 		}
 	}
 
-	eventSubStatus := creatorEventSubStatusText(status, lang)
-	cacheSummary := creatorCacheSummaryText(status, lang)
 	return sharedView{
 		text: fmt.Sprintf(
 			i18n.Translate(lang, msgCreatorRegistered),
 			profileDisplay,
-			eventSubStatus,
-			authStatus,
-			accountStatusDetails,
-			cacheSummary,
+			summaryBlock,
 			groupLines,
 		),
 		opts: client.MessageOptions{
@@ -818,11 +792,18 @@ func buildCreatorStatusView(lang, reconnectURL string, creator core.Creator, sta
 	}
 }
 
+func creatorDashboardSection(lang, titleKey string, lines ...string) textSection {
+	body := joinNonEmptyLines(lines...)
+	if strings.TrimSpace(body) == "" {
+		return textSection{}
+	}
+	return textSection{text: joinNonEmptyLines(i18n.Translate(lang, titleKey), body)}
+}
+
 func buildCreatorGracePickerView(lang string, creator core.Creator) sharedView {
 	return sharedView{
 		text: fmt.Sprintf(
 			i18n.Translate(lang, msgCreatorGracePickerHTML),
-			html.EscapeString(creator.TwitchLogin),
 			html.EscapeString(formatCreatorGraceValue(lang, creator.SubscriptionEndGrace)),
 		),
 		opts: client.MessageOptions{
@@ -837,13 +818,8 @@ func buildCreatorGracePickerView(lang string, creator core.Creator) sharedView {
 	}
 }
 
-func buildCreatorManagedGroupsView(lang string, creator core.Creator, groups []core.ManagedGroup, notice string) sharedView {
+func buildCreatorManagedGroupsView(lang string, groups []core.ManagedGroup, notice string) sharedView {
 	text := i18n.Translate(lang, msgCreatorManageGroupsHTML)
-	if len(groups) == 0 {
-		text = i18n.Translate(lang, msgCreatorManageGroupsEmpty)
-	} else {
-		text = fmt.Sprintf(text, html.EscapeString(creator.TwitchLogin))
-	}
 	if strings.TrimSpace(notice) != "" {
 		text = notice + "\n\n" + text
 	}
@@ -865,13 +841,12 @@ func buildCreatorManagedGroupsView(lang string, creator core.Creator, groups []c
 	}
 }
 
-func buildCreatorGroupSettingsView(lang string, creator core.Creator, group core.ManagedGroup, backCallback, notice string) sharedView {
+func buildCreatorGroupSettingsView(lang string, group core.ManagedGroup, backCallback, notice string) sharedView {
 	groupLabel := singleManagedGroupLabel(group)
 	text := fmt.Sprintf(
 		i18n.Translate(lang, msgCreatorGroupSettingsHTML),
 		html.EscapeString(groupLabel),
-		html.EscapeString(creator.TwitchLogin),
-		formatGroupPolicyLine(lang, group.Policy),
+		html.EscapeString(formatCreatorGroupPolicyValue(lang, group.Policy)),
 	)
 	if strings.TrimSpace(notice) != "" {
 		text = notice + "\n\n" + text
@@ -888,14 +863,13 @@ func buildCreatorGroupSettingsView(lang string, creator core.Creator, group core
 	}
 }
 
-func buildCreatorGroupPolicyPickerView(lang string, creator core.Creator, group core.ManagedGroup) sharedView {
+func buildCreatorGroupPolicyPickerView(lang string, group core.ManagedGroup) sharedView {
 	groupLabel := singleManagedGroupLabel(group)
 	return sharedView{
 		text: fmt.Sprintf(
 			i18n.Translate(lang, msgCreatorGroupPolicyHTML),
 			html.EscapeString(groupLabel),
-			html.EscapeString(creator.TwitchLogin),
-			formatGroupPolicyLine(lang, group.Policy),
+			html.EscapeString(formatCreatorGroupPolicyValue(lang, group.Policy)),
 		),
 		opts: client.MessageOptions{
 			Markup: tu.InlineKeyboard(
@@ -909,15 +883,14 @@ func buildCreatorGroupPolicyPickerView(lang string, creator core.Creator, group 
 	}
 }
 
-func buildCreatorGroupPolicyConfirmView(lang string, creator core.Creator, group core.ManagedGroup, selectedPolicy core.GroupPolicy) sharedView {
+func buildCreatorGroupPolicyConfirmView(lang string, group core.ManagedGroup, selectedPolicy core.GroupPolicy) sharedView {
 	groupLabel := singleManagedGroupLabel(group)
 	return sharedView{
 		text: fmt.Sprintf(
 			i18n.Translate(lang, msgCreatorGroupPolicyConfirm),
 			html.EscapeString(groupLabel),
-			html.EscapeString(creator.TwitchLogin),
-			formatGroupPolicyLine(lang, group.Policy),
-			formatGroupPolicyLine(lang, selectedPolicy),
+			html.EscapeString(formatCreatorGroupPolicyValue(lang, group.Policy)),
+			html.EscapeString(formatCreatorGroupPolicyValue(lang, selectedPolicy)),
 		),
 		opts: client.MessageOptions{
 			Markup: tu.InlineKeyboard(
@@ -928,13 +901,12 @@ func buildCreatorGroupPolicyConfirmView(lang string, creator core.Creator, group
 	}
 }
 
-func buildCreatorGroupUnregisterConfirmView(lang string, creator core.Creator, group core.ManagedGroup, backCallback string) sharedView {
+func buildCreatorGroupUnregisterConfirmView(lang string, group core.ManagedGroup, backCallback string) sharedView {
 	groupLabel := singleManagedGroupLabel(group)
 	return sharedView{
 		text: fmt.Sprintf(
 			i18n.Translate(lang, msgCreatorUnregisterConfirm),
 			html.EscapeString(groupLabel),
-			html.EscapeString(creator.TwitchLogin),
 		),
 		opts: client.MessageOptions{
 			Markup: tu.InlineKeyboard(
@@ -943,6 +915,21 @@ func buildCreatorGroupUnregisterConfirmView(lang string, creator core.Creator, g
 				tu.InlineKeyboardRow(ui.BackButton(i18n.Translate(lang, btnBack), backCallback)),
 			),
 		},
+	}
+}
+
+func formatCreatorGroupPolicyValue(lang string, policy core.GroupPolicy) string {
+	switch policy {
+	case core.GroupPolicyObserve:
+		return i18n.Translate(lang, btnGroupPolicyObserve)
+	case core.GroupPolicyObserveWarn:
+		return i18n.Translate(lang, btnGroupPolicyObserveWarn)
+	case core.GroupPolicyKick:
+		return i18n.Translate(lang, btnGroupPolicyKick)
+	case core.GroupPolicyGraceWeek:
+		return i18n.Translate(lang, btnGroupPolicyGrace)
+	default:
+		return i18n.Translate(lang, btnGroupPolicyObserve)
 	}
 }
 

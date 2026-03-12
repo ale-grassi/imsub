@@ -28,26 +28,13 @@ func TestFormatGroupSettingsResultWithWarnings(t *testing.T) {
 	}
 }
 
-func TestRenderPostRegistrationCopy(t *testing.T) {
-	t.Parallel()
-	got := renderPostRegistrationCopy(postRegistrationCopyInput{
-		lang:          "en",
-		groupName:     "VIP",
-		creatorName:   "streamer",
-		groupBaseText: "base",
-	}, []string{"warn"})
-	if got.draftDM == "" || got.finalDM == "" || got.groupMessage == "" {
-		t.Fatalf("renderPostRegistrationCopy() = %+v, want all fields populated", got)
-	}
-}
-
 func TestBuildGroupRegistrationViewTakenByOther(t *testing.T) {
 	t.Parallel()
 	if _, ok := buildGroupRegistrationView("en", 1, usecase.RegisterGroupResult{
 		Outcome:          usecase.RegisterGroupOutcomeTakenByOther,
 		OtherCreatorName: "other",
-	}); !ok {
-		t.Fatal("buildGroupRegistrationView() ok = false, want true")
+	}); ok {
+		t.Fatal("buildGroupRegistrationView() ok = true, want false")
 	}
 }
 
@@ -56,8 +43,8 @@ func TestBuildGroupRegistrationViewAlreadyLinked(t *testing.T) {
 	if _, ok := buildGroupRegistrationView("en", 1, usecase.RegisterGroupResult{
 		Outcome: usecase.RegisterGroupOutcomeAlreadyLinked,
 		Creator: core.Creator{TwitchLogin: "creator"},
-	}); !ok {
-		t.Fatal("buildGroupRegistrationView() ok = false, want true")
+	}); ok {
+		t.Fatal("buildGroupRegistrationView() ok = true, want false")
 	}
 }
 
@@ -111,14 +98,6 @@ func TestBuildGroupSettingWarningsView(t *testing.T) {
 	view := buildGroupSettingWarningsView("en", 10, []string{"warn"})
 	if view.text == "" || view.opts.ReplyToMessageID != 10 {
 		t.Fatalf("buildGroupSettingWarningsView() = %+v, want text and reply target", view)
-	}
-}
-
-func TestBuildGroupBotStatusChangedView(t *testing.T) {
-	t.Parallel()
-	view := buildGroupBotStatusChangedView("en")
-	if view.text == "" {
-		t.Fatalf("buildGroupBotStatusChangedView() = %+v, want text", view)
 	}
 }
 

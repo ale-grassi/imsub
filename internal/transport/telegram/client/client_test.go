@@ -135,6 +135,22 @@ func TestSendTransformsCombinedWarningEmojiForHTML(t *testing.T) {
 	caller.assertJSONFieldNotContains(t, "sendMessage", "text", `<tg-emoji emoji-id="5447644880824181073">⚠️</tg-emoji>`)
 }
 
+func TestSendPreservesTelegramDateTimeTag(t *testing.T) {
+	t.Parallel()
+
+	caller := &recordingCaller{
+		results: map[string]json.RawMessage{
+			"sendMessage": json.RawMessage(`{"message_id":99,"date":0,"chat":{"id":100,"type":"private"}}`),
+		},
+	}
+	c := newTestClient(t, caller)
+
+	c.Send(t.Context(), 100, `• Last sync: <tg-time unix="1710247200" format="Dt">2026-03-12 16:00 UTC</tg-time>`, nil)
+
+	caller.assertJSONFieldContains(t, "sendMessage", "text", `<tg-time unix="1710247200" format="Dt">2026-03-12 16:00 UTC</tg-time>`)
+	caller.assertJSONField(t, "sendMessage", "parse_mode", telego.ModeHTML)
+}
+
 func TestSendLeavesPlainTextEmojiUntouched(t *testing.T) {
 	t.Parallel()
 

@@ -96,13 +96,6 @@ func (c *Bot) reply(ctx context.Context, chatID int64, messageID int, text strin
 	}
 }
 
-func (c *Bot) sendDraft(ctx context.Context, chatID int64, draftID int, text string, opts *client.MessageOptions) {
-	if c == nil || c.telegramClient == nil {
-		return
-	}
-	c.telegramClient.SendDraft(ctx, chatID, draftID, text, opts)
-}
-
 func (c *Bot) deleteMessage(ctx context.Context, chatID int64, messageID int) {
 	if c == nil || c.telegramClient == nil {
 		return
@@ -308,8 +301,8 @@ func (c *Bot) RegisterTelegramHandlers() {
 		}
 	}
 
-	c.tgHandler.HandleMessage(trackedCommand("registergroup", "group", c.onRegisterGroup), tghandler.CommandEqual("registergroup"))
-	c.tgHandler.HandleMessage(trackedCommand("unregistergroup", "group", c.onUnregisterCommand), tghandler.And(tghandler.CommandEqual("unregistergroup"), groupOnly))
+	c.tgHandler.HandleMessage(trackedCommand("linkgroup", "group", c.onRegisterGroup), tghandler.CommandEqual("linkgroup"))
+	c.tgHandler.HandleMessage(trackedCommand("unlinkgroup", "group", c.onUnregisterCommand), tghandler.And(tghandler.CommandEqual("unlinkgroup"), groupOnly))
 	c.tgHandler.HandleMessage(trackedCommand("start", "private", c.onStartCommand), tghandler.And(tghandler.CommandEqual("start"), privateOnly))
 	c.tgHandler.HandleMessage(trackedCommand("creator", "private", c.onCreatorCommand), tghandler.And(tghandler.CommandEqual("creator"), privateOnly))
 	c.tgHandler.HandleMessage(trackedCommand("reset", "private", c.onResetCommand), tghandler.And(tghandler.CommandEqual("reset"), privateOnly))

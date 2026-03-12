@@ -46,15 +46,4 @@ func TestBuildMemberCleanupResultViewKeepsPartialAndFailedNotifications(t *testi
 	if !ok || partialView.text == "" {
 		t.Fatalf("buildMemberCleanupResultView(partial) = (%+v, %t), want populated view", partialView, ok)
 	}
-
-	failedView, ok := buildMemberCleanupResultView("en", core.MemberCleanupResult{
-		Kind:           core.MemberCleanupKindGroupUnregistration,
-		GroupName:      "VIP Lounge",
-		TargetedCount:  4,
-		SucceededCount: 0,
-		FailedCount:    4,
-	})
-	if !ok || failedView.text == "" {
-		t.Fatalf("buildMemberCleanupResultView(failed) = (%+v, %t), want populated view", failedView, ok)
-	}
 }

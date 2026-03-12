@@ -11,10 +11,7 @@ import (
 func TestCreatorGroupLineEscapesHTML(t *testing.T) {
 	t.Parallel()
 
-	line := CreatorGroupLines("en", `name<&>`, []core.ManagedGroup{{GroupName: `group "x"`}})
-	if !strings.Contains(line, "name&lt;&amp;&gt;") {
-		t.Errorf("CreatorGroupLines() = %q, want escaped creator name", line)
-	}
+	line := CreatorGroupLines("en", []core.ManagedGroup{{GroupName: `group "x"`}})
 	if !strings.Contains(line, "group &#34;x&#34;") {
 		t.Errorf("CreatorGroupLines() = %q, want escaped group name", line)
 	}
@@ -175,7 +172,7 @@ func TestBuildCreatorGracePickerView(t *testing.T) {
 func TestBuildCreatorManagedGroupsView(t *testing.T) {
 	t.Parallel()
 
-	view := buildCreatorManagedGroupsView("en", core.Creator{TwitchLogin: "creator"}, []core.ManagedGroup{{ChatID: 1, GroupName: "VIP"}}, "")
+	view := buildCreatorManagedGroupsView("en", []core.ManagedGroup{{ChatID: 1, GroupName: "VIP"}}, "")
 	if view.text == "" || view.opts.Markup == nil {
 		t.Fatalf("buildCreatorManagedGroupsView() = %+v, want non-empty text and markup", view)
 	}
@@ -188,7 +185,7 @@ func TestBuildCreatorGroupSettingsView(t *testing.T) {
 		t.Fatalf("i18n.Ensure failed: %v", err)
 	}
 
-	view := buildCreatorGroupSettingsView("en", core.Creator{TwitchLogin: "creator"}, core.ManagedGroup{ChatID: 1, GroupName: "VIP", Policy: core.GroupPolicyObserveWarn}, creatorMenuCallback(), "notice")
+	view := buildCreatorGroupSettingsView("en", core.ManagedGroup{ChatID: 1, GroupName: "VIP", Policy: core.GroupPolicyObserveWarn}, creatorMenuCallback(), "notice")
 	if view.text == "" || view.opts.Markup == nil {
 		t.Fatalf("buildCreatorGroupSettingsView() = %+v, want non-empty text and markup", view)
 	}
@@ -207,11 +204,11 @@ func TestBuildCreatorGroupPolicyPickerView(t *testing.T) {
 		t.Fatalf("i18n.Ensure failed: %v", err)
 	}
 
-	view := buildCreatorGroupPolicyPickerView("en", core.Creator{TwitchLogin: "creator"}, core.ManagedGroup{ChatID: 1, GroupName: "VIP", Policy: core.GroupPolicyObserve})
+	view := buildCreatorGroupPolicyPickerView("en", core.ManagedGroup{ChatID: 1, GroupName: "VIP", Policy: core.GroupPolicyObserve})
 	if view.text == "" || view.opts.Markup == nil {
 		t.Fatalf("buildCreatorGroupPolicyPickerView() = %+v, want non-empty text and markup", view)
 	}
-	if !strings.Contains(view.text, "Allow and track") {
+	if !strings.Contains(view.text, "Allow") {
 		t.Fatalf("buildCreatorGroupPolicyPickerView() text = %q, want current policy line", view.text)
 	}
 	if got := view.opts.Markup.InlineKeyboard[0][0].IconCustomEmojiID; got != "5253959125838090076" {
@@ -229,11 +226,11 @@ func TestBuildCreatorGroupPolicyConfirmView(t *testing.T) {
 		t.Fatalf("i18n.Ensure failed: %v", err)
 	}
 
-	view := buildCreatorGroupPolicyConfirmView("en", core.Creator{TwitchLogin: "creator"}, core.ManagedGroup{ChatID: 1, GroupName: "VIP", Policy: core.GroupPolicyObserve}, core.GroupPolicyGraceWeek)
+	view := buildCreatorGroupPolicyConfirmView("en", core.ManagedGroup{ChatID: 1, GroupName: "VIP", Policy: core.GroupPolicyObserve}, core.GroupPolicyGraceWeek)
 	if view.text == "" || view.opts.Markup == nil {
 		t.Fatalf("buildCreatorGroupPolicyConfirmView() = %+v, want non-empty text and markup", view)
 	}
-	if !strings.Contains(view.text, "Current policy") || !strings.Contains(view.text, "Allow for 7 days") {
+	if !strings.Contains(view.text, "Current policy") || !strings.Contains(view.text, "Allow 7 days, then remove") {
 		t.Fatalf("buildCreatorGroupPolicyConfirmView() text = %q, want current and new policy", view.text)
 	}
 }
@@ -241,7 +238,7 @@ func TestBuildCreatorGroupPolicyConfirmView(t *testing.T) {
 func TestBuildCreatorGroupUnregisterConfirmView(t *testing.T) {
 	t.Parallel()
 
-	view := buildCreatorGroupUnregisterConfirmView("en", core.Creator{TwitchLogin: "creator"}, core.ManagedGroup{ChatID: 1, GroupName: "VIP"}, creatorMenuCallback())
+	view := buildCreatorGroupUnregisterConfirmView("en", core.ManagedGroup{ChatID: 1, GroupName: "VIP"}, creatorMenuCallback())
 	if view.text == "" || view.opts.Markup == nil {
 		t.Fatalf("buildCreatorGroupUnregisterConfirmView() = %+v, want non-empty text and markup", view)
 	}

@@ -202,7 +202,7 @@ func TestRegisterTelegramHandlersCreatorManageGroupsFlow(t *testing.T) {
 	h.assertEditMessageHasCallback(t, body, creatorGroupPickCallback(-1001))
 	h.assertEditMessageHasCallback(t, body, creatorGroupPickCallback(-1002))
 	h.assertEditMessageHasCallback(t, body, creatorMenuCallback())
-	h.assertEditMessageTextContains(t, body, "Manage linked groups")
+	h.assertEditMessageTextContains(t, body, "Manage groups")
 
 	h.handleUpdate(t, telego.Update{
 		UpdateID: 35,
@@ -424,7 +424,7 @@ func TestRegisterTelegramHandlersCreatorGroupPolicyUpdateFlow(t *testing.T) {
 
 	body = h.caller.lastEditMessageBody()
 	h.assertEditMessageHasCallback(t, body, creatorGroupPolicyExecuteCallback(-1003, core.GroupPolicyKick))
-	h.assertEditMessageTextContains(t, body, "Confirm group policy change")
+	h.assertEditMessageTextContains(t, body, "Change group policy?")
 
 	h.handleUpdate(t, telego.Update{
 		UpdateID: 41,
@@ -451,7 +451,7 @@ func TestRegisterTelegramHandlersCreatorGroupPolicyUpdateFlow(t *testing.T) {
 	}
 	body = h.caller.lastEditMessageBody()
 	h.assertEditMessageHasCallback(t, body, creatorGroupPolicyOpenCallback(-1003))
-	h.assertEditMessageTextContains(t, body, "Group policy updated")
+	h.assertEditMessageTextContains(t, body, "Group policy saved")
 }
 
 func TestRegisterTelegramHandlersGroupRegisterPolicyCallbackShowsWarningsInMessageNotAlert(t *testing.T) {
@@ -534,7 +534,7 @@ func TestRegisterTelegramHandlersCreatorGroupPolicyUpdateNotManaged(t *testing.T
 	})
 
 	body := h.caller.lastEditMessageBody()
-	h.assertEditMessageTextContains(t, body, "no longer linked")
+	h.assertEditMessageTextContains(t, body, "Creator setup not completed")
 }
 
 func TestRegisterTelegramHandlersCreatorGroupPolicyUpdateNotOwner(t *testing.T) {
@@ -567,7 +567,7 @@ func TestRegisterTelegramHandlersCreatorGroupPolicyUpdateNotOwner(t *testing.T) 
 	})
 
 	body := h.caller.lastEditMessageBody()
-	h.assertEditMessageTextContains(t, body, "can change its policy")
+	h.assertEditMessageTextContains(t, body, "Creator setup not completed")
 }
 
 func TestRegisterTelegramHandlersCreatorGroupPolicyUpdateUnchanged(t *testing.T) {
@@ -600,7 +600,7 @@ func TestRegisterTelegramHandlersCreatorGroupPolicyUpdateUnchanged(t *testing.T)
 	})
 
 	body := h.caller.lastEditMessageBody()
-	h.assertEditMessageTextContains(t, body, "No change")
+	h.assertEditMessageTextContains(t, body, "Group policy saved")
 	h.assertEditMessageHasCallback(t, body, creatorGroupPolicyOpenCallback(-1005))
 }
 
@@ -914,7 +914,7 @@ func TestRegisterTelegramHandlersRegisterGroupBlocksWhenBotLacksRequiredPermissi
 		UpdateID: 6,
 		Message: &telego.Message{
 			MessageID: 12,
-			Text:      "/registergroup",
+			Text:      "/linkgroup",
 			Chat: telego.Chat{
 				ID:    -10077,
 				Type:  telego.ChatTypeSupergroup,
@@ -952,7 +952,7 @@ func TestRegisterTelegramHandlersRegisterGroupRepliesInSameForumTopic(t *testing
 			MessageID:       12,
 			MessageThreadID: 321,
 			IsTopicMessage:  true,
-			Text:            "/registergroup",
+			Text:            "/linkgroup",
 			Chat: telego.Chat{
 				ID:      -1004,
 				Type:    telego.ChatTypeSupergroup,
@@ -997,7 +997,7 @@ func TestRegisterTelegramHandlersRegisterGroupAlwaysPromptsForPolicy(t *testing.
 		UpdateID: 49,
 		Message: &telego.Message{
 			MessageID: 12,
-			Text:      "/registergroup",
+			Text:      "/linkgroup",
 			Chat: telego.Chat{
 				ID:    -1005,
 				Type:  telego.ChatTypeSupergroup,
@@ -1044,7 +1044,7 @@ func TestRegisterTelegramHandlersRegisterGroupPromptIncludesExistingMemberWarnin
 		UpdateID: 50,
 		Message: &telego.Message{
 			MessageID: 12,
-			Text:      "/registergroup",
+			Text:      "/linkgroup",
 			Chat: telego.Chat{
 				ID:    -1006,
 				Type:  telego.ChatTypeSupergroup,
@@ -1133,7 +1133,7 @@ func TestRegisterTelegramHandlersUnregisterGroupCommand(t *testing.T) {
 		UpdateID: 61,
 		Message: &telego.Message{
 			MessageID: 13,
-			Text:      "/unregistergroup",
+			Text:      "/unlinkgroup",
 			Chat: telego.Chat{
 				ID:    -10077,
 				Type:  telego.ChatTypeSupergroup,
@@ -1254,7 +1254,7 @@ func TestRegisterTelegramHandlersChatMemberJoinWarnsInRegistrationThreadWhenPoli
 	if got := body["message_thread_id"]; got != float64(321) {
 		t.Fatalf("sendMessage message_thread_id = %v, want 321", got)
 	}
-	if text, _ := body["text"].(string); !strings.Contains(text, "controllo accessi rigoroso") {
+	if text, _ := body["text"].(string); !strings.Contains(text, `<a href="tg://user?id=703">amico</a> e' entrato senza verifica dell'abbonamento.`) {
 		t.Fatalf("sendMessage text = %q, want warning copy", text)
 	}
 }
@@ -1405,8 +1405,8 @@ func TestRegisterTelegramHandlersMyChatMemberRemovalCleanupLagStillNotifiesOwner
 	}
 	h.caller.assertExactMethods(t, "sendMessage")
 	body := parseSendMessageRequest(t, h.caller.lastSendMessageBody())
-	if !strings.Contains(body.Text, "background cleanup tasks are still pending") {
-		t.Fatalf("sendMessage text = %q, want cleanup-lag owner notice", body.Text)
+	if !strings.Contains(body.Text, "Group unlinked automatically") {
+		t.Fatalf("sendMessage text = %q, want owner notice", body.Text)
 	}
 }
 

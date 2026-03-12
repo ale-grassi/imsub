@@ -349,12 +349,28 @@ func configureBotCommands(ctx context.Context, bot *telego.Bot, tgLimiter *ratel
 		Commands: []telego.BotCommand{
 			{Command: "start", Description: "Open user dashboard"},
 			{Command: "creator", Description: "Register creator account"},
-			{Command: "registergroup", Description: "Bind this group to creator"},
-			{Command: "unregistergroup", Description: "Unlink this group from creator"},
+			{Command: "linkgroup", Description: "Link this group to creator"},
+			{Command: "unlinkgroup", Description: "Unlink this group from creator"},
 			{Command: "reset", Description: "Clear your linked data"},
 		},
 	}); err != nil {
 		return fmt.Errorf("set my commands: %w", err)
+	}
+	if err := tgLimiter.Wait(ctx, 0); err != nil {
+		return fmt.Errorf("limiter wait for bot short description: %w", err)
+	}
+	if err := bot.SetMyShortDescription(ctx, &telego.SetMyShortDescriptionParams{
+		ShortDescription: "Subscribers-only Telegram groups powered by Twitch subscriptions.",
+	}); err != nil {
+		return fmt.Errorf("set my short description: %w", err)
+	}
+	if err := tgLimiter.Wait(ctx, 0); err != nil {
+		return fmt.Errorf("limiter wait for bot description: %w", err)
+	}
+	if err := bot.SetMyDescription(ctx, &telego.SetMyDescriptionParams{
+		Description: "I help creators manage subscribers-only Telegram groups using Twitch subscriptions.\n\nViewers can link their Twitch account, check which groups they can join, and get personal invite links.\n\nCreators can link groups, review access settings, and automate access removal when subscriptions end.\n\nProject: github.com/ale-grassi/imsub\nLicense: MIT",
+	}); err != nil {
+		return fmt.Errorf("set my description: %w", err)
 	}
 	return nil
 }

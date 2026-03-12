@@ -37,7 +37,7 @@ func (c botGroupCapabilities) evaluation() groupCapabilityEvaluation {
 	}
 }
 
-// onRegisterGroup handles /registergroup by binding the current Telegram group
+// onRegisterGroup handles /linkgroup by linking the current Telegram group
 // to the caller's creator account. The caller must be a group admin and have
 // a linked creator record.
 func (c *Bot) onRegisterGroup(ctx *tghandler.Context, msg telego.Message) error {
@@ -48,6 +48,14 @@ func (c *Bot) onRegisterGroup(ctx *tghandler.Context, msg telego.Message) error 
 	threadID := groupMessageThreadID(msg)
 
 	if msg.Chat.Type == telego.ChatTypePrivate {
+		_, ok, err := c.creatorStatus.LoadOwnedCreator(ctx, msg.From.ID)
+		if err != nil {
+			c.log().Warn("OnRegisterGroup getOwnedCreator failed", "error", err)
+			return nil
+		}
+		if !ok {
+			return nil
+		}
 		view := buildGroupReplyView(lang, msgGroupNotGroup, msg.MessageID)
 		view.opts.MessageThreadID = threadID
 		c.sendMsg(ctx, msg.Chat.ID, view.text, &view.opts)
@@ -83,6 +91,14 @@ func (c *Bot) onRegisterGroup(ctx *tghandler.Context, msg telego.Message) error 
 		return nil
 	}
 	if !ok || c.groupRegistration == nil {
+		_, managed, managedErr := c.store.ManagedGroupByChatID(ctx, msg.Chat.ID)
+		if managedErr != nil {
+			c.log().Warn("ManagedGroupByChatID failed before not-creator reply", "chat_id", msg.Chat.ID, "error", managedErr)
+			return nil
+		}
+		if managed {
+			return nil
+		}
 		view := buildGroupReplyView(lang, msgGroupNotCreator, msg.MessageID)
 		view.opts.MessageThreadID = threadID
 		c.sendMsg(ctx, msg.Chat.ID, view.text, &view.opts)
@@ -116,6 +132,14 @@ func (c *Bot) handleGroupCallback(ctx context.Context, userID, chatID int64, cha
 		return noCallbackFeedback()
 	}
 	if !ok {
+		_, managed, managedErr := c.store.ManagedGroupByChatID(ctx, chatID)
+		if managedErr != nil {
+			c.log().Warn("ManagedGroupByChatID failed before group not-creator callback", "chat_id", chatID, "owner_telegram_id", userID, "error", managedErr)
+			return noCallbackFeedback()
+		}
+		if managed {
+			return noCallbackFeedback()
+		}
 		return callbackAlert(i18n.Translate(lang, msgGroupNotCreator))
 	}
 	switch action.verb {
@@ -136,8 +160,16 @@ func (c *Bot) handleGroupCallback(ctx context.Context, userID, chatID int64, cha
 		}
 		view, ok := buildGroupRegistrationView(lang, editMsgID, regRes)
 		if !ok {
-			c.log().Warn("unsupported group registration outcome from callback", "chat_id", chatID, "outcome", regRes.Outcome)
-			return noCallbackFeedback()
+			switch regRes.Outcome {
+			case usecase.RegisterGroupOutcomeAlreadyLinked, usecase.RegisterGroupOutcomeTakenByOther:
+				return noCallbackFeedback()
+			case usecase.RegisterGroupOutcomeNotCreator, usecase.RegisterGroupOutcomeRegistered:
+				c.log().Warn("unexpected empty group registration view", "chat_id", chatID, "outcome", regRes.Outcome)
+				return noCallbackFeedback()
+			default:
+				c.log().Warn("unsupported group registration outcome from callback", "chat_id", chatID, "outcome", regRes.Outcome)
+				return noCallbackFeedback()
+			}
 		}
 		c.reply(ctx, chatID, editMsgID, view.text, &view.opts)
 		if view.dispatchFollowUp {
@@ -174,7 +206,7 @@ func (c *Bot) handleGroupCallback(ctx context.Context, userID, chatID int64, cha
 			c.log().Warn("unsupported group unregistration outcome from callback", "chat_id", chatID, "outcome", res.Outcome)
 			return noCallbackFeedback()
 		}
-		view := buildGroupUnregisteredView(lang, editMsgID, res)
+		view := buildGroupUnregisteredView(lang, editMsgID)
 		c.reply(ctx, chatID, editMsgID, view.text, &view.opts)
 		return noCallbackFeedback()
 	case callbackVerbRefresh, callbackVerbRegister, callbackVerbReconnect, callbackVerbOpen, callbackVerbBack, callbackVerbMenu, callbackVerbCancel:
@@ -200,7 +232,7 @@ func (c *Bot) userCanRegisterGroup(ctx context.Context, userID, chatID int64) bo
 	return err == nil && IsAdmin(member)
 }
 
-// onUnregisterCommand handles /unregistergroup by unbinding the current Telegram group.
+// onUnregisterCommand handles /unlinkgroup by unlinking the current Telegram group.
 func (c *Bot) onUnregisterCommand(ctx *tghandler.Context, msg telego.Message) error {
 	if msg.From == nil {
 		return nil
@@ -211,6 +243,14 @@ func (c *Bot) onUnregisterCommand(ctx *tghandler.Context, msg telego.Message) er
 	view.opts.MessageThreadID = threadID
 
 	if msg.Chat.Type == telego.ChatTypePrivate {
+		creator, ok, err := c.store.OwnedCreatorForUser(ctx, msg.From.ID)
+		if err != nil {
+			c.log().Warn("OwnedCreatorForUser failed before unlink prompt", "owner_telegram_id", msg.From.ID, "error", err)
+			return nil
+		}
+		if !ok || creator.ID == "" {
+			return nil
+		}
 		notGroup := buildGroupReplyView(lang, msgGroupNotGroup, msg.MessageID)
 		notGroup.opts.MessageThreadID = threadID
 		c.sendMsg(ctx, msg.Chat.ID, notGroup.text, &notGroup.opts)
@@ -246,7 +286,7 @@ func (c *Bot) onUnregisterCommand(ctx *tghandler.Context, msg telego.Message) er
 	return nil
 }
 
-func (c *Bot) activateCreatorOnFirstGroupRegistration(parent context.Context, creator core.Creator, groupChatID int64, messageThreadID int, lang string) {
+func (c *Bot) activateCreatorOnFirstGroupRegistration(parent context.Context, creator core.Creator, lang string) {
 	if parent == nil {
 		c.log().Warn("Activate creator called with nil context", "creator_id", creator.ID)
 		return
@@ -257,12 +297,12 @@ func (c *Bot) activateCreatorOnFirstGroupRegistration(parent context.Context, cr
 	res, err := c.creatorActivation.Activate(ctx, creator)
 	if err != nil {
 		c.log().Warn("creator activation failed after first group registration", "creator_id", creator.ID, "error", err)
-		view := buildTextView(lang, msgCreatorEventSubFail)
-		view.opts.MessageThreadID = messageThreadID
-		c.sendMsg(baseCtx, groupChatID, view.text, &view.opts)
+		if notifyErr := c.sendCreatorReconnectPrompt(baseCtx, creator.OwnerTelegramID, lang); notifyErr != nil {
+			c.log().Warn("creator reconnect prompt failed after first group registration", "creator_id", creator.ID, "owner_telegram_id", creator.OwnerTelegramID, "error", notifyErr)
+		}
 		return
 	}
-	c.log().Info("creator activated on first group registration", "creator_id", creator.ID, "group_chat_id", groupChatID, "subscriber_count", res.SubscriberCount)
+	c.log().Info("creator activated on first group registration", "creator_id", creator.ID, "subscriber_count", res.SubscriberCount)
 }
 
 func (c *Bot) onMyChatMemberUpdated(ctx *tghandler.Context, update telego.ChatMemberUpdated) error {
@@ -282,13 +322,14 @@ func (c *Bot) onMyChatMemberUpdated(ctx *tghandler.Context, update telego.ChatMe
 	switch newStatus {
 	case telego.MemberStatusMember, telego.MemberStatusAdministrator, telego.MemberStatusCreator:
 		lang := i18n.NormalizeLanguage(update.From.LanguageCode)
-		view := buildGroupBotStatusChangedView(lang)
-		groupMsgID := c.sendMsg(ctx, update.Chat.ID, view.text, &view.opts)
-		if groupMsgID != 0 {
-			c.runBackground(context.WithoutCancel(ctx), func(bg context.Context) {
-				c.sendPostRegistrationSettingsCheck(bg, update.Chat.ID, groupMsgID, 0, lang, view.text)
-			})
-		}
+		c.runBackground(context.WithoutCancel(ctx), func(bg context.Context) {
+			warnings := c.evaluateGroupSettings(bg, update.Chat.ID).issues(lang)
+			if len(warnings) == 0 {
+				return
+			}
+			view := buildGroupSettingWarningsView(lang, 0, warnings)
+			c.sendMsg(bg, update.Chat.ID, view.text, &view.opts)
+		})
 	case telego.MemberStatusLeft, telego.MemberStatusBanned:
 		c.handleBotRemovedFromManagedGroup(ctx, update.Chat.ID, newStatus)
 	}
@@ -337,15 +378,15 @@ func (c *Bot) handleBotRemovedFromManagedGroup(ctx context.Context, chatID int64
 	}
 
 	c.log().Info("auto-unregistered managed group after bot removal", "chat_id", chatID, "creator_id", creator.ID, "owner_telegram_id", creator.OwnerTelegramID, "new_status", newStatus, "cleanup_failed", res.CleanupFailed)
-	c.notifyOwnerGroupAutoUnregistered(ctx, creator, res.Group, res.CleanupFailed)
+	c.notifyOwnerGroupAutoUnregistered(ctx, creator, res.Group)
 }
 
-func (c *Bot) notifyOwnerGroupAutoUnregistered(ctx context.Context, creator core.Creator, group core.ManagedGroup, cleanupLag bool) {
+func (c *Bot) notifyOwnerGroupAutoUnregistered(ctx context.Context, creator core.Creator, group core.ManagedGroup) {
 	lang := "en"
 	if identity, ok, err := c.store.UserIdentity(ctx, creator.OwnerTelegramID); err == nil && ok && identity.Language != "" {
 		lang = identity.Language
 	}
-	view := buildGroupBotRemovedOwnerView(lang, group.GroupName, cleanupLag)
+	view := buildGroupBotRemovedOwnerView(lang, group.GroupName)
 	if messageID := c.sendMsg(ctx, creator.OwnerTelegramID, view.text, &view.opts); messageID == 0 {
 		c.log().Warn("send auto-unregister owner notification failed", "creator_id", creator.ID, "owner_telegram_id", creator.OwnerTelegramID, "chat_id", group.ChatID)
 	}
@@ -369,7 +410,7 @@ func (c *Bot) onChatMemberUpdated(ctx *tghandler.Context, update telego.ChatMemb
 	status := update.NewChatMember.MemberStatus()
 	switch status {
 	case telego.MemberStatusMember, telego.MemberStatusRestricted:
-		c.observeGroupMember(ctx, group, memberUser.ID, "chat_member", status)
+		c.observeGroupMember(ctx, group, memberUser.ID, "chat_member", status, telegramUserDisplayName(memberUser))
 	case telego.MemberStatusLeft, telego.MemberStatusBanned:
 		c.removeObservedGroupMember(ctx, group.ChatID, memberUser.ID)
 	}
@@ -388,8 +429,19 @@ func (c *Bot) onGroupMessage(ctx *tghandler.Context, msg telego.Message) error {
 	if !ok {
 		return nil
 	}
-	c.observeGroupMember(ctx, group, msg.From.ID, "message", telego.MemberStatusMember)
+	c.observeGroupMember(ctx, group, msg.From.ID, "message", telego.MemberStatusMember, telegramUserDisplayName(*msg.From))
 	return nil
+}
+
+func telegramUserDisplayName(user telego.User) string {
+	if user.Username != "" {
+		return "@" + user.Username
+	}
+	fullName := strings.TrimSpace(user.FirstName + " " + user.LastName)
+	if fullName != "" {
+		return fullName
+	}
+	return ""
 }
 
 func (c *Bot) sendPostRegistrationSettingsCheck(ctx context.Context, groupChatID int64, groupMsgID int, messageThreadID int, lang, groupBaseText string) {
@@ -399,46 +451,6 @@ func (c *Bot) sendPostRegistrationSettingsCheck(ctx context.Context, groupChatID
 		view.opts.MessageThreadID = messageThreadID
 		c.reply(ctx, groupChatID, groupMsgID, view.text, &view.opts)
 	}
-}
-
-func (c *Bot) sendPostRegistrationMessages(ctx context.Context, opts postRegistrationMessageOptions) {
-	const draftID = 1
-
-	rendered := renderPostRegistrationCopy(postRegistrationCopyInput{
-		lang:          opts.lang,
-		groupName:     opts.groupName,
-		creatorName:   opts.creatorName,
-		groupBaseText: opts.groupBaseText,
-	}, nil)
-
-	c.sendDraft(ctx, opts.ownerUserID, draftID, rendered.draftDM, &client.MessageOptions{})
-
-	warnings := c.evaluateGroupSettings(ctx, opts.groupChatID).issues(opts.lang)
-	rendered = renderPostRegistrationCopy(postRegistrationCopyInput{
-		lang:          opts.lang,
-		groupName:     opts.groupName,
-		creatorName:   opts.creatorName,
-		groupBaseText: opts.groupBaseText,
-	}, warnings)
-	c.sendDraft(ctx, opts.ownerUserID, draftID, rendered.finalDM, &client.MessageOptions{})
-	c.sendMsg(ctx, opts.ownerUserID, rendered.finalDM, &client.MessageOptions{})
-
-	if opts.groupMsgID != 0 {
-		c.reply(ctx, opts.groupChatID, opts.groupMsgID, rendered.groupMessage, &client.MessageOptions{
-			MessageThreadID: opts.messageThreadID,
-		})
-	}
-}
-
-type postRegistrationMessageOptions struct {
-	groupChatID     int64
-	groupMsgID      int
-	messageThreadID int
-	ownerUserID     int64
-	groupName       string
-	creatorName     string
-	lang            string
-	groupBaseText   string
 }
 
 type groupRegistrationView struct {
@@ -456,17 +468,11 @@ func buildGroupRegistrationView(lang string, replyToMessageID int, regRes usecas
 	case usecase.RegisterGroupOutcomeNotCreator:
 		view.text = i18n.Translate(lang, msgGroupNotCreator)
 	case usecase.RegisterGroupOutcomeTakenByOther:
-		view.text = fmt.Sprintf(i18n.Translate(lang, msgGroupTakenByOther), html.EscapeString(regRes.OtherCreatorName))
+		return groupRegistrationView{}, false
 	case usecase.RegisterGroupOutcomeAlreadyLinked:
-		view.groupBaseText = fmt.Sprintf(i18n.Translate(lang, msgGroupAlreadyLinked), html.EscapeString(regRes.Creator.TwitchLogin))
-		view.text = joinNonEmptySections(
-			textSection{text: view.groupBaseText},
-			textSection{text: policyLine},
-			textSection{text: i18n.Translate(lang, msgGroupCheckingSettings)},
-		)
-		view.dispatchFollowUp = true
+		return groupRegistrationView{}, false
 	case usecase.RegisterGroupOutcomeRegistered:
-		view.groupBaseText = fmt.Sprintf(i18n.Translate(lang, msgGroupRegistered), html.EscapeString(regRes.Creator.TwitchLogin))
+		view.groupBaseText = i18n.Translate(lang, msgGroupRegistered)
 		view.text = joinNonEmptySections(
 			textSection{text: view.groupBaseText},
 			textSection{text: policyLine},
@@ -486,43 +492,15 @@ func (c *Bot) dispatchGroupRegistrationFollowUp(ctx context.Context, msg telego.
 	}
 	if regRes.FollowUp.NeedsActivation && c.creatorActivation != nil {
 		c.runBackground(context.WithoutCancel(ctx), func(bg context.Context) {
-			c.activateCreatorOnFirstGroupRegistration(bg, regRes.Creator, msg.Chat.ID, messageThreadID, lang)
+			c.activateCreatorOnFirstGroupRegistration(bg, regRes.Creator, lang)
 		})
 	}
 	if !regRes.FollowUp.NeedsSettingsCheck {
 		return
 	}
-	if regRes.FollowUp.NotifyOwner {
-		c.runBackground(context.WithoutCancel(ctx), func(bg context.Context) {
-			c.sendPostRegistrationMessages(bg, postRegistrationMessageOptions{
-				groupChatID:     msg.Chat.ID,
-				groupMsgID:      groupMsgID,
-				messageThreadID: messageThreadID,
-				ownerUserID:     msg.From.ID,
-				groupName:       msg.Chat.Title,
-				creatorName:     regRes.Creator.TwitchLogin,
-				lang:            lang,
-				groupBaseText:   view.groupBaseText,
-			})
-		})
-		return
-	}
 	c.runBackground(context.WithoutCancel(ctx), func(bg context.Context) {
 		c.sendPostRegistrationSettingsCheck(bg, msg.Chat.ID, groupMsgID, messageThreadID, lang, view.groupBaseText)
 	})
-}
-
-type postRegistrationCopyInput struct {
-	lang          string
-	groupName     string
-	creatorName   string
-	groupBaseText string
-}
-
-type postRegistrationRendered struct {
-	draftDM      string
-	finalDM      string
-	groupMessage string
 }
 
 func formatGroupSettingWarnings(lang string, issues []string) string {
@@ -533,31 +511,7 @@ func formatGroupSettingsResult(lang string, issues []string) string {
 	if len(issues) > 0 {
 		return formatGroupSettingWarnings(lang, issues)
 	}
-	return i18n.Translate(lang, msgGroupSettingsOK)
-}
-
-func renderPostRegistrationCopy(in postRegistrationCopyInput, issues []string) postRegistrationRendered {
-	settingsResult := formatGroupSettingsResult(in.lang, issues)
-	dmBase := fmt.Sprintf(
-		i18n.Translate(in.lang, msgGroupRegisteredDM),
-		html.EscapeString(in.groupName),
-		html.EscapeString(in.creatorName),
-	)
-
-	return postRegistrationRendered{
-		draftDM: joinNonEmptySections(
-			textSection{text: dmBase},
-			textSection{text: i18n.Translate(in.lang, msgGroupCheckingSettings)},
-		),
-		finalDM: joinNonEmptySections(
-			textSection{text: dmBase},
-			textSection{text: settingsResult},
-		),
-		groupMessage: joinNonEmptySections(
-			textSection{text: in.groupBaseText},
-			textSection{text: settingsResult},
-		),
-	}
+	return ""
 }
 
 type groupSettingsEvaluation struct {
@@ -700,7 +654,7 @@ func (c *Bot) estimateExistingNonAdminMembers(ctx context.Context, chatID int64)
 	return untracked
 }
 
-func (c *Bot) observeGroupMember(ctx context.Context, group core.ManagedGroup, telegramUserID int64, source, status string) {
+func (c *Bot) observeGroupMember(ctx context.Context, group core.ManagedGroup, telegramUserID int64, source, status, memberLabel string) {
 	tracked, err := c.store.IsTrackedGroupMember(ctx, group.ChatID, telegramUserID)
 	if err != nil {
 		c.log().Warn("IsTrackedGroupMember failed", "chat_id", group.ChatID, "telegram_user_id", telegramUserID, "error", err)
@@ -721,7 +675,7 @@ func (c *Bot) observeGroupMember(ctx context.Context, group core.ManagedGroup, t
 		return
 	}
 	if group.Policy == core.GroupPolicyObserveWarn && source == "chat_member" {
-		c.sendGroupUntrackedJoinWarning(ctx, group)
+		c.sendGroupUntrackedJoinWarning(ctx, group, telegramUserID, memberLabel)
 		return
 	}
 	if group.Policy != core.GroupPolicyKick {
@@ -736,7 +690,7 @@ func (c *Bot) observeGroupMember(ctx context.Context, group core.ManagedGroup, t
 	}
 }
 
-func (c *Bot) sendGroupUntrackedJoinWarning(ctx context.Context, group core.ManagedGroup) {
+func (c *Bot) sendGroupUntrackedJoinWarning(ctx context.Context, group core.ManagedGroup, telegramUserID int64, memberLabel string) {
 	lang := "en"
 	creator, ok, err := c.store.Creator(ctx, group.CreatorID)
 	if err != nil {
@@ -749,7 +703,7 @@ func (c *Bot) sendGroupUntrackedJoinWarning(ctx context.Context, group core.Mana
 		}
 	}
 
-	view := buildGroupUntrackedJoinWarningView(lang)
+	view := buildGroupUntrackedJoinWarningView(lang, telegramUserID, memberLabel)
 	view.opts.MessageThreadID = group.RegistrationThreadID
 	if c.sendMsg(ctx, group.ChatID, view.text, &view.opts) == 0 {
 		c.log().Warn("send untracked join warning failed", "chat_id", group.ChatID, "registration_thread_id", group.RegistrationThreadID)
@@ -822,12 +776,16 @@ func buildGroupSettingsCheckResultView(lang, groupBaseText string, issues []stri
 	}
 }
 
-func buildGroupBotStatusChangedView(lang string) sharedView {
-	return buildTextView(lang, msgGroupBotStatusChanged)
+func buildGroupUntrackedJoinWarningView(lang string, memberUserID int64, memberLabel string) sharedView {
+	memberLabel = strings.TrimSpace(memberLabel)
+	if memberLabel == "" {
+		memberLabel = i18n.Translate(lang, msgUserGenericName)
+	}
+	return sharedView{text: fmt.Sprintf(i18n.Translate(lang, msgGroupUntrackedJoinWarning), telegramUserMentionHTML(memberUserID, memberLabel))}
 }
 
-func buildGroupUntrackedJoinWarningView(lang string) sharedView {
-	return buildTextView(lang, msgGroupUntrackedJoinWarning)
+func telegramUserMentionHTML(userID int64, label string) string {
+	return fmt.Sprintf(`<a href="tg://user?id=%d">%s</a>`, userID, html.EscapeString(label))
 }
 
 func buildGroupUnregisterPromptView(lang string, replyToMessageID int, chatID int64) sharedView {
@@ -843,22 +801,8 @@ func buildGroupUnregisterPromptView(lang string, replyToMessageID int, chatID in
 	}
 }
 
-func buildGroupUnregisteredView(lang string, replyToMessageID int, res usecase.UnregisterGroupResult) sharedView {
-	key := msgGroupUnregistered
-	text := i18n.Translate(lang, key)
-	if res.MemberAction == core.CreatorResetKickTrackedMembers {
-		if res.CleanupQueueFailed {
-			key = msgGroupUnregisteredKickAllFailed
-			text = fmt.Sprintf(i18n.Translate(lang, key), res.TargetedMembershipCount)
-		} else {
-			key = msgGroupUnregisteredKicked
-			text = fmt.Sprintf(i18n.Translate(lang, key), res.TargetedMembershipCount)
-		}
-	}
-	view := sharedView{text: text}
-	if key == msgGroupUnregistered {
-		view = buildTextView(lang, key)
-	}
+func buildGroupUnregisteredView(lang string, replyToMessageID int) sharedView {
+	view := buildTextView(lang, msgGroupUnregistered)
 	view.opts.ReplyToMessageID = replyToMessageID
 	return view
 }

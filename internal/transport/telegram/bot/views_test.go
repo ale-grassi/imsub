@@ -66,19 +66,11 @@ func TestBuildCreatorLinkErrorView(t *testing.T) {
 	}
 }
 
-func TestBuildCreatorOAuthFailureViewReconnectMismatchReturnsText(t *testing.T) {
+func TestBuildTextViewCreatorReconnectMismatchReturnsText(t *testing.T) {
 	t.Parallel()
-	view := buildCreatorOAuthFailureView("en", msgCreatorReconnectMismatch)
+	view := buildTextView("en", msgCreatorReconnectMismatch)
 	if view.text == "" {
-		t.Fatalf("buildCreatorOAuthFailureView() = %+v, want text", view)
-	}
-}
-
-func TestBuildCreatorReconnectRequiredViewIncludesMarkup(t *testing.T) {
-	t.Parallel()
-	view := buildCreatorReconnectRequiredView("en", "https://example.com")
-	if view.text == "" || view.opts.Markup == nil {
-		t.Fatalf("buildCreatorReconnectRequiredView() = %+v, want text and markup", view)
+		t.Fatalf("buildTextView() = %+v, want text", view)
 	}
 }
 
@@ -135,7 +127,7 @@ func TestBuildSubscriptionStartViewIncludesJoinButtons(t *testing.T) {
 func TestBuildGroupBotRemovedOwnerViewEscapesGroupName(t *testing.T) {
 	t.Parallel()
 
-	view := buildGroupBotRemovedOwnerView("en", "<VIP>", false)
+	view := buildGroupBotRemovedOwnerView("en", "<VIP>")
 	if !strings.Contains(view.text, "&lt;VIP&gt;") {
 		t.Fatalf("buildGroupBotRemovedOwnerView() text = %q, want escaped group name", view.text)
 	}

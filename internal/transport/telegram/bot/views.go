@@ -50,15 +50,6 @@ func buildCreatorLinkErrorView(lang string) sharedView {
 	}
 }
 
-func buildCreatorReconnectRequiredView(lang, reconnectURL string) sharedView {
-	return sharedView{
-		text: i18n.Translate(lang, msgCreatorReconnectNeeded),
-		opts: client.MessageOptions{
-			Markup: ui.CreatorStatusMenuMarkup(lang, reconnectURL, creatorStatusMenuCallbacks(false, false, false, false)),
-		},
-	}
-}
-
 func buildSubscriptionEndView(lang, broadcasterLogin string) sharedView {
 	return sharedView{
 		text: fmt.Sprintf(i18n.Translate(lang, msgSubEndPartial), html.EscapeString(broadcasterLogin)),
@@ -96,19 +87,11 @@ func buildSubscriptionStartView(lang, broadcasterLogin string, targets core.Join
 	}
 }
 
-func buildGroupBotRemovedOwnerView(lang, groupName string, cleanupLag bool) sharedView {
-	key := msgGroupBotRemovedOwnerDM
-	if cleanupLag {
-		key = msgGroupBotRemovedLagDM
-	}
+func buildGroupBotRemovedOwnerView(lang, groupName string) sharedView {
 	return sharedView{
-		text: fmt.Sprintf(i18n.Translate(lang, key), html.EscapeString(groupName)),
+		text: fmt.Sprintf(i18n.Translate(lang, msgGroupBotRemovedOwnerDM), html.EscapeString(groupName)),
 		opts: client.MessageOptions{},
 	}
-}
-
-func buildCreatorOAuthFailureView(lang, key string) sharedView {
-	return buildTextView(lang, key)
 }
 
 func joinNonEmptyLines(lines ...string) string {

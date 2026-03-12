@@ -103,7 +103,7 @@ func (c *Bot) renderResetPickedScope(ctx context.Context, telegramUserID int64, 
 		return view.text
 	}
 	if c.scopeNeedsCreatorAction(ctx, telegramUserID, scope, scopes) {
-		view := c.buildResetCreatorActionView(telegramUserID, lang, scopes, origin, scope)
+		view := c.buildResetCreatorActionView(lang, origin, scope)
 		c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
 		return ""
 	}
@@ -365,7 +365,7 @@ func (c *Bot) scopeNeedsCreatorAction(ctx context.Context, telegramUserID int64,
 	return c.resetCreatorGroupCount(ctx, telegramUserID) > 0
 }
 
-func (c *Bot) buildResetCreatorActionView(telegramUserID int64, lang string, scopes core.ScopeState, origin resetOrigin, scope resetScope) sharedView {
+func (c *Bot) buildResetCreatorActionView(lang string, origin resetOrigin, scope resetScope) sharedView {
 	textKey := msgResetChooseCreatorActionCreator
 	args := []any{}
 	if scope == resetScopeBoth {

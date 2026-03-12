@@ -14,6 +14,9 @@ var errMemberCleanupNotificationSend = errors.New("send member cleanup completio
 
 // NotifyMemberCleanupComplete sends a creator DM when queued membership cleanup finishes.
 func (c *Bot) NotifyMemberCleanupComplete(ctx context.Context, result core.MemberCleanupResult) error {
+	if result.Kind == core.MemberCleanupKindGroupUnregistration {
+		return nil
+	}
 	lang := "en"
 	if identity, ok, err := c.store.UserIdentity(ctx, result.OwnerTelegramID); err == nil && ok && identity.Language != "" {
 		lang = i18n.NormalizeLanguage(identity.Language)
@@ -29,22 +32,14 @@ func (c *Bot) NotifyMemberCleanupComplete(ctx context.Context, result core.Membe
 }
 
 func buildMemberCleanupResultView(lang string, result core.MemberCleanupResult) (sharedView, bool) {
-	if result.FailedCount == 0 {
+	if result.FailedCount == 0 || result.Kind != core.MemberCleanupKindCreatorReset {
 		return sharedView{}, false
 	}
 
-	key := msgCleanupGroupWarningDM
 	args := []any{
-		html.EscapeString(result.GroupName),
+		html.EscapeString(result.CreatorLogin),
+		renderResetViewerGroups(lang, result.GroupNames),
 		result.FailedCount,
 	}
-	if result.Kind == core.MemberCleanupKindCreatorReset {
-		key = msgCleanupResetWarningDM
-		args = []any{
-			html.EscapeString(result.CreatorLogin),
-			renderResetViewerGroups(lang, result.GroupNames),
-			result.FailedCount,
-		}
-	}
-	return sharedView{text: fmt.Sprintf(i18n.Translate(lang, key), args...)}, true
+	return sharedView{text: fmt.Sprintf(i18n.Translate(lang, msgCleanupResetWarningDM), args...)}, true
 }
