@@ -30,6 +30,9 @@ const (
 	msgCmdHelpCreator = "cmd_help_creator"
 	msgCmdHelpViewer  = "cmd_help_viewer"
 
+	// Info command.
+	msgCmdInfoHTML = "cmd_info_html"
+
 	// Group registration.
 	msgGroupNotGroup              = "group_not_group"
 	msgGroupNotAdmin              = "group_not_admin"

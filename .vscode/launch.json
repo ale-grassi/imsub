@@ -8,7 +8,19 @@
       "mode": "auto",
       "program": "${workspaceFolder}/cmd/imsub",
       "cwd": "${workspaceFolder}",
-      "envFile": "${workspaceFolder}/.env"
+      "envFile": "${workspaceFolder}/.env.dev"
+    },
+    {
+      "name": "Imsub: Run Tunnel Mode",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/cmd/imsub",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env.dev",
+      "env": {
+        "IMSUB_REDIS_URL": "redis://default:@redis:6379/0"
+      }
     },
     {
       "name": "Imsub: Run App With Example Env",
@@ -17,7 +29,7 @@
       "mode": "auto",
       "program": "${workspaceFolder}/cmd/imsub",
       "cwd": "${workspaceFolder}",
-      "envFile": "${workspaceFolder}/.env.example"
+      "envFile": "${workspaceFolder}/.env.dev.example"
     },
     {
       "name": "Imsub: Debug Integration Tests",
@@ -27,7 +39,7 @@
       "program": "${workspaceFolder}/tests/integration",
       "cwd": "${workspaceFolder}",
       "buildFlags": "-tags=integration",
-      "envFile": "${workspaceFolder}/.env"
+      "envFile": "${workspaceFolder}/.env.dev"
     }
   ]
 }

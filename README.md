@@ -112,7 +112,7 @@ For production deployments, see [Deployment](#deployment).
 | `/creator` | Private chat | Link a Twitch creator account or view creator status |
 | `/reset` | Private chat | Guided deletion of viewer data, creator data, or both |
 | `/help` | Private chat | Help desk flow for reports and troubleshooting, with one practical LLM-generated answer per user each week |
-| `/info` | Private chat | Short about screen with project, repository, and license information |
+| `/info` | Private chat | About screen with how it works, commands, and project link |
 | `/linkgroup` | Group chat | Link the current group to your creator account (admin only) |
 | `/unlinkgroup` | Group chat | Unlink the current group from your creator account (owner only) |
 
@@ -164,17 +164,18 @@ ImSub ships with everything needed for [Fly.io](https://fly.io) deployment.
 - `Dockerfile` — multi-stage build producing a minimal Alpine image
 - `fly.toml` — HTTP service configuration, health checks, and metrics scraping
 
-### Deploy Commands
-
-```bash
-make deploy     # Deploy to Fly.io
-make status     # Show app status
-make logs       # Show recent logs
-```
-
 ### GitHub Actions Deploy Flow
 
-Pushes to `main` run the `Main` GitHub Actions workflow. Deployment happens only after Fly config validation, checks, linting, vulnerability scanning, and secret scanning pass.
+Pushes to `main` run the `Main` GitHub Actions workflow. Deployment happens only after Fly config validation, checks, linting, vulnerability scanning, and secret scanning pass. There is no local `make deploy` target.
+
+### Production Utility Commands
+
+These commands are intentionally prefixed with `prod-` and require an exact confirmation string:
+
+```bash
+make prod-logs CONFIRM=prod-logs
+make prod-redis-proxy CONFIRM=prod-redis-proxy
+```
 
 ### Health Check
 
@@ -189,27 +190,34 @@ Pushes to `main` run the `Main` GitHub Actions workflow. Deployment happens only
 ### Prerequisites
 
 - Go 1.26+
-- Redis reachable from the local process
 - `pre-commit` (optional, for local secret scanning hook)
 
 ### Getting Started
 
 ```bash
-# Copy and fill in environment variables
-cp .env.example .env
+# Open the repository in the devcontainer first.
+
+# Copy the local development environment file
+cp .env.dev.example .env.dev
+
+# Fill in the dev bot token and Twitch credentials in .env.dev
 
 # Run format + test + build
 make check
 
-# Start the bot
-go run ./cmd/imsub
+# Start the bot in long polling mode
+make run
 ```
+
+For tunnel mode, use the same `.env.dev` file and run `make run-tunnel`.
 
 ### Devcontainer
 
-The repository includes a full devcontainer configuration. Opening the project in a supported IDE automatically provisions Redis, installs CLI tools (`flyctl`, `golangci-lint`, `govulncheck`, `gitleaks`, `xdg-open`) and AI coding CLIs (`codex`, `claude`, `gemini`). Host directories for CLI state (`~/.claude`, `~/.fly`, `~/.codex`, `~/.gemini`) are bind-mounted so login state persists across rebuilds. The `initializeCommand` creates placeholder host paths if missing.
+The repository includes a local-build devcontainer image. Rebuilding the container builds [`.devcontainer/Dockerfile`](/workspace/.devcontainer/Dockerfile), which bakes in the stable toolchain layers: Go, Node.js, `flyctl`, `golangci-lint`, `govulncheck`, `gitleaks`, `pre-commit`, `actionlint`, `xdg-open`, `twitch`, `cloudflared`, and the AI coding CLIs (`codex`, `claude`, `gemini`). Host directories for CLI state (`~/.claude`, `~/.fly`, `~/.codex`, `~/.gemini`) are bind-mounted so login state persists across rebuilds. The `initializeCommand` creates placeholder host paths if missing.
 
-For Fly Redis inspection from VS Code, use the `fly redis proxy` task or `make redis-proxy`. Both start the interactive `flyctl redis proxy` flow and print the local proxy address (typically `127.0.0.1:16379`).
+The local Redis service lives at `redis://default:@redis:6379/0` from inside the devcontainer and keeps its data in a named Docker volume so seeded data survives rebuilds and restarts.
+
+The post-create step is intentionally small now. It only applies workspace-specific setup such as Git config inclusion, commit-signing integration, `pre-commit install`, and `go mod download`.
 
 **1Password SSH signing:** If you require signed commits, the host must provide `/opt/1Password/op-ssh-sign` and the relevant Git signer configuration. Without that signer, signed commits in the container will not work.
 
@@ -226,34 +234,111 @@ For Fly Redis inspection from VS Code, use the `fly redis proxy` task or `make r
 | `make cover-open` | Open interactive coverage report in browser |
 | `make vuln` | Run govulncheck against all packages |
 | `make secrets-scan` | Scan for leaked secrets with gitleaks |
-| `make restore-latest-backup CONFIRM=restore-imsub` | Restore the latest backup using credentials read directly from `.env` |
+| `make run` | Run ImSub locally in long polling mode using `.env.dev` and the devcontainer Redis |
+| `make run-tunnel [PUBLIC_BASE_URL=https://...]` | Run ImSub in local webhook mode using `.env.dev` and the devcontainer Redis |
+| `make tunnel` | Start or reuse a cached Cloudflare quick tunnel for `http://localhost:8080` |
+| `make attach-tunnel URL=https://... [PID=<pid>]` | Cache an already-running tunnel URL for `make run-tunnel` |
+| `make stop-tunnel` | Stop the cached Cloudflare quick tunnel and remove its temp files |
+| `make seed CONFIRM=seed` | Download the latest production backup and load it into the local devcontainer Redis |
+| `make prod-logs CONFIRM=prod-logs` | Show recent production Fly logs |
+| `make prod-redis-proxy CONFIRM=prod-redis-proxy` | Open an interactive production Fly Redis proxy |
 | `make check` | Run `fmt` + `test` + `build` |
 | `make ci-check` | Run the full local equivalent of CI checks |
 
-### Restore From Backup
+### Local Webhook Testing
 
-ImSub includes an operator-only restore command that reads Redis and Tigris credentials directly from `.env` via `godotenv`.
+Use `.env.dev` and `make run` for the fast local loop. Telegram stays in long polling mode, while Twitch EventSub requests can be generated directly against the local HTTP server.
 
-Restore the latest available backup:
-
-```bash
-make restore-latest-backup CONFIRM=restore-imsub
-```
-
-Restore a specific object key:
+Verify the webhook challenge handler:
 
 ```bash
-go run ./cmd/imsub-admin restore -env .env -key backups/imsub-2026-03-12T12-00-00Z.jsonl.gz -confirm=restore-imsub
+set -a; . ./.env.dev; set +a
+twitch event verify-subscription subscribe \
+  -F http://localhost:8080/webhooks/twitch \
+  -s "$IMSUB_TWITCH_EVENTSUB_SECRET"
 ```
 
-The restore flow uses `RESTORE REPLACE` for each `imsub:*` key. Restore into an empty or disposable Redis instance first if you need to validate a snapshot before touching production.
+Send synthetic EventSub notifications to the local webhook:
+
+```bash
+set -a; . ./.env.dev; set +a
+twitch event trigger subscribe \
+  -F http://localhost:8080/webhooks/twitch \
+  -s "$IMSUB_TWITCH_EVENTSUB_SECRET"
+twitch event trigger unsubscribe \
+  -F http://localhost:8080/webhooks/twitch \
+  -s "$IMSUB_TWITCH_EVENTSUB_SECRET"
+twitch event trigger ban \
+  -F http://localhost:8080/webhooks/twitch \
+  -s "$IMSUB_TWITCH_EVENTSUB_SECRET"
+twitch event trigger unban \
+  -F http://localhost:8080/webhooks/twitch \
+  -s "$IMSUB_TWITCH_EVENTSUB_SECRET"
+```
+
+### Tunnel Testing
+
+Use the same `.env.dev` file when you need the local app reachable from Twitch and Telegram over public HTTPS.
+
+```bash
+# Set IMSUB_TELEGRAM_WEBHOOK_SECRET in .env.dev first.
+make run-tunnel
+```
+
+`make run-tunnel` reuses the cached Cloudflare quick tunnel URL from `tmp/cloudflared-url` when available. If no live tunnel is cached, it starts one automatically, stores its URL and PID under `tmp/`, and uses that public URL for Telegram webhooks and Twitch callbacks.
+
+If you started `cloudflared` manually outside `make`, adopt it with:
+
+```bash
+make attach-tunnel URL=https://<your-trycloudflare-url> PID=<optional-pid>
+make run-tunnel
+```
+
+Passing `PUBLIC_BASE_URL=https://...` to `make run-tunnel` also updates the cached tunnel URL for future runs.
+
+### Download or Load a Backup
+
+ImSub includes operator-only backup commands that read Tigris credentials directly from `.env` via `godotenv`.
+
+Download the latest available backup without touching Redis:
+
+```bash
+go run ./cmd/imsub-admin backup-download -env .env -out tmp/backups/latest.jsonl.gz
+```
+
+Download a specific object key:
+
+```bash
+go run ./cmd/imsub-admin backup-download -env .env -key backups/imsub-2026-03-12T12-00-00Z.jsonl.gz -out tmp/backups/imsub-2026-03-12T12-00-00Z.jsonl.gz
+```
+
+Load a downloaded backup into the local Redis:
+
+```bash
+go run ./cmd/imsub-admin backup-load -from-file tmp/backups/latest.jsonl.gz -redis-url redis://default:@redis:6379/0 -confirm=backup-load
+```
+
+Load directly from object storage into the configured Redis:
+
+```bash
+go run ./cmd/imsub-admin backup-load -env .env -key backups/imsub-2026-03-12T12-00-00Z.jsonl.gz -confirm=backup-load
+```
+
+For the common local flow, use:
+
+```bash
+make seed CONFIRM=seed
+```
+
+The backup-load flow uses `RESTORE REPLACE` for each `imsub:*` key, so it keeps the explicit confirmation requirement. The backup-download flow is read-only and does not require confirmation.
 
 ### Pre-commit Hooks
 
 ```bash
-pre-commit install
 pre-commit run --all-files
 ```
+
+In the devcontainer, `pre-commit` is installed in the image and the git hook is registered automatically by the post-create step. The hooks are intentionally close to CI: `make fmt-check`, `make vet`, `make build`, `make lint`, `make test`, `make test-integration` against the devcontainer Redis, `make vuln`, `actionlint`, `flyctl config validate --strict -c fly.toml`, and `make secrets-scan`.
 
 ---
 
@@ -510,7 +595,6 @@ Planned improvements and open design questions, roughly ordered by impact.
 
 ### Subscription lifecycle
 
-- **Grace period after subscription end**: instead of kicking immediately on `channel.subscription.end`, keep the user in the group for a configurable window (e.g. 24–72h) and kick only if they haven't resubscribed by then. Requires a delayed job or a scheduled sweep.
 - **EventSub secret rotation key-ring**: replace single static `IMSUB_TWITCH_EVENTSUB_SECRET` usage with a shared persisted key-ring (`current` + `previous`) so all app instances verify with dual-secret during a bounded grace period. Rotate on schedule (not every restart), explicitly migrate EventSub subscriptions to the new secret (create/verify/delete old), and retire the previous key after migration completes.
 - **Subscription tier awareness**: different tiers could map to different groups or roles within the same group (e.g. Tier 3 gets a VIP group).
 
@@ -537,7 +621,6 @@ Planned improvements and open design questions, roughly ordered by impact.
 ### Support and info
 
 - **`/help` help desk**: add a dedicated support flow where users can describe a problem or send a report. Once per week, that report can be analyzed by an LLM to return one automatic but practical, on-context answer or suggested resolution.
-- **`/info` about screen**: add a short "about me" style screen with the project summary, repository link, license, and other basic public information about the bot.
 - **Localization**: add more languages beyond English and Italian.
 - **Inline status refresh**: let viewers check their subscription status without going through the full `/start` flow again.
 

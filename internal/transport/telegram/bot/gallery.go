@@ -566,6 +566,14 @@ func PreviewScenarios() []PreviewScenario {
 			},
 		},
 		{
+			ID:    "info",
+			Group: "Info",
+			Title: "/info about screen",
+			Render: func(lang string) PreviewView {
+				return previewFromShared(buildInfoView(lang))
+			},
+		},
+		{
 			ID:    "cleanup-reset-warning",
 			Group: "Cleanup",
 			Title: "Creator reset cleanup warning",

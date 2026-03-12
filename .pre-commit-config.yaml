@@ -1,29 +1,63 @@
 repos:
   - repo: local
     hooks:
-      - id: make-fmt
-        name: make fmt
-        entry: make fmt
+      - id: make-fmt-check
+        name: make fmt-check
+        entry: make fmt-check
         language: system
         pass_filenames: false
-        types:
-          - go
+        always_run: true
+      - id: make-vet
+        name: make vet
+        entry: make vet
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: make-build
+        name: make build
+        entry: make build
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: make-lint
         name: make lint
         entry: make lint
         language: system
         pass_filenames: false
-        types:
-          - go
+        always_run: true
       - id: make-test
         name: make test
         entry: make test
         language: system
         pass_filenames: false
-        types:
-          - go
+        always_run: true
+      - id: make-test-integration
+        name: make test-integration
+        entry: bash -lc 'IMSUB_TEST_REDIS_URL=redis://default:@redis:6379/0 make test-integration'
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: make-vuln
+        name: make vuln
+        entry: make vuln
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: actionlint
+        name: actionlint
+        entry: actionlint
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: fly-config-validate
+        name: flyctl config validate
+        entry: flyctl config validate --strict -c fly.toml
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: make-secrets-scan
         name: make secrets-scan
         entry: make secrets-scan
         language: system
         pass_filenames: false
+        always_run: true

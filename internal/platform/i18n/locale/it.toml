@@ -391,3 +391,6 @@ other = "Solo il creator che ha collegato questo gruppo puo' scollegarlo."
 
 [btn_unregister_group]
 other = "Scollega il gruppo"
+
+[cmd_info_html]
+other = "ℹ️ <b>Informazioni su ImSub</b>\n\nImSub gestisce l'accesso a gruppi Telegram privati in base agli abbonamenti Twitch attivi.\n\n<b>Come funziona</b>\n• I creator collegano un canale Twitch e un gruppo Telegram\n• I viewer collegano il proprio account Twitch e ricevono link di invito\n• L'accesso viene concesso e revocato automaticamente\n\n<b>Comandi</b>\n/start — collega Twitch e vedi i gruppi disponibili\n/creator — configura un account creator\n/reset — elimina i dati collegati\n/info — questa schermata\n\n<b>Progetto</b>\n<a href=\"https://github.com/ale-grassi/imsub\">github.com/ale-grassi/imsub</a>\nLicenza: MIT"

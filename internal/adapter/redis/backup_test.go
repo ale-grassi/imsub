@@ -127,6 +127,32 @@ func TestRestoreTTL(t *testing.T) {
 	}
 }
 
+func TestBackupTTLMillis(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		ttl    time.Duration
+		wantMS int64
+		wantOK bool
+	}{
+		{name: "persistent", ttl: -1, wantMS: -1, wantOK: true},
+		{name: "missing", ttl: -2, wantMS: 0, wantOK: false},
+		{name: "positive ttl", ttl: 25 * time.Millisecond, wantMS: 25, wantOK: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			gotMS, gotOK := backupTTLMillis(tt.ttl)
+			if gotMS != tt.wantMS || gotOK != tt.wantOK {
+				t.Fatalf("backupTTLMillis(%v) = (%d, %t), want (%d, %t)", tt.ttl, gotMS, gotOK, tt.wantMS, tt.wantOK)
+			}
+		})
+	}
+}
+
 func decodeBackupEntries(t *testing.T, r io.Reader) []BackupEntry {
 	t.Helper()
 

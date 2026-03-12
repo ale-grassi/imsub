@@ -370,6 +370,7 @@ func configureBotCommands(ctx context.Context, bot *telego.Bot, tgLimiter *ratel
 			{Command: "linkgroup", Description: "Link this group to creator"},
 			{Command: "unlinkgroup", Description: "Unlink this group from creator"},
 			{Command: "reset", Description: "Clear your linked data"},
+			{Command: "info", Description: "About this bot"},
 		},
 	}); err != nil {
 		return fmt.Errorf("set my commands: %w", err)
@@ -378,7 +379,7 @@ func configureBotCommands(ctx context.Context, bot *telego.Bot, tgLimiter *ratel
 		return fmt.Errorf("limiter wait for bot short description: %w", err)
 	}
 	if err := bot.SetMyShortDescription(ctx, &telego.SetMyShortDescriptionParams{
-		ShortDescription: "Subscribers-only Telegram groups powered by Twitch subscriptions.",
+		ShortDescription: "Subscribers-only Telegram groups, powered by Twitch.",
 	}); err != nil {
 		return fmt.Errorf("set my short description: %w", err)
 	}
@@ -386,7 +387,7 @@ func configureBotCommands(ctx context.Context, bot *telego.Bot, tgLimiter *ratel
 		return fmt.Errorf("limiter wait for bot description: %w", err)
 	}
 	if err := bot.SetMyDescription(ctx, &telego.SetMyDescriptionParams{
-		Description: "I help creators manage subscribers-only Telegram groups using Twitch subscriptions.\n\nViewers can link their Twitch account, check which groups they can join, and get personal invite links.\n\nCreators can link groups, review access settings, and automate access removal when subscriptions end.\n\nProject: github.com/ale-grassi/imsub\nLicense: MIT",
+		Description: "ImSub manages access to private Telegram groups based on active Twitch subscriptions.\n\nHow it works\n• Creators link a Twitch channel and a Telegram group\n• Viewers connect their Twitch account and get invite links\n• Access is granted and revoked automatically\n\nCommands\n/start — connect Twitch and see available groups\n/creator — set up a creator account\n/reset — delete your linked data\n/info — about this bot\n\nProject: github.com/ale-grassi/imsub\nLicense: MIT",
 	}); err != nil {
 		return fmt.Errorf("set my description: %w", err)
 	}

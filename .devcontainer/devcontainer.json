@@ -4,20 +4,6 @@
   "service": "app",
   "workspaceFolder": "/workspace",
   "initializeCommand": "bash -lc 'mkdir -p \"$HOME/.1password\" \"$HOME/.ssh\" \"$HOME/.claude\" \"$HOME/.codex\" \"$HOME/.fly\" \"$HOME/.gemini\" \"$HOME/.config/git\" && touch \"$HOME/.claude.json\"'",
-  "features": {
-    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
-      "version": "latest",
-      "enableNonRootDocker": "true",
-      "moby": "false"
-    },
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "24"
-    },
-    "ghcr.io/devcontainers/features/go:1": {
-      "version": "latest",
-      "target": "/usr/local/go"
-    }
-  },
   "customizations": {
     "vscode": {
       "settings": {
@@ -67,12 +53,14 @@
   "remoteUser": "vscode",
   "forwardPorts": [
     8080,
-    6379,
-    16379
+    6379
   ],
   "portsAttributes": {
-    "16379": {
-      "label": "Fly Redis Proxy"
+    "8080": {
+      "label": "ImSub App"
+    },
+    "6379": {
+      "label": "Dev Redis"
     }
   }
 }

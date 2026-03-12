@@ -2,6 +2,96 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "make run",
+      "type": "shell",
+      "command": "make",
+      "args": [
+        "run"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always",
+        "focus": true
+      },
+      "problemMatcher": [
+        "$go"
+      ]
+    },
+    {
+      "label": "make run-tunnel",
+      "type": "shell",
+      "command": "make",
+      "args": [
+        "run-tunnel"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always",
+        "focus": true
+      },
+      "problemMatcher": [
+        "$go"
+      ]
+    },
+    {
+      "label": "make tunnel",
+      "type": "shell",
+      "command": "make",
+      "args": [
+        "tunnel"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always",
+        "focus": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make attach-tunnel",
+      "type": "shell",
+      "command": "bash",
+      "args": [
+        "-lc",
+        "read -r -p 'Tunnel URL: ' url; if [ -z \"$url\" ]; then echo 'Tunnel URL is required' >&2; exit 1; fi; make attach-tunnel URL=\"$url\""
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "panel": "shared",
+        "reveal": "always",
+        "focus": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "make stop-tunnel",
+      "type": "shell",
+      "command": "make",
+      "args": [
+        "stop-tunnel"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "panel": "shared",
+        "reveal": "always",
+        "focus": false
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "make fmt",
       "type": "shell",
       "command": "make",
@@ -139,11 +229,12 @@
       ]
     },
     {
-      "label": "make redis-proxy",
+      "label": "make prod-redis-proxy",
       "type": "shell",
       "command": "make",
       "args": [
-        "redis-proxy"
+        "prod-redis-proxy",
+        "CONFIRM=prod-redis-proxy"
       ],
       "options": {
         "cwd": "${workspaceFolder}"

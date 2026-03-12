@@ -11,9 +11,11 @@ coverage.*
 
 # Dependency/vendor caches
 /vendor/
+.venv-pre-commit/
 
 # Environment files and secrets
 .env
+.env.dev
 .env.local
 .env.*.local
 

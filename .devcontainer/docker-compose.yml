@@ -1,12 +1,14 @@
 services:
   app:
-    image: mcr.microsoft.com/devcontainers/base:ubuntu-22.04
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
     volumes:
       - ..:/workspace:cached
     # Overrides default command so things don't shut down after the process ends.
     command: /bin/sh -c "while sleep 1000; do :; done"
     env_file:
-      - ../.env.example
+      - ../.env.dev.example
     environment:
       - IMSUB_REDIS_URL=redis://default:@redis:6379/0
       - SSH_AUTH_SOCK=/home/vscode/.1password/agent.sock
@@ -14,7 +16,12 @@ services:
       - redis
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     restart: unless-stopped
+    volumes:
+      - redis-dev-data:/data
     ports:
       - "6379"
+
+volumes:
+  redis-dev-data:

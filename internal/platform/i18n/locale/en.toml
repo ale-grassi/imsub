@@ -390,3 +390,6 @@ other = "⚠️ Only the creator who linked this group can unlink it."
 
 [btn_unregister_group]
 other = "Unlink group"
+
+[cmd_info_html]
+other = "ℹ️ <b>About ImSub</b>\n\nImSub manages access to private Telegram groups based on active Twitch subscriptions.\n\n<b>How it works</b>\n• Creators link a Twitch channel and a Telegram group\n• Viewers connect their Twitch account and get invite links\n• Access is granted and revoked automatically\n\n<b>Commands</b>\n/start — connect Twitch and see available groups\n/creator — set up a creator account\n/reset — delete your linked data\n/info — this screen\n\n<b>Project</b>\n<a href=\"https://github.com/ale-grassi/imsub\">github.com/ale-grassi/imsub</a>\nLicense: MIT"

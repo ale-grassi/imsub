@@ -114,12 +114,9 @@ func (s *Store) writeBackupBatch(ctx context.Context, enc *json.Encoder, keys []
 		if err != nil {
 			return fmt.Errorf("pttl key %q: %w", key, err)
 		}
-		if ttl < -1*time.Millisecond {
+		ttlMS, ok := backupTTLMillis(ttl)
+		if !ok {
 			continue
-		}
-		ttlMS := ttl.Milliseconds()
-		if ttl == -1*time.Millisecond {
-			ttlMS = -1
 		}
 		if err := enc.Encode(BackupEntry{
 			Key:   key,
@@ -131,6 +128,16 @@ func (s *Store) writeBackupBatch(ctx context.Context, enc *json.Encoder, keys []
 		(*count)++
 	}
 	return nil
+}
+
+func backupTTLMillis(ttl time.Duration) (int64, bool) {
+	if ttl == -2 {
+		return 0, false
+	}
+	if ttl == -1 {
+		return -1, true
+	}
+	return ttl.Milliseconds(), true
 }
 
 func restoreTTL(ttlMS int64) (time.Duration, error) {

@@ -275,7 +275,7 @@ func (t gracePolicyTask) Classify(err error) string {
 	case err == nil:
 		return "ok"
 	case errors.Is(err, core.ErrPartialReconcile):
-		return "partial_failure"
+		return taskResultPartialFailure
 	default:
 		return taskResultFailed
 	}
@@ -426,7 +426,7 @@ func (t memberCleanupTask) Classify(err error) string {
 	case err == nil:
 		return "ok"
 	case errors.Is(err, core.ErrPartialReconcile):
-		return "partial_failure"
+		return taskResultPartialFailure
 	default:
 		return taskResultFailed
 	}
@@ -512,7 +512,7 @@ func (t subscriptionGraceTask) Classify(err error) string {
 	case err == nil:
 		return "ok"
 	case errors.Is(err, core.ErrPartialReconcile):
-		return "partial_failure"
+		return taskResultPartialFailure
 	default:
 		return taskResultFailed
 	}

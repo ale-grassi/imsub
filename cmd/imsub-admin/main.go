@@ -9,6 +9,7 @@ import (
 	"log"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -18,17 +19,18 @@ import (
 	"github.com/joho/godotenv"
 )
 
-const restoreConfirmValue = "restore-imsub"
+const backupLoadConfirmValue = "backup-load"
 
 var (
-	errRestoreConfirmRequired = errors.New("restore requires explicit confirmation")
-	errRestoreConfigMissing   = errors.New("missing restore env vars")
-	errNoBackupObjects        = errors.New("no backup objects found under backups/")
-	errUsage                  = errors.New("usage")
+	errBackupLoadConfirmRequired = errors.New("backup load requires explicit confirmation")
+	errRedisConfigMissing        = errors.New("missing redis env vars")
+	errBackupConfigMissing       = errors.New("missing backup env vars")
+	errNoBackupObjects           = errors.New("no backup objects found under backups/")
+	errDownloadOutRequired       = errors.New("download requires -out")
+	errUsage                     = errors.New("usage")
 )
 
-type restoreConfig struct {
-	RedisURL          string
+type backupConfig struct {
 	S3Endpoint        string
 	S3Bucket          string
 	S3AccessKeyID     string
@@ -48,55 +50,43 @@ func run(args []string) error {
 	}
 
 	switch args[0] {
-	case "restore":
-		return runRestore(args[1:])
+	case "backup-download":
+		return runDownload(args[1:])
+	case "backup-load":
+		return runBackupLoad(args[1:])
 	default:
 		return usageError("unknown command %q", args[0])
 	}
 }
 
-func runRestore(args []string) error {
-	fs := flag.NewFlagSet("restore", flag.ContinueOnError)
+func runDownload(args []string) error {
+	fs := flag.NewFlagSet("backup-download", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
 	envPath := fs.String("env", ".env", "path to .env file")
-	key := fs.String("key", "", "backup object key to restore")
-	confirm := fs.String("confirm", "", "required confirmation value")
+	key := fs.String("key", "", "backup object key to download")
+	outPath := fs.String("out", "", "local output path for the downloaded backup")
 	if err := fs.Parse(args); err != nil {
-		return fmt.Errorf("parse restore flags: %w", err)
+		return fmt.Errorf("parse download flags: %w", err)
 	}
-	if strings.TrimSpace(*confirm) != restoreConfirmValue {
-		return fmt.Errorf("%w: -confirm=%s", errRestoreConfirmRequired, restoreConfirmValue)
+	if strings.TrimSpace(*outPath) == "" {
+		return errDownloadOutRequired
 	}
+	targetPath := cleanOutputPath(*outPath)
 
-	cfg, err := loadRestoreConfig(*envPath)
+	cfg, err := loadBackupConfig(*envPath)
 	if err != nil {
 		return err
 	}
-
-	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	store, err := redis.NewStore(cfg.RedisURL, logger)
-	if err != nil {
-		return fmt.Errorf("new redis store: %w", err)
-	}
-	defer func() { _ = store.Close() }()
-
 	s3Client, err := s3.NewClient(cfg.S3Endpoint, cfg.S3Bucket, cfg.S3AccessKeyID, cfg.S3SecretAccessKey, cfg.S3Region)
 	if err != nil {
 		return fmt.Errorf("new s3 client: %w", err)
 	}
 
 	ctx := context.Background()
-	objectKey := strings.TrimSpace(*key)
-	if objectKey == "" {
-		objects, err := s3Client.ListPrefix(ctx, "backups/")
-		if err != nil {
-			return fmt.Errorf("list backup objects: %w", err)
-		}
-		objectKey, err = selectLatestBackupKey(objects)
-		if err != nil {
-			return err
-		}
+	objectKey, err := resolveBackupObjectKey(ctx, s3Client, *key)
+	if err != nil {
+		return err
 	}
 
 	rc, err := s3Client.Download(ctx, objectKey)
@@ -105,24 +95,120 @@ func runRestore(args []string) error {
 	}
 	defer func() { _ = rc.Close() }()
 
-	restored, err := store.RestoreBackup(ctx, rc)
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o750); err != nil {
+		return fmt.Errorf("create output directory for %s: %w", targetPath, err)
+	}
+	// #nosec G304 -- targetPath comes from the operator-provided -out flag and is cleaned before use.
+	f, err := os.Create(targetPath)
 	if err != nil {
-		return fmt.Errorf("restore backup %q: %w", objectKey, err)
+		return fmt.Errorf("create output file %s: %w", targetPath, err)
+	}
+	defer func() { _ = f.Close() }()
+
+	if _, err := io.Copy(f, rc); err != nil {
+		return fmt.Errorf("write output file %s: %w", targetPath, err)
 	}
 
-	if _, err := fmt.Fprintf(os.Stdout, "restored_keys=%d backup_key=%s\n", restored, objectKey); err != nil {
-		return fmt.Errorf("write restore summary: %w", err)
+	if _, err := fmt.Fprintf(os.Stdout, "backup_key=%s output=%s download_completed=true\n", objectKey, targetPath); err != nil {
+		return fmt.Errorf("write download summary: %w", err)
 	}
 	return nil
 }
 
-func loadRestoreConfig(envPath string) (restoreConfig, error) {
-	envMap, err := godotenv.Read(envPath)
-	if err != nil {
-		return restoreConfig{}, fmt.Errorf("read %s: %w", envPath, err)
+func runBackupLoad(args []string) error {
+	fs := flag.NewFlagSet("backup-load", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	envPath := fs.String("env", ".env", "path to .env file")
+	key := fs.String("key", "", "backup object key to load")
+	fromFile := fs.String("from-file", "", "local backup file to load instead of downloading from object storage")
+	redisURL := fs.String("redis-url", "", "override IMSUB_REDIS_URL from env file")
+	confirm := fs.String("confirm", "", "required confirmation value")
+	if err := fs.Parse(args); err != nil {
+		return fmt.Errorf("parse backup-load flags: %w", err)
 	}
-	cfg := restoreConfig{
-		RedisURL:          strings.TrimSpace(envMap["IMSUB_REDIS_URL"]),
+	if strings.TrimSpace(*confirm) != backupLoadConfirmValue {
+		return fmt.Errorf("%w: -confirm=%s", errBackupLoadConfirmRequired, backupLoadConfirmValue)
+	}
+
+	effectiveRedisURL, err := resolveRedisURL(*envPath, *redisURL)
+	if err != nil {
+		return err
+	}
+
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	store, err := redis.NewStore(effectiveRedisURL, logger)
+	if err != nil {
+		return fmt.Errorf("new redis store: %w", err)
+	}
+	defer func() { _ = store.Close() }()
+
+	ctx := context.Background()
+	rc, sourceLabel, err := openBackupSource(ctx, *envPath, *key, *fromFile)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rc.Close() }()
+
+	if _, err := store.RestoreBackup(ctx, rc); err != nil {
+		return fmt.Errorf("load backup %q: %w", sourceLabel, err)
+	}
+
+	if _, err := io.WriteString(os.Stdout, "backup_load_completed=true\n"); err != nil {
+		return fmt.Errorf("write backup load summary: %w", err)
+	}
+	return nil
+}
+
+func openBackupSource(ctx context.Context, envPath, key, fromFile string) (io.ReadCloser, string, error) {
+	if strings.TrimSpace(fromFile) != "" {
+		f, err := os.Open(strings.TrimSpace(fromFile))
+		if err != nil {
+			return nil, "", fmt.Errorf("open backup file %s: %w", strings.TrimSpace(fromFile), err)
+		}
+		return f, strings.TrimSpace(fromFile), nil
+	}
+
+	cfg, err := loadBackupConfig(envPath)
+	if err != nil {
+		return nil, "", err
+	}
+	s3Client, err := s3.NewClient(cfg.S3Endpoint, cfg.S3Bucket, cfg.S3AccessKeyID, cfg.S3SecretAccessKey, cfg.S3Region)
+	if err != nil {
+		return nil, "", fmt.Errorf("new s3 client: %w", err)
+	}
+	objectKey, err := resolveBackupObjectKey(ctx, s3Client, key)
+	if err != nil {
+		return nil, "", err
+	}
+	rc, err := s3Client.Download(ctx, objectKey)
+	if err != nil {
+		return nil, "", fmt.Errorf("download backup object %q: %w", objectKey, err)
+	}
+	return rc, objectKey, nil
+}
+
+func resolveRedisURL(envPath, override string) (string, error) {
+	if strings.TrimSpace(override) != "" {
+		return strings.TrimSpace(override), nil
+	}
+	envMap, err := loadEnvMap(envPath)
+	if err != nil {
+		return "", err
+	}
+	redisURL := strings.TrimSpace(envMap["IMSUB_REDIS_URL"])
+	if redisURL == "" {
+		return "", fmt.Errorf("%w in %s: IMSUB_REDIS_URL", errRedisConfigMissing, envPath)
+	}
+	return redisURL, nil
+}
+
+func loadBackupConfig(envPath string) (backupConfig, error) {
+	envMap, err := loadEnvMap(envPath)
+	if err != nil {
+		return backupConfig{}, err
+	}
+	cfg := backupConfig{
 		S3Endpoint:        strings.TrimSpace(envMap["IMSUB_S3_ENDPOINT"]),
 		S3Bucket:          strings.TrimSpace(envMap["IMSUB_S3_BUCKET"]),
 		S3AccessKeyID:     strings.TrimSpace(envMap["IMSUB_S3_ACCESS_KEY_ID"]),
@@ -133,9 +219,8 @@ func loadRestoreConfig(envPath string) (restoreConfig, error) {
 		cfg.S3Region = "auto"
 	}
 
-	missing := make([]string, 0, 5)
+	missing := make([]string, 0, 4)
 	for key, value := range map[string]string{
-		"IMSUB_REDIS_URL":            cfg.RedisURL,
 		"IMSUB_S3_ENDPOINT":          cfg.S3Endpoint,
 		"IMSUB_S3_BUCKET":            cfg.S3Bucket,
 		"IMSUB_S3_ACCESS_KEY_ID":     cfg.S3AccessKeyID,
@@ -147,9 +232,40 @@ func loadRestoreConfig(envPath string) (restoreConfig, error) {
 	}
 	if len(missing) > 0 {
 		sort.Strings(missing)
-		return restoreConfig{}, fmt.Errorf("%w in %s: %s", errRestoreConfigMissing, envPath, strings.Join(missing, ", "))
+		return backupConfig{}, fmt.Errorf("%w in %s: %s", errBackupConfigMissing, envPath, strings.Join(missing, ", "))
 	}
 	return cfg, nil
+}
+
+func loadEnvMap(envPath string) (map[string]string, error) {
+	envMap, err := godotenv.Read(envPath)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", envPath, err)
+	}
+	return envMap, nil
+}
+
+func cleanOutputPath(path string) string {
+	return filepath.Clean(strings.TrimSpace(path))
+}
+
+type backupObjectResolver interface {
+	ListPrefix(context.Context, string) ([]s3.ObjectInfo, error)
+}
+
+func resolveBackupObjectKey(ctx context.Context, resolver backupObjectResolver, explicitKey string) (string, error) {
+	objectKey := strings.TrimSpace(explicitKey)
+	if objectKey != "" {
+		return objectKey, nil
+	}
+	if resolver == nil {
+		return "", errNoBackupObjects
+	}
+	objects, err := resolver.ListPrefix(ctx, "backups/")
+	if err != nil {
+		return "", fmt.Errorf("list backup objects: %w", err)
+	}
+	return selectLatestBackupKey(objects)
 }
 
 func selectLatestBackupKey(objects []s3.ObjectInfo) (string, error) {
@@ -167,5 +283,5 @@ func selectLatestBackupKey(objects []s3.ObjectInfo) (string, error) {
 
 func usageError(format string, args ...any) error {
 	msg := fmt.Sprintf(format, args...)
-	return fmt.Errorf("%w: %s\nusage: imsub-admin restore [-env .env] [-key backups/...jsonl.gz] -confirm=%s", errUsage, msg, restoreConfirmValue)
+	return fmt.Errorf("%w: %s\nusage:\n  imsub-admin backup-download [-env .env] [-key backups/...jsonl.gz] -out tmp/backups/latest.jsonl.gz\n  imsub-admin backup-load [-env .env] [-key backups/...jsonl.gz] [-from-file tmp/backups/latest.jsonl.gz] [-redis-url redis://default:@redis:6379/0] -confirm=%s", errUsage, msg, backupLoadConfirmValue)
 }

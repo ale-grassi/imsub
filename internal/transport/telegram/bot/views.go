@@ -39,6 +39,13 @@ func buildViewerErrorView(lang string) sharedView {
 	return buildMainMenuTextView(lang, msgViewerError)
 }
 
+func buildInfoView(lang string) sharedView {
+	return sharedView{
+		text: i18n.Translate(lang, msgCmdInfoHTML),
+		opts: client.MessageOptions{DisablePreview: true},
+	}
+}
+
 func buildCreatorStatusErrorView(lang string) sharedView {
 	return buildTextView(lang, msgErrLoadStatus)
 }

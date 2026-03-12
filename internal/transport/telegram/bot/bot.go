@@ -306,6 +306,7 @@ func (c *Bot) RegisterTelegramHandlers() {
 	c.tgHandler.HandleMessage(trackedCommand("start", "private", c.onStartCommand), tghandler.And(tghandler.CommandEqual("start"), privateOnly))
 	c.tgHandler.HandleMessage(trackedCommand("creator", "private", c.onCreatorCommand), tghandler.And(tghandler.CommandEqual("creator"), privateOnly))
 	c.tgHandler.HandleMessage(trackedCommand("reset", "private", c.onResetCommand), tghandler.And(tghandler.CommandEqual("reset"), privateOnly))
+	c.tgHandler.HandleMessage(trackedCommand("info", "private", c.onInfoCommand), tghandler.And(tghandler.CommandEqual("info"), privateOnly))
 	c.tgHandler.HandleCallbackQuery(func(ctx *tghandler.Context, query telego.CallbackQuery) error {
 		c.onCallbackQuery(ctx, query)
 		return nil
@@ -373,6 +374,13 @@ func (c *Bot) dispatchCallbackAction(ctx context.Context, exec callbackExecution
 	}
 	c.log().Warn("unsupported callback action", "telegram_user_id", exec.userID, "data", exec.action.String())
 	return noCallbackFeedback()
+}
+
+func (c *Bot) onInfoCommand(ctx *tghandler.Context, msg telego.Message) error {
+	lang := i18n.NormalizeLanguage(msg.From.LanguageCode)
+	view := buildInfoView(lang)
+	c.sendMsg(ctx, msg.Chat.ID, view.text, &view.opts)
+	return nil
 }
 
 func (c *Bot) onUnknownMessage(ctx *tghandler.Context, message telego.Message) error {
