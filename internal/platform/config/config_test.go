@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestLoadMissingEnvOrder(t *testing.T) {
@@ -75,6 +76,115 @@ func TestLoadDefaultsAndNormalization(t *testing.T) {
 	}
 	if cfg.DebugLogs {
 		t.Errorf("Load().DebugLogs = %v, want %v", cfg.DebugLogs, false)
+	}
+	if cfg.S3Region != "auto" {
+		t.Errorf("Load().S3Region = %q, want %q", cfg.S3Region, "auto")
+	}
+	if cfg.BackupInterval != 6*time.Hour {
+		t.Errorf("Load().BackupInterval = %s, want %s", cfg.BackupInterval, 6*time.Hour)
+	}
+}
+
+func TestLoadBackupConfigEnabled(t *testing.T) {
+	t.Setenv("IMSUB_TELEGRAM_BOT_TOKEN", "tg-token")
+	t.Setenv("IMSUB_TWITCH_CLIENT_ID", "tw-client")
+	t.Setenv("IMSUB_TWITCH_CLIENT_SECRET", "tw-secret")
+	t.Setenv("IMSUB_TWITCH_EVENTSUB_SECRET", "eventsub-secret")
+	t.Setenv("IMSUB_PUBLIC_BASE_URL", "https://example.com")
+	t.Setenv("IMSUB_REDIS_URL", "redis://localhost:6379/0")
+	t.Setenv("IMSUB_S3_ENDPOINT", "https://fly.storage.tigris.dev")
+	t.Setenv("IMSUB_S3_BUCKET", "imsub-backups")
+	t.Setenv("IMSUB_S3_ACCESS_KEY_ID", "ak")
+	t.Setenv("IMSUB_S3_SECRET_ACCESS_KEY", "sk")
+	t.Setenv("IMSUB_S3_REGION", "")
+	t.Setenv("IMSUB_BACKUP_INTERVAL", "12h")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v, want nil", err)
+	}
+	if !cfg.BackupEnabled() {
+		t.Fatal("Load().BackupEnabled() = false, want true")
+	}
+	if cfg.BackupInterval != 12*time.Hour {
+		t.Fatalf("Load().BackupInterval = %s, want %s", cfg.BackupInterval, 12*time.Hour)
+	}
+	if cfg.S3Region != "auto" {
+		t.Fatalf("Load().S3Region = %q, want %q", cfg.S3Region, "auto")
+	}
+}
+
+func TestLoadBackupConfigRequiresCompleteCredentials(t *testing.T) {
+	t.Setenv("IMSUB_TELEGRAM_BOT_TOKEN", "tg-token")
+	t.Setenv("IMSUB_TWITCH_CLIENT_ID", "tw-client")
+	t.Setenv("IMSUB_TWITCH_CLIENT_SECRET", "tw-secret")
+	t.Setenv("IMSUB_TWITCH_EVENTSUB_SECRET", "eventsub-secret")
+	t.Setenv("IMSUB_PUBLIC_BASE_URL", "https://example.com")
+	t.Setenv("IMSUB_REDIS_URL", "redis://localhost:6379/0")
+	t.Setenv("IMSUB_S3_ENDPOINT", "fly.storage.tigris.dev")
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("Load() error = nil, want missing backup env error")
+	}
+	if !errors.Is(err, ErrMissingEnv) {
+		t.Fatalf("Load() error = %v, want ErrMissingEnv", err)
+	}
+	for _, env := range []string{
+		"IMSUB_S3_BUCKET",
+		"IMSUB_S3_ACCESS_KEY_ID",
+		"IMSUB_S3_SECRET_ACCESS_KEY",
+	} {
+		if !strings.Contains(err.Error(), env) {
+			t.Fatalf("Load() error = %q, want to mention %q", err.Error(), env)
+		}
+	}
+}
+
+func TestLoadBackupConfigRejectsInvalidInterval(t *testing.T) {
+	t.Setenv("IMSUB_TELEGRAM_BOT_TOKEN", "tg-token")
+	t.Setenv("IMSUB_TWITCH_CLIENT_ID", "tw-client")
+	t.Setenv("IMSUB_TWITCH_CLIENT_SECRET", "tw-secret")
+	t.Setenv("IMSUB_TWITCH_EVENTSUB_SECRET", "eventsub-secret")
+	t.Setenv("IMSUB_PUBLIC_BASE_URL", "https://example.com")
+	t.Setenv("IMSUB_REDIS_URL", "redis://localhost:6379/0")
+	t.Setenv("IMSUB_S3_ENDPOINT", "fly.storage.tigris.dev")
+	t.Setenv("IMSUB_S3_BUCKET", "imsub-backups")
+	t.Setenv("IMSUB_S3_ACCESS_KEY_ID", "ak")
+	t.Setenv("IMSUB_S3_SECRET_ACCESS_KEY", "sk")
+	t.Setenv("IMSUB_BACKUP_INTERVAL", "0")
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("Load() error = nil, want invalid backup interval")
+	}
+	if !strings.Contains(err.Error(), "IMSUB_BACKUP_INTERVAL") {
+		t.Fatalf("Load() error = %q, want to mention IMSUB_BACKUP_INTERVAL", err.Error())
+	}
+}
+
+func TestLoadBackupDefaultsAloneDoNotEnableValidation(t *testing.T) {
+	t.Setenv("IMSUB_TELEGRAM_BOT_TOKEN", "tg-token")
+	t.Setenv("IMSUB_TWITCH_CLIENT_ID", "tw-client")
+	t.Setenv("IMSUB_TWITCH_CLIENT_SECRET", "tw-secret")
+	t.Setenv("IMSUB_TWITCH_EVENTSUB_SECRET", "eventsub-secret")
+	t.Setenv("IMSUB_PUBLIC_BASE_URL", "https://example.com")
+	t.Setenv("IMSUB_REDIS_URL", "redis://localhost:6379/0")
+	t.Setenv("IMSUB_S3_REGION", "auto")
+	t.Setenv("IMSUB_BACKUP_INTERVAL", "6h")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v, want nil", err)
+	}
+	if cfg.BackupEnabled() {
+		t.Fatal("Load().BackupEnabled() = true, want false")
+	}
+	if cfg.S3Region != "auto" {
+		t.Fatalf("Load().S3Region = %q, want %q", cfg.S3Region, "auto")
+	}
+	if cfg.BackupInterval != 6*time.Hour {
+		t.Fatalf("Load().BackupInterval = %s, want %s", cfg.BackupInterval, 6*time.Hour)
 	}
 }
 

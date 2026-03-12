@@ -30,6 +30,10 @@ type Metrics struct {
 	telegramWebhook      *prometheus.CounterVec
 	backgroundJobsTotal  *prometheus.CounterVec
 	backgroundJobTime    *prometheus.HistogramVec
+	redisBackupRuns      *prometheus.CounterVec
+	redisBackupTime      *prometheus.HistogramVec
+	redisBackupKeys      prometheus.Gauge
+	redisBackupBytes     prometheus.Gauge
 	creatorTokenRefresh  *prometheus.CounterVec
 	creatorBlocklistSync *prometheus.CounterVec
 	creatorBlockEnforce  *prometheus.CounterVec
@@ -130,6 +134,29 @@ func New() *Metrics {
 			},
 			[]string{"job"},
 		),
+		redisBackupRuns: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "imsub_redis_backup_runs_total",
+				Help: "Redis backup runs by result.",
+			},
+			[]string{"result"},
+		),
+		redisBackupTime: prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "imsub_redis_backup_duration_seconds",
+				Help:    "Redis backup end-to-end duration in seconds by result.",
+				Buckets: []float64{0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 180, 300},
+			},
+			[]string{"result"},
+		),
+		redisBackupKeys: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "imsub_redis_backup_exported_keys",
+			Help: "Key count from the most recent successful Redis backup snapshot.",
+		}),
+		redisBackupBytes: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "imsub_redis_backup_uploaded_bytes",
+			Help: "Uploaded object size in bytes from the most recent successful Redis backup snapshot.",
+		}),
 		creatorTokenRefresh: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "imsub_creator_token_refresh_total",
@@ -304,6 +331,10 @@ func New() *Metrics {
 		m.telegramWebhook,
 		m.backgroundJobsTotal,
 		m.backgroundJobTime,
+		m.redisBackupRuns,
+		m.redisBackupTime,
+		m.redisBackupKeys,
+		m.redisBackupBytes,
 		m.creatorTokenRefresh,
 		m.creatorBlocklistSync,
 		m.creatorBlockEnforce,
@@ -667,6 +698,21 @@ func (m *Metrics) BackgroundJob(job, result string, d time.Duration) {
 	}
 	m.backgroundJobsTotal.WithLabelValues(httputil.LabelOrUnknown(job), httputil.LabelOrUnknown(result)).Inc()
 	m.backgroundJobTime.WithLabelValues(httputil.LabelOrUnknown(job)).Observe(d.Seconds())
+}
+
+// RedisBackup records a Redis backup run and snapshots the latest successful size metrics.
+func (m *Metrics) RedisBackup(result string, d time.Duration, keyCount int, sizeBytes int64) {
+	if m == nil {
+		return
+	}
+	result = httputil.LabelOrUnknown(result)
+	m.redisBackupRuns.WithLabelValues(result).Inc()
+	m.redisBackupTime.WithLabelValues(result).Observe(d.Seconds())
+	if result != "ok" {
+		return
+	}
+	m.redisBackupKeys.Set(float64(keyCount))
+	m.redisBackupBytes.Set(float64(sizeBytes))
 }
 
 // Middleware returns HTTP middleware that records request metrics and

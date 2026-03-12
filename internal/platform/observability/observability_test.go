@@ -19,6 +19,7 @@ func TestNilSafety(t *testing.T) {
 	m.EventSubMessage("notification", "channel.subscribe", "ok")
 	m.TelegramWebhookResult("ok")
 	m.BackgroundJob("audit", "ok", time.Millisecond)
+	m.RedisBackup("ok", time.Millisecond, 3, 128)
 	m.ResetExecution("viewer", "ok")
 	m.ResetGroupTargets("tracked", 2)
 	m.GroupRegistration("registered")
@@ -57,6 +58,7 @@ func TestMetricsExposure(t *testing.T) {
 	m.EventSubMessage("notification", "channel.subscribe", "ok")
 	m.TelegramWebhookResult("ok")
 	m.BackgroundJob("integrity_audit", "ok", 120*time.Millisecond)
+	m.RedisBackup("ok", 140*time.Millisecond, 7, 1024)
 	m.ResetExecution("viewer", "ok")
 	m.ResetGroupTargets("tracked", 2)
 	m.GroupRegistration("registered")
@@ -92,6 +94,10 @@ func TestMetricsExposure(t *testing.T) {
 		"imsub_eventsub_messages_total",
 		"imsub_telegram_webhook_updates_total",
 		"imsub_background_jobs_total",
+		"imsub_redis_backup_runs_total",
+		"imsub_redis_backup_duration_seconds",
+		"imsub_redis_backup_exported_keys",
+		"imsub_redis_backup_uploaded_bytes",
 		"imsub_reset_executions_total",
 		"imsub_reset_group_targets_total",
 		"imsub_group_registrations_total",
@@ -117,6 +123,33 @@ func TestMetricsExposure(t *testing.T) {
 	for _, needle := range needles {
 		if !strings.Contains(body, needle) {
 			t.Errorf("m.Handler() output missing %q", needle)
+		}
+	}
+}
+
+func TestRedisBackupMetricsKeepLastSuccessfulSnapshot(t *testing.T) {
+	t.Parallel()
+
+	m := New()
+	m.RedisBackup("ok", 2*time.Second, 11, 2048)
+	m.RedisBackup("failed", 3*time.Second, 0, 0)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
+	rec := httptest.NewRecorder()
+	m.Handler().ServeHTTP(rec, req)
+
+	body := rec.Body.String()
+	needles := []string{
+		`imsub_redis_backup_runs_total{result="ok"} 1`,
+		`imsub_redis_backup_runs_total{result="failed"} 1`,
+		`imsub_redis_backup_duration_seconds_count{result="ok"} 1`,
+		`imsub_redis_backup_duration_seconds_count{result="failed"} 1`,
+		`imsub_redis_backup_exported_keys 11`,
+		`imsub_redis_backup_uploaded_bytes 2048`,
+	}
+	for _, needle := range needles {
+		if !strings.Contains(body, needle) {
+			t.Fatalf("metrics output missing backup metric %q: %s", needle, body)
 		}
 	}
 }

@@ -144,8 +144,16 @@ All configuration is done through environment variables. See `.env.example` for 
 | `IMSUB_DEBUG_LOGS` | `false` | Enable debug logging (`true`, `1`, `yes`, `on`, `debug`) |
 | `IMSUB_METRICS_ENABLED` | `true` | Enable Prometheus metrics endpoint |
 | `IMSUB_METRICS_PATH` | `/metrics` | Path for the metrics endpoint |
+| `IMSUB_S3_ENDPOINT` | — | S3-compatible endpoint for periodic Redis backups, such as `fly.storage.tigris.dev` |
+| `IMSUB_S3_BUCKET` | — | Dedicated Tigris/S3 bucket used only for backup objects |
+| `IMSUB_S3_ACCESS_KEY_ID` | — | Access key for the backup bucket |
+| `IMSUB_S3_SECRET_ACCESS_KEY` | — | Secret key for the backup bucket |
+| `IMSUB_S3_REGION` | `auto` | Region passed to the S3-compatible client |
+| `IMSUB_BACKUP_INTERVAL` | `6h` | Periodic Redis backup cadence when S3 backup config is set |
 
 ---
+
+When any backup variable is set, the full backup configuration must be present or startup fails. The backup bucket should be dedicated to ImSub backups, and object retention should be handled with a bucket lifecycle rule in Tigris rather than by the app.
 
 ## Deployment
 
@@ -211,15 +219,34 @@ For Fly Redis inspection from VS Code, use the `fly redis proxy` task or `make r
 |--------|-------------|
 | `make fmt` | Format Go source files |
 | `make test` | Run unit tests with race detector |
-| `make test-integration` | Run integration-tagged tests |
+| `make test-integration` | Run integration-tagged tests (`IMSUB_TEST_REDIS_URL=redis://localhost:6379/0 make test-integration` enables the real Redis backup round-trip test) |
 | `make build` | Build all packages |
 | `make lint` | Run golangci-lint |
 | `make cover` | Generate `coverage.out` and `coverage.html` |
 | `make cover-open` | Open interactive coverage report in browser |
 | `make vuln` | Run govulncheck against all packages |
 | `make secrets-scan` | Scan for leaked secrets with gitleaks |
+| `make restore-latest-backup CONFIRM=restore-imsub` | Restore the latest backup using credentials read directly from `.env` |
 | `make check` | Run `fmt` + `test` + `build` |
 | `make ci-check` | Run the full local equivalent of CI checks |
+
+### Restore From Backup
+
+ImSub includes an operator-only restore command that reads Redis and Tigris credentials directly from `.env` via `godotenv`.
+
+Restore the latest available backup:
+
+```bash
+make restore-latest-backup CONFIRM=restore-imsub
+```
+
+Restore a specific object key:
+
+```bash
+go run ./cmd/imsub-admin restore -env .env -key backups/imsub-2026-03-12T12-00-00Z.jsonl.gz -confirm=restore-imsub
+```
+
+The restore flow uses `RESTORE REPLACE` for each `imsub:*` key. Restore into an empty or disposable Redis instance first if you need to validate a snapshot before touching production.
 
 ### Pre-commit Hooks
 

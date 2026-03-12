@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"imsub/internal/adapter/redis"
+	"imsub/internal/adapter/s3"
 	"imsub/internal/adapter/twitch"
 	"imsub/internal/core"
 	"imsub/internal/events"
@@ -162,6 +163,14 @@ func Run() error {
 	subscriptionGraceTask := jobs.NewSubscriptionGraceTask(s, tgGroups, flowController, logger)
 	memberCleanupTask := jobs.NewMemberCleanupTask(s, tgGroups, flowController, logger)
 	productMetricsTask := jobs.NewProductMetricsSnapshotTask(s, metrics)
+	var backupTask jobs.Task
+	if cfg.BackupEnabled() {
+		s3Client, err := s3.NewClient(cfg.S3Endpoint, cfg.S3Bucket, cfg.S3AccessKeyID, cfg.S3SecretAccessKey, cfg.S3Region)
+		if err != nil {
+			return fmt.Errorf("s3 error: %w", err)
+		}
+		backupTask = jobs.NewRedisBackupTask(s, s3Client, logger, metrics)
+	}
 	eventSubSvc.SetObserver(eventSink)
 	blocklistSvc.SetObserver(eventSink)
 	eventSubSvc.SetNotifier(flowController)
@@ -266,6 +275,15 @@ func Run() error {
 			Interval: 5 * time.Minute,
 		})
 	})
+	if backupTask != nil {
+		g.Go(func() error {
+			return jobRunner.RunScheduled(gctx, jobs.Schedule{
+				Task:         backupTask,
+				InitialDelay: 30 * time.Second,
+				Interval:     cfg.BackupInterval,
+			})
+		})
+	}
 
 	if err := g.Wait(); err != nil {
 		return fmt.Errorf("errgroup wait: %w", err)

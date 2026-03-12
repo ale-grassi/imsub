@@ -17,6 +17,16 @@ jobs:
   checks:
     name: Checks (vet, build, test, integration)
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v6
         with:
@@ -60,6 +70,8 @@ jobs:
 
       - name: Integration Tests
         run: make test-integration
+        env:
+          IMSUB_TEST_REDIS_URL: redis://localhost:6379/0
 
   lint:
     name: Lint and format

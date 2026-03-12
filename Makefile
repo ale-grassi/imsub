@@ -7,7 +7,7 @@ GITLEAKS ?= gitleaks
 export GOCACHE ?= /tmp/gocache
 export GOLANGCI_LINT_CACHE ?= /tmp/golangci-lint
 
-.PHONY: help fmt fmt-check vet test test-integration build check ci-check deploy status logs lint style-check cover cover-open vuln secrets-scan redis-proxy message-gallery message-gallery-md
+.PHONY: help fmt fmt-check vet test test-integration build check ci-check deploy status logs lint style-check cover cover-open vuln secrets-scan redis-proxy message-gallery message-gallery-md restore-latest-backup
 
 help:
 	@echo "Targets:"
@@ -26,6 +26,7 @@ help:
 	@echo "  make redis-proxy - open an interactive Fly Redis proxy"
 	@echo "  make message-gallery - generate Telegram message gallery HTML at /tmp/imsub-message-gallery.html"
 	@echo "  make message-gallery-md - generate Telegram message gallery Markdown at /tmp/imsub-message-gallery.md"
+	@echo "  make restore-latest-backup - restore the latest backup using .env (requires CONFIRM=restore-imsub)"
 	@echo "  make check    - fmt + test + build"
 	@echo "  make ci-check - run the full local equivalent of CI checks"
 	@echo "  make deploy   - deploy to Fly app $(APP)"
@@ -87,6 +88,9 @@ message-gallery:
 
 message-gallery-md:
 	$(GO) run ./cmd/imsub-message-gallery --format md --out ./imsub-message-gallery.md
+
+restore-latest-backup:
+	$(GO) run ./cmd/imsub-admin restore -env .env -confirm=$(CONFIRM)
 
 check: fmt test build
 
