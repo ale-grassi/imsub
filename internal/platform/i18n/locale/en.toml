@@ -101,7 +101,7 @@ other = "• Twitch connection: ✅ <b>Connected</b>"
 other = "• Twitch connection: ⚠️ <b>Reconnect required</b>"
 
 [creator_groups_none]
-other = "• No groups linked yet."
+other = "No groups linked yet."
 
 [creator_manage_groups_html]
 other = "🗂️ <b>Manage groups</b>\n\nSelect a group to review its settings, change how unverified members are handled, or unlink it."
@@ -293,13 +293,13 @@ other = "✅ <b>Twitch connected</b>\n🔗 <b>Account:</b> %s\n\n<b>No new Teleg
 other = "🗑️ <b>Choose what to delete</b>"
 
 [reset_confirm_both_html]
-other = "⚠️ <b>Delete all linked data?</b>\n\n<b>Viewer account:</b> %s\n<b>Subscribers-only groups:</b>\n%s\n\n<b>Creator account:</b> %s\n<b>Managed groups:</b>\n%s\n\n<b>If you continue:</b>\n• Your viewer data will be deleted\n• You will be removed from these subscribers-only groups\n• Your creator data will be deleted\n• ImSub will no longer check subscriptions for these groups\n• ImSub will no longer control access to these groups\n%s"
+other = "⚠️ <b>Delete all linked data?</b>\n\n<b>Viewer account:</b> %s%s\n\n<b>Creator account:</b> %s%s\n\n<b>If you continue:</b>\n• Your viewer data will be deleted%s\n• Your creator data will be deleted%s\n%s"
 
 [reset_confirm_creator_html]
-other = "⚠️ <b>Delete creator data?</b>\n\n<b>Account:</b> %s\n<b>Managed groups:</b>\n%s\n\n<b>If you continue:</b>\n• Your creator data will be deleted\n• ImSub will no longer check subscriptions for these groups\n• ImSub will no longer control access to these groups\n%s"
+other = "⚠️ <b>Delete creator data?</b>\n\n<b>Account:</b> %s%s\n\n<b>If you continue:</b>\n• Your creator data will be deleted%s\n%s"
 
 [reset_confirm_viewer_html]
-other = "⚠️ <b>Delete viewer data?</b>\n\n<b>Account:</b> %s\n<b>Subscribers-only groups:</b>\n%s\n\n<b>If you continue:</b>\n• Your viewer data will be deleted\n• You will be removed from these subscribers-only groups"
+other = "⚠️ <b>Delete viewer data?</b>\n\n<b>Account:</b> %s%s\n\n<b>If you continue:</b>\n• Your viewer data will be deleted%s"
 
 [reset_done_both_html]
 other = "✅ <b>All linked data deleted</b>\n\n<b>Viewer account:</b> %s\n<b>Removed from subscribers-only groups:</b>\n%s\n\n<b>Creator account:</b> %s\n<b>Managed groups:</b>\n%s\n\n<b>What changed:</b>\n• ImSub no longer checks subscriptions for these groups\n• ImSub no longer controls access to these groups\n%s"
@@ -328,6 +328,27 @@ other = "• Current group members will not be removed"
 [reset_action_kick_line]
 other = "• Current group members will be removed"
 
+[reset_viewer_remove_groups_line]
+other = "• You will be removed from these subscribers-only groups"
+
+[reset_viewer_no_groups_line]
+other = "• No subscribers-only groups found, so you will not be removed from any groups"
+
+[reset_creator_stop_checks_line]
+other = "• ImSub will no longer check subscriptions for these groups"
+
+[reset_creator_stop_control_line]
+other = "• ImSub will no longer control access to these groups"
+
+[reset_creator_no_groups_line]
+other = "• No managed groups found, so no group access will be changed"
+
+[reset_subscriber_groups_title]
+other = "Subscribers-only groups"
+
+[reset_managed_groups_title]
+other = "Managed groups"
+
 [reset_creator_kick_targets_line]
 other = "• Current group members are being removed in the background"
 
@@ -338,7 +359,7 @@ other = "• Failed removals: %d"
 other = "• Current group members could not be scheduled for removal. Check these groups manually"
 
 [reset_no_groups_line]
-other = "• No groups"
+other = "No groups"
 
 [btn_reset_keep_members]
 other = "Keep members"

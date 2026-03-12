@@ -101,7 +101,7 @@ other = "• Connessione Twitch: ✅ <b>Collegata</b>"
 other = "• Connessione Twitch: ⚠️ <b>Ricollegamento richiesto</b>"
 
 [creator_groups_none]
-other = "• Nessun gruppo collegato al momento."
+other = "Nessun gruppo collegato al momento."
 
 [creator_manage_groups_html]
 other = "🗂️ <b>Gestisci gruppi</b>\n\nSeleziona un gruppo per vedere le sue impostazioni, cambiare come vengono gestiti i membri non verificati o scollegarlo."
@@ -293,13 +293,14 @@ other = "✅ <b>Twitch collegato</b>\n🔗 <b>Account:</b> %s\n\n<b>Nessun nuovo
 other = "🗑️ <b>Scegli cosa eliminare</b>"
 
 [reset_confirm_both_html]
-other = "⚠️ <b>Eliminare tutti i dati collegati?</b>\n\n<b>Account viewer:</b> %s\n<b>Gruppi riservati agli abbonati:</b>\n%s\n\n<b>Account creator:</b> %s\n<b>Gruppi gestiti:</b>\n%s\n\n<b>Se continui:</b>\n• I tuoi dati viewer verranno eliminati\n• Verrai rimosso da questi gruppi riservati agli abbonati\n• I tuoi dati creator verranno eliminati\n• ImSub non controllera' piu' gli abbonamenti per questi gruppi\n• ImSub non controllera' piu' l'accesso a questi gruppi\n%s"
+other = "⚠️ <b>Eliminare tutti i dati collegati?</b>\n\n<b>Account viewer:</b> %s%s\n\n<b>Account creator:</b> %s%s\n\n<b>Se continui:</b>\n• I dati viewer verranno eliminati%s\n• I dati creator verranno eliminati%s\n%s"
 
 [reset_confirm_creator_html]
-other = "⚠️ <b>Eliminare i dati creator?</b>\n\n<b>Account:</b> %s\n<b>Gruppi gestiti:</b>\n%s\n\n<b>Se continui:</b>\n• I tuoi dati creator verranno eliminati\n• ImSub non controllera' piu' gli abbonamenti per questi gruppi\n• ImSub non controllera' piu' l'accesso a questi gruppi\n%s"
+other = "⚠️ <b>Eliminare i dati creator?</b>\n\n<b>Account:</b> %s%s\n\n<b>Se continui:</b>\n• I dati creator verranno eliminati%s\n%s"
 
 [reset_confirm_viewer_html]
-other = "⚠️ <b>Eliminare i dati viewer?</b>\n\n<b>Account:</b> %s\n<b>Gruppi riservati agli abbonati:</b>\n%s\n\n<b>Se continui:</b>\n• I tuoi dati viewer verranno eliminati\n• Verrai rimosso da questi gruppi riservati agli abbonati"
+other = "⚠️ <b>Eliminare i dati viewer?</b>\n\n<b>Account:</b> %s%s\n\n<b>Se continui:</b>\n• I dati viewer verranno eliminati%s"
+
 
 [reset_done_both_html]
 other = "✅ <b>Tutti i dati collegati sono stati eliminati</b>\n\n<b>Account viewer:</b> %s\n<b>Rimosso da questi gruppi riservati agli abbonati:</b>\n%s\n\n<b>Account creator:</b> %s\n<b>Gruppi gestiti:</b>\n%s\n\n<b>Cosa cambia:</b>\n• ImSub non controlla piu' gli abbonamenti per questi gruppi\n• ImSub non controlla piu' l'accesso a questi gruppi\n%s"
@@ -328,6 +329,27 @@ other = "• I membri attuali non verranno rimossi"
 [reset_action_kick_line]
 other = "• I membri attuali verranno rimossi"
 
+[reset_viewer_remove_groups_line]
+other = "• Verrai rimosso da questi gruppi riservati agli abbonati"
+
+[reset_viewer_no_groups_line]
+other = "• Nessun gruppo per abbonati trovato, quindi non verrai rimosso da alcun gruppo"
+
+[reset_creator_stop_checks_line]
+other = "• ImSub non controllera' piu' gli abbonamenti per questi gruppi"
+
+[reset_creator_stop_control_line]
+other = "• ImSub non controllera' piu' l'accesso a questi gruppi"
+
+[reset_creator_no_groups_line]
+other = "• Nessun gruppo gestito trovato, quindi nessun accesso ai gruppi verra' modificato"
+
+[reset_subscriber_groups_title]
+other = "Gruppi riservati agli abbonati"
+
+[reset_managed_groups_title]
+other = "Gruppi gestiti"
+
 [reset_creator_kick_targets_line]
 other = "• I membri attuali stanno venendo rimossi in background"
 
@@ -338,7 +360,7 @@ other = "• Rimozioni fallite: %d"
 other = "• Non e' stato possibile pianificare la rimozione dei membri attuali. Controlla questi gruppi manualmente"
 
 [reset_no_groups_line]
-other = "• Nessun gruppo"
+other = "Nessun gruppo"
 
 [btn_reset_keep_members]
 other = "Mantieni membri"

@@ -14,13 +14,21 @@ type outputFormat string
 const (
 	formatHTML     outputFormat = "html"
 	formatMarkdown outputFormat = "md"
+	formatTelegram outputFormat = "telegram"
 )
 
 var (
 	errUnsupportedFormatFlag = errors.New("unsupported format flag")
 	errUnsupportedLangFlag   = errors.New("unsupported language flag")
 	errUnsupportedFormat     = errors.New("unsupported format")
+	errUnknownGroupFilter    = errors.New("unknown group filter")
+	errUnknownScenarioFilter = errors.New("unknown scenario filter")
 )
+
+type galleryFilters struct {
+	Group    string
+	Scenario string
+}
 
 type galleryPage struct {
 	GeneratedAt string
@@ -41,10 +49,11 @@ type galleryScenario struct {
 }
 
 type galleryCard struct {
-	Language   string
-	RawText    string
-	Buttons    [][]bot.PreviewButton
-	HasButtons bool
+	Language       string
+	RawText        string
+	Buttons        [][]bot.PreviewButton
+	HasButtons     bool
+	DisablePreview bool
 }
 
 func parseFormat(flagValue string) (outputFormat, error) {
@@ -53,6 +62,8 @@ func parseFormat(flagValue string) (outputFormat, error) {
 		return formatHTML, nil
 	case string(formatMarkdown):
 		return formatMarkdown, nil
+	case string(formatTelegram):
+		return formatTelegram, nil
 	default:
 		return "", fmt.Errorf("%w: %q", errUnsupportedFormatFlag, flagValue)
 	}
@@ -71,12 +82,24 @@ func selectedLanguages(flagValue string) ([]string, error) {
 	}
 }
 
-func buildPage(langs []string) galleryPage {
+func buildPage(langs []string, filters galleryFilters) (galleryPage, error) {
 	scenarios := bot.PreviewScenarios()
 	sections := make([]gallerySection, 0, 8)
 	sectionIdx := map[string]int{}
+	groupFilter := strings.TrimSpace(filters.Group)
+	scenarioFilter := strings.TrimSpace(filters.Scenario)
+	groupMatched := groupFilter == ""
+	scenarioMatched := scenarioFilter == ""
 
 	for _, scenario := range scenarios {
+		if groupFilter != "" && scenario.Group != groupFilter {
+			continue
+		}
+		if scenarioFilter != "" && scenario.ID != scenarioFilter {
+			continue
+		}
+		groupMatched = true
+		scenarioMatched = true
 		idx, ok := sectionIdx[scenario.Group]
 		if !ok {
 			sectionIdx[scenario.Group] = len(sections)
@@ -93,20 +116,42 @@ func buildPage(langs []string) galleryPage {
 		for _, lang := range langs {
 			view := scenario.Render(lang)
 			item.Cards = append(item.Cards, galleryCard{
-				Language:   strings.ToUpper(lang),
-				RawText:    view.Text,
-				Buttons:    view.Buttons,
-				HasButtons: len(view.Buttons) > 0,
+				Language:       strings.ToUpper(lang),
+				RawText:        view.Text,
+				Buttons:        view.Buttons,
+				HasButtons:     len(view.Buttons) > 0,
+				DisablePreview: view.DisablePreview,
 			})
 		}
 		sections[idx].Scenarios = append(sections[idx].Scenarios, item)
+	}
+
+	if !groupMatched {
+		return galleryPage{}, fmt.Errorf("%w: %q", errUnknownGroupFilter, filters.Group)
+	}
+	if !scenarioMatched {
+		return galleryPage{}, fmt.Errorf("%w: %q", errUnknownScenarioFilter, filters.Scenario)
+	}
+	if groupFilter != "" && scenarioFilter != "" {
+		found := false
+		for _, section := range sections {
+			for _, scenario := range section.Scenarios {
+				if scenario.ID == scenarioFilter && section.Name == groupFilter {
+					found = true
+					break
+				}
+			}
+		}
+		if !found {
+			return galleryPage{}, fmt.Errorf("%w: %q not in group %q", errUnknownScenarioFilter, filters.Scenario, filters.Group)
+		}
 	}
 
 	return galleryPage{
 		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
 		Languages:   langs,
 		Sections:    sections,
-	}
+	}, nil
 }
 
 func renderPage(page galleryPage, format outputFormat) ([]byte, error) {
@@ -115,6 +160,8 @@ func renderPage(page galleryPage, format outputFormat) ([]byte, error) {
 		return renderHTML(page)
 	case formatMarkdown:
 		return renderMarkdown(page)
+	case formatTelegram:
+		return nil, fmt.Errorf("%w: %q", errUnsupportedFormat, format)
 	default:
 		return nil, fmt.Errorf("%w: %q", errUnsupportedFormat, format)
 	}

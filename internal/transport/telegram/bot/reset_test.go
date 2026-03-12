@@ -83,6 +83,40 @@ func TestBuildResetExecutionViewCreatorIncludesCleanup(t *testing.T) {
 	}
 }
 
+func TestRenderResetViewerGroupsEmpty(t *testing.T) {
+	t.Parallel()
+	ensureResetTestI18n(t)
+
+	got := renderResetViewerGroups("en", nil)
+	if got != "No groups" {
+		t.Fatalf("renderResetViewerGroups() = %q, want %q", got, "No groups")
+	}
+}
+
+func TestResetViewerConsequenceLine(t *testing.T) {
+	t.Parallel()
+	ensureResetTestI18n(t)
+
+	if got := resetViewerConsequenceLine("en", 0); got != "\n• No subscribers-only groups found, so you will not be removed from any groups" {
+		t.Fatalf("resetViewerConsequenceLine(0) = %q, want zero-group message", got)
+	}
+	if got := resetViewerConsequenceLine("en", 1); got != "\n• You will be removed from these subscribers-only groups" {
+		t.Fatalf("resetViewerConsequenceLine(1) = %q, want removal warning", got)
+	}
+}
+
+func TestResetGroupSection(t *testing.T) {
+	t.Parallel()
+	ensureResetTestI18n(t)
+
+	if got := resetGroupSection("en", "Subscribers-only groups", nil); got != "" {
+		t.Fatalf("resetGroupSection(nil) = %q, want empty string", got)
+	}
+	if got := resetGroupSection("en", "Subscribers-only groups", []string{"VIP Lounge"}); got != "\n<b>Subscribers-only groups:</b>\n• VIP Lounge" {
+		t.Fatalf("resetGroupSection(non-empty) = %q, want rendered section", got)
+	}
+}
+
 func containsAll(text string, parts ...string) bool {
 	for _, part := range parts {
 		if !strings.Contains(text, part) {

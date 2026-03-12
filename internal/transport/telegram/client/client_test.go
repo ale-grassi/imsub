@@ -131,7 +131,7 @@ func TestSendTransformsCombinedWarningEmojiForHTML(t *testing.T) {
 
 	c.Send(t.Context(), 100, "‼️⚠️ Something went wrong", nil)
 
-	caller.assertJSONFieldContains(t, "sendMessage", "text", `<tg-emoji emoji-id="5420323339723881652">‼️⚠️</tg-emoji>`)
+	caller.assertJSONFieldContains(t, "sendMessage", "text", `<tg-emoji emoji-id="5420323339723881652">⚠️</tg-emoji>`)
 	caller.assertJSONFieldNotContains(t, "sendMessage", "text", `<tg-emoji emoji-id="5447644880824181073">⚠️</tg-emoji>`)
 }
 

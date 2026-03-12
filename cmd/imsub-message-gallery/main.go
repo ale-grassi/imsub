@@ -2,12 +2,20 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"imsub/internal/platform/i18n"
+)
+
+var (
+	errMissingChatID = errors.New("missing chat-id")
+	errInvalidChatID = errors.New("invalid chat-id")
 )
 
 func main() {
@@ -23,7 +31,11 @@ func run(args []string) error {
 
 	outPath := fs.String("out", "/tmp/imsub-message-gallery.html", "output path")
 	langFlag := fs.String("lang", "en", "language: en, it, or all")
-	formatFlag := fs.String("format", string(formatHTML), "output format: html or md")
+	formatFlag := fs.String("format", string(formatHTML), "output format: html, md, or telegram")
+	groupFlag := fs.String("group", "", "optional exact scenario group filter")
+	scenarioFlag := fs.String("scenario", "", "optional exact scenario ID filter")
+	chatIDFlag := fs.String("chat-id", "", "telegram chat/user ID for telegram output")
+	noHeaderFlag := fs.Bool("no-header", false, "send original card text without gallery header in telegram output")
 
 	if err := fs.Parse(args); err != nil {
 		return fmt.Errorf("parse flags: %w", err)
@@ -41,7 +53,26 @@ func run(args []string) error {
 		return err
 	}
 
-	page := buildPage(langs)
+	page, err := buildPage(langs, galleryFilters{
+		Group:    *groupFlag,
+		Scenario: *scenarioFlag,
+	})
+	if err != nil {
+		return err
+	}
+
+	if format == formatTelegram {
+		chatID, err := parseChatID(*chatIDFlag)
+		if err != nil {
+			return err
+		}
+		result, err := sendTelegramGallery(page, chatID, *noHeaderFlag)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("sent %d gallery cards to %d (%s)\n", result.Sent, result.ChatID, strings.Join(langs, ", "))
+		return nil
+	}
 	output, err := renderPage(page, format)
 	if err != nil {
 		return err
@@ -56,4 +87,15 @@ func run(args []string) error {
 
 	fmt.Println(*outPath)
 	return nil
+}
+
+func parseChatID(flagValue string) (int64, error) {
+	if strings.TrimSpace(flagValue) == "" {
+		return 0, fmt.Errorf("%w for %q format", errMissingChatID, formatTelegram)
+	}
+	chatID, err := strconv.ParseInt(strings.TrimSpace(flagValue), 10, 64)
+	if err != nil || chatID == 0 {
+		return 0, fmt.Errorf("%w %q", errInvalidChatID, flagValue)
+	}
+	return chatID, nil
 }

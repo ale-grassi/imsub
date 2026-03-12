@@ -18,11 +18,12 @@ import (
 
 // PreviewButton is a gallery-friendly representation of one inline button.
 type PreviewButton struct {
-	Label   string
-	Kind    string
-	Target  string
-	Style   string
-	HasIcon bool
+	Label             string
+	Kind              string
+	Target            string
+	Style             string
+	HasIcon           bool
+	IconCustomEmojiID string
 }
 
 // PreviewView is a gallery-friendly render of one Telegram message state.
@@ -412,8 +413,31 @@ func PreviewScenarios() []PreviewScenario {
 			Group: "Reset",
 			Title: "Confirm viewer-data deletion",
 			Render: func(lang string) PreviewView {
+				groupNames := []string{"VIP Lounge", "Patrons", "Insiders"}
 				return previewFromShared(sharedView{
-					text: fmt.Sprintf(i18n.Translate(lang, msgResetConfirmViewerHTML), html.EscapeString("viewer_name"), renderResetViewerGroups(lang, []string{"VIP Lounge", "Patrons", "Insiders"})),
+					text: fmt.Sprintf(
+						i18n.Translate(lang, msgResetConfirmViewerHTML),
+						html.EscapeString("viewer_name"),
+						resetGroupSection(lang, i18n.Translate(lang, "reset_subscriber_groups_title"), groupNames),
+						resetViewerConsequenceLine(lang, len(groupNames)),
+					),
+					opts: clientResetConfirmMarkup(lang),
+				})
+			},
+		},
+		{
+			ID:    "reset-confirm-viewer-no-groups",
+			Group: "Reset",
+			Title: "Confirm viewer-data deletion with no groups",
+			Render: func(lang string) PreviewView {
+				groupNames := []string(nil)
+				return previewFromShared(sharedView{
+					text: fmt.Sprintf(
+						i18n.Translate(lang, msgResetConfirmViewerHTML),
+						html.EscapeString("viewer_name"),
+						resetGroupSection(lang, i18n.Translate(lang, "reset_subscriber_groups_title"), groupNames),
+						resetViewerConsequenceLine(lang, len(groupNames)),
+					),
 					opts: clientResetConfirmMarkup(lang),
 				})
 			},
@@ -424,7 +448,30 @@ func PreviewScenarios() []PreviewScenario {
 			Title: "Confirm creator-data deletion",
 			Render: func(lang string) PreviewView {
 				return previewFromShared(sharedView{
-					text: fmt.Sprintf(i18n.Translate(lang, msgResetConfirmCreatorHTML), html.EscapeString("streamer_one"), renderResetViewerGroups(lang, []string{"VIP Lounge", "Subscriber Chat"}), i18n.Translate(lang, msgResetActionKickLine)),
+					text: fmt.Sprintf(
+						i18n.Translate(lang, msgResetConfirmCreatorHTML),
+						html.EscapeString("streamer_one"),
+						resetGroupSection(lang, i18n.Translate(lang, "reset_managed_groups_title"), []string{"VIP Lounge", "Subscriber Chat"}),
+						resetCreatorConsequenceLine(lang, 2),
+						resetCreatorActionSummaryText(lang, core.CreatorResetKickTrackedMembers, 2),
+					),
+					opts: clientResetConfirmMarkup(lang),
+				})
+			},
+		},
+		{
+			ID:    "reset-confirm-creator-no-groups",
+			Group: "Reset",
+			Title: "Confirm creator-data deletion with no groups",
+			Render: func(lang string) PreviewView {
+				return previewFromShared(sharedView{
+					text: fmt.Sprintf(
+						i18n.Translate(lang, msgResetConfirmCreatorHTML),
+						html.EscapeString("streamer_one"),
+						resetGroupSection(lang, i18n.Translate(lang, "reset_managed_groups_title"), nil),
+						resetCreatorConsequenceLine(lang, 0),
+						resetCreatorActionSummaryText(lang, core.CreatorResetKickTrackedMembers, 0),
+					),
 					opts: clientResetConfirmMarkup(lang),
 				})
 			},
@@ -434,8 +481,18 @@ func PreviewScenarios() []PreviewScenario {
 			Group: "Reset",
 			Title: "Confirm deleting all linked data",
 			Render: func(lang string) PreviewView {
+				viewerGroups := []string{"VIP Lounge", "Patrons", "Insiders"}
 				return previewFromShared(sharedView{
-					text: fmt.Sprintf(i18n.Translate(lang, msgResetConfirmBothHTML), html.EscapeString("viewer_name"), renderResetViewerGroups(lang, []string{"VIP Lounge", "Patrons", "Insiders"}), html.EscapeString("streamer_one"), renderResetViewerGroups(lang, []string{"VIP Lounge", "Subscriber Chat"}), i18n.Translate(lang, msgResetActionKickLine)),
+					text: fmt.Sprintf(
+						i18n.Translate(lang, msgResetConfirmBothHTML),
+						html.EscapeString("viewer_name"),
+						resetGroupSection(lang, i18n.Translate(lang, "reset_subscriber_groups_title"), viewerGroups),
+						html.EscapeString("streamer_one"),
+						resetGroupSection(lang, i18n.Translate(lang, "reset_managed_groups_title"), []string{"VIP Lounge", "Subscriber Chat"}),
+						resetViewerConsequenceLine(lang, len(viewerGroups)),
+						resetCreatorConsequenceLine(lang, 2),
+						resetCreatorActionSummaryText(lang, core.CreatorResetKickTrackedMembers, 2),
+					),
 					opts: clientResetConfirmMarkup(lang),
 				})
 			},
@@ -563,11 +620,12 @@ func previewButtons(markup *telego.InlineKeyboardMarkup) [][]PreviewButton {
 				target = button.CopyText.Text
 			}
 			buttons = append(buttons, PreviewButton{
-				Label:   button.Text,
-				Kind:    kind,
-				Target:  target,
-				Style:   button.Style,
-				HasIcon: strings.TrimSpace(button.IconCustomEmojiID) != "",
+				Label:             button.Text,
+				Kind:              kind,
+				Target:            target,
+				Style:             button.Style,
+				HasIcon:           strings.TrimSpace(button.IconCustomEmojiID) != "",
+				IconCustomEmojiID: button.IconCustomEmojiID,
 			})
 		}
 		rows = append(rows, buttons)

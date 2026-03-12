@@ -100,7 +100,16 @@ func customEmojiHTMLReplacements() []string {
 }
 
 func customEmojiTag(fallback, customEmojiID string) string {
-	return `<tg-emoji emoji-id="` + customEmojiID + `">` + fallback + `</tg-emoji>`
+	return `<tg-emoji emoji-id="` + customEmojiID + `">` + customEmojiFallback(fallback) + `</tg-emoji>`
+}
+
+func customEmojiFallback(fallback string) string {
+	switch fallback {
+	case "‼️⚠️":
+		return "⚠️"
+	default:
+		return fallback
+	}
 }
 
 func transformOutgoingText(text string, opts *MessageOptions) string {

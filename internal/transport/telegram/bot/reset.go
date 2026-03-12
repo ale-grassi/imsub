@@ -223,22 +223,26 @@ func (c *Bot) buildResetConfirmView(ctx context.Context, telegramUserID int64, l
 		if !scopes.HasIdentity {
 			return resetConfirmView{}
 		}
+		viewerGroups := c.resetViewerGroupNames(ctx, telegramUserID)
 		return resetConfirmView{
 			text: fmt.Sprintf(
 				i18n.Translate(lang, msgResetConfirmViewerHTML),
 				html.EscapeString(scopes.Identity.TwitchLogin),
-				renderResetViewerGroups(lang, c.resetViewerGroupNames(ctx, telegramUserID)),
+				resetGroupSection(lang, i18n.Translate(lang, "reset_subscriber_groups_title"), viewerGroups),
+				resetViewerConsequenceLine(lang, len(viewerGroups)),
 			),
 		}
 	case resetScopeCreator:
 		if !scopes.HasCreator {
 			return resetConfirmView{}
 		}
+		creatorGroups := c.resetCreatorGroupNames(ctx, telegramUserID)
 		return resetConfirmView{text: fmt.Sprintf(
 			i18n.Translate(lang, msgResetConfirmCreatorHTML),
 			html.EscapeString(scopes.Creator.TwitchLogin),
-			renderResetViewerGroups(lang, c.resetCreatorGroupNames(ctx, telegramUserID)),
-			resetActionSummaryText(lang, action),
+			resetGroupSection(lang, i18n.Translate(lang, "reset_managed_groups_title"), creatorGroups),
+			resetCreatorConsequenceLine(lang, len(creatorGroups)),
+			resetCreatorActionSummaryText(lang, action, len(creatorGroups)),
 		)}
 	case resetScopeBoth:
 		if !scopes.HasIdentity && !scopes.HasCreator {
@@ -248,6 +252,8 @@ func (c *Bot) buildResetConfirmView(ctx context.Context, telegramUserID int64, l
 		if scopes.HasIdentity {
 			viewerName = html.EscapeString(scopes.Identity.TwitchLogin)
 		}
+		viewerGroups := c.resetViewerGroupNames(ctx, telegramUserID)
+		creatorGroups := c.resetCreatorGroupNames(ctx, telegramUserID)
 		creatorName := "-"
 		if scopes.HasCreator {
 			creatorName = html.EscapeString(scopes.Creator.TwitchLogin)
@@ -256,10 +262,12 @@ func (c *Bot) buildResetConfirmView(ctx context.Context, telegramUserID int64, l
 			text: fmt.Sprintf(
 				i18n.Translate(lang, msgResetConfirmBothHTML),
 				viewerName,
-				renderResetViewerGroups(lang, c.resetViewerGroupNames(ctx, telegramUserID)),
+				resetGroupSection(lang, i18n.Translate(lang, "reset_subscriber_groups_title"), viewerGroups),
 				creatorName,
-				renderResetViewerGroups(lang, c.resetCreatorGroupNames(ctx, telegramUserID)),
-				resetActionSummaryText(lang, action),
+				resetGroupSection(lang, i18n.Translate(lang, "reset_managed_groups_title"), creatorGroups),
+				resetViewerConsequenceLine(lang, len(viewerGroups)),
+				resetCreatorConsequenceLine(lang, len(creatorGroups)),
+				resetCreatorActionSummaryText(lang, action, len(creatorGroups)),
 			),
 		}
 	default:
@@ -422,7 +430,10 @@ func renderResetExecutionResult(lang string, res usecase.ResetResult) string {
 	}
 }
 
-func resetActionSummaryText(lang string, action core.CreatorResetGroupAction) string {
+func resetCreatorActionSummaryText(lang string, action core.CreatorResetGroupAction, groupCount int) string {
+	if groupCount == 0 {
+		return ""
+	}
 	if action == core.CreatorResetKickTrackedMembers {
 		return i18n.Translate(lang, msgResetActionKickLine)
 	}
@@ -463,4 +474,28 @@ func renderResetViewerGroups(lang string, names []string) string {
 		items = append(items, "• "+html.EscapeString(name))
 	}
 	return strings.Join(items, "\n")
+}
+
+func resetViewerConsequenceLine(lang string, groupCount int) string {
+	if groupCount == 0 {
+		return "\n" + i18n.Translate(lang, "reset_viewer_no_groups_line")
+	}
+	return "\n" + i18n.Translate(lang, "reset_viewer_remove_groups_line")
+}
+
+func resetCreatorConsequenceLine(lang string, groupCount int) string {
+	if groupCount == 0 {
+		return "\n" + i18n.Translate(lang, "reset_creator_no_groups_line")
+	}
+	return "\n" + strings.Join([]string{
+		i18n.Translate(lang, "reset_creator_stop_checks_line"),
+		i18n.Translate(lang, "reset_creator_stop_control_line"),
+	}, "\n")
+}
+
+func resetGroupSection(lang, title string, names []string) string {
+	if len(names) == 0 {
+		return ""
+	}
+	return fmt.Sprintf("\n<b>%s:</b>\n%s", title, renderResetViewerGroups(lang, names))
 }
