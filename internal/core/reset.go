@@ -29,6 +29,7 @@ type eventSubCleaner interface {
 type resetStore interface {
 	UserIdentity(ctx context.Context, telegramUserID int64) (UserIdentity, bool, error)
 	OwnedCreatorForUser(ctx context.Context, ownerTelegramID int64) (Creator, bool, error)
+	ManagedGroupByChatID(ctx context.Context, chatID int64) (ManagedGroup, bool, error)
 	ListTrackedGroupIDsForUser(ctx context.Context, telegramUserID int64) ([]int64, error)
 	ListTrackedGroupMemberIDs(ctx context.Context, chatID int64) ([]int64, error)
 	ListActiveCreators(ctx context.Context) ([]Creator, error)
@@ -68,6 +69,7 @@ type ScopeState struct {
 type CreatorGroupCleanupSummary struct {
 	Action                  CreatorResetGroupAction
 	ManagedGroupCount       int
+	GroupNames              []string
 	TargetedMembershipCount int
 	KickFailureCount        int
 	Queued                  bool
@@ -79,6 +81,7 @@ type ViewerResetResult struct {
 	HasIdentity     bool
 	Identity        UserIdentity
 	GroupCount      int
+	GroupNames      []string
 	GroupResolution GroupResolutionStats
 }
 
@@ -94,6 +97,7 @@ type BothResetResult struct {
 	HasIdentity     bool
 	Identity        UserIdentity
 	GroupCount      int
+	GroupNames      []string
 	GroupResolution GroupResolutionStats
 	DeletedCount    int
 	DeletedNames    []string
@@ -140,6 +144,11 @@ func (r *ResetService) CountViewerGroups(ctx context.Context, telegramUserID int
 	return r.CountSubLinkedGroupsForUser(ctx, telegramUserID)
 }
 
+// ViewerGroupNames returns the linked creator group names for the user.
+func (r *ResetService) ViewerGroupNames(ctx context.Context, telegramUserID int64) ([]string, error) {
+	return r.SubLinkedGroupNamesForUser(ctx, telegramUserID)
+}
+
 // CountCreatorGroups returns how many managed groups are owned by the creator.
 func (r *ResetService) CountCreatorGroups(ctx context.Context, telegramUserID int64) (int, error) {
 	creator, hasCreator, err := r.store.OwnedCreatorForUser(ctx, telegramUserID)
@@ -156,6 +165,30 @@ func (r *ResetService) CountCreatorGroups(ctx context.Context, telegramUserID in
 	return len(groups), nil
 }
 
+// CreatorGroupNames returns sorted managed group names owned by the creator.
+func (r *ResetService) CreatorGroupNames(ctx context.Context, telegramUserID int64) ([]string, error) {
+	creator, hasCreator, err := r.store.OwnedCreatorForUser(ctx, telegramUserID)
+	if err != nil {
+		return nil, fmt.Errorf("load owned creator: %w", err)
+	}
+	if !hasCreator {
+		return nil, nil
+	}
+	groups, err := r.store.ListManagedGroupsByCreator(ctx, creator.ID)
+	if err != nil {
+		return nil, fmt.Errorf("list managed groups by creator %s: %w", creator.ID, err)
+	}
+	names := make([]string, 0, len(groups))
+	for _, group := range groups {
+		if group.GroupName == "" {
+			continue
+		}
+		names = append(names, group.GroupName)
+	}
+	slices.Sort(names)
+	return slices.Compact(names), nil
+}
+
 // ExecuteViewerReset removes viewer-linked data and group access.
 func (r *ResetService) ExecuteViewerReset(ctx context.Context, telegramUserID int64) (ViewerResetResult, error) {
 	identity, hasIdentity, err := r.store.UserIdentity(ctx, telegramUserID)
@@ -169,10 +202,15 @@ func (r *ResetService) ExecuteViewerReset(ctx context.Context, telegramUserID in
 	if err != nil {
 		return ViewerResetResult{}, fmt.Errorf("reset viewer data and revoke: %w", err)
 	}
+	groupNames, err := r.SubLinkedGroupNamesForUser(ctx, telegramUserID)
+	if err != nil {
+		return ViewerResetResult{}, fmt.Errorf("sub linked group names: %w", err)
+	}
 	return ViewerResetResult{
 		HasIdentity:     true,
 		Identity:        identity,
 		GroupCount:      groupCount,
+		GroupNames:      groupNames,
 		GroupResolution: resolution,
 	}, nil
 }
@@ -202,8 +240,13 @@ func (r *ResetService) ExecuteBothReset(ctx context.Context, telegramUserID int6
 	}
 
 	groupCount := 0
+	groupNames := []string(nil)
 	var resolution GroupResolutionStats
 	if hasIdentity {
+		groupNames, err = r.SubLinkedGroupNamesForUser(ctx, telegramUserID)
+		if err != nil {
+			return BothResetResult{}, fmt.Errorf("sub linked group names: %w", err)
+		}
 		groupCount, resolution, err = r.ResetViewerDataAndRevokeGroupAccess(ctx, telegramUserID)
 		if err != nil {
 			return BothResetResult{}, fmt.Errorf("reset viewer data and revoke: %w", err)
@@ -224,6 +267,7 @@ func (r *ResetService) ExecuteBothReset(ctx context.Context, telegramUserID int6
 		HasIdentity:     hasIdentity,
 		Identity:        identity,
 		GroupCount:      groupCount,
+		GroupNames:      groupNames,
 		GroupResolution: resolution,
 		DeletedCount:    deletedCount,
 		DeletedNames:    deletedNames,
@@ -249,6 +293,27 @@ func (r *ResetService) SubLinkedGroupIDsForUser(ctx context.Context, telegramUse
 		return nil, err
 	}
 	return groupIDs, nil
+}
+
+// SubLinkedGroupNamesForUser returns sorted linked creator group names for the user.
+func (r *ResetService) SubLinkedGroupNamesForUser(ctx context.Context, telegramUserID int64) ([]string, error) {
+	groupIDs, err := r.SubLinkedGroupIDsForUser(ctx, telegramUserID)
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(groupIDs))
+	for _, groupID := range groupIDs {
+		group, ok, err := r.store.ManagedGroupByChatID(ctx, groupID)
+		if err != nil {
+			return nil, fmt.Errorf("managed group by chat id %d: %w", groupID, err)
+		}
+		if !ok || group.GroupName == "" {
+			continue
+		}
+		names = append(names, group.GroupName)
+	}
+	slices.Sort(names)
+	return slices.Compact(names), nil
 }
 
 func (r *ResetService) resolveSubLinkedGroupIDsForUser(ctx context.Context, telegramUserID int64) ([]int64, GroupResolutionStats, error) {
@@ -372,6 +437,14 @@ func (r *ResetService) cleanupCreatorGroupsForReset(ctx context.Context, ownerTe
 		Action:            action,
 		ManagedGroupCount: len(groups),
 	}
+	for _, group := range groups {
+		if group.GroupName == "" {
+			continue
+		}
+		summary.GroupNames = append(summary.GroupNames, group.GroupName)
+	}
+	slices.Sort(summary.GroupNames)
+	summary.GroupNames = slices.Compact(summary.GroupNames)
 	if action != CreatorResetKickTrackedMembers {
 		return summary, nil
 	}
@@ -400,6 +473,7 @@ func (r *ResetService) cleanupCreatorGroupsForReset(ctx context.Context, ownerTe
 		CreatorID:         creator.ID,
 		CreatorLogin:      creator.TwitchLogin,
 		ManagedGroupCount: len(groups),
+		GroupNames:        append([]string(nil), summary.GroupNames...),
 		Targets:           targets,
 	})
 	if err != nil {

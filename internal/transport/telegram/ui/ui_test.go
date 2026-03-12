@@ -263,12 +263,24 @@ func TestMainMenuAndWithMainMenuMarkup(t *testing.T) {
 		t.Errorf("CreatorStatusMenuMarkup(%q) inactive blocklist style = %q, want empty", "en", inactiveMenu.InlineKeyboard[1][0].Style)
 	}
 
-	resetPicker := ResetScopePickerMarkup("en", "reset:pick:viewer:viewer", "reset:pick:viewer:creator", "reset:pick:viewer:both", "reset:back:viewer")
+	resetPicker := ResetScopePickerMarkup(
+		"en",
+		"Viewer: viewer_name",
+		"reset:pick:viewer:viewer",
+		"Creator: streamer_one",
+		"reset:pick:viewer:creator",
+		"All data",
+		"reset:pick:viewer:both",
+		"reset:back:viewer",
+	)
 	if resetPicker == nil || len(resetPicker.InlineKeyboard) != 4 {
 		t.Fatalf("ResetScopePickerMarkup(%q, ...) = %+v, want 4 rows", "en", resetPicker)
 	}
 	if resetPicker.InlineKeyboard[0][0].CallbackData != "reset:pick:viewer:viewer" {
 		t.Errorf("ResetScopePickerMarkup first callback = %+v, want %q", resetPicker.InlineKeyboard[0][0], "reset:pick:viewer:viewer")
+	}
+	if resetPicker.InlineKeyboard[0][0].Text != "Viewer: viewer_name" {
+		t.Errorf("ResetScopePickerMarkup first text = %q, want %q", resetPicker.InlineKeyboard[0][0].Text, "Viewer: viewer_name")
 	}
 	if resetPicker.InlineKeyboard[3][0].CallbackData != "reset:back:viewer" {
 		t.Errorf("ResetScopePickerMarkup back callback = %+v, want %q", resetPicker.InlineKeyboard[3][0], "reset:back:viewer")

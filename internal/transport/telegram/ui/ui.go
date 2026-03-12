@@ -13,18 +13,15 @@ import (
 )
 
 const (
-	btnRefresh          = "btn_refresh"
-	btnReconnect        = "btn_reconnect_creator"
-	btnManageGroups     = "btn_manage_groups"
-	btnGracePeriod      = "btn_grace_period"
-	btnBlocklistSync    = "btn_blocklist_sync"
-	btnReset            = "btn_reset"
-	btnSubscribe        = "btn_subscribe"
-	btnResetViewerData  = "btn_reset_viewer_data"
-	btnResetCreatorData = "btn_reset_creator_data"
-	btnResetAllData     = "btn_reset_all_data"
-	btnBack             = "btn_back"
-	btnResetConfirm     = "btn_reset_confirm"
+	btnRefresh       = "btn_refresh"
+	btnReconnect     = "btn_reconnect_creator"
+	btnManageGroups  = "btn_manage_groups"
+	btnGracePeriod   = "btn_grace_period"
+	btnBlocklistSync = "btn_blocklist_sync"
+	btnReset         = "btn_reset"
+	btnSubscribe     = "btn_subscribe"
+	btnBack          = "btn_back"
+	btnResetConfirm  = "btn_reset_confirm"
 
 	msgLinkedStatusNoSubsHTML           = "linked_status_no_subs_html"
 	msgLinkedStatusWithSubsHTML         = "linked_status_with_subs_html"
@@ -118,11 +115,11 @@ func WithCreatorMainMenu(lang string, callbacks CreatorMenuCallbacks, rows ...[]
 }
 
 // ResetScopePickerMarkup builds the reset scope picker keyboard.
-func ResetScopePickerMarkup(lang, viewerCallback, creatorCallback, bothCallback, backCallback string) *telego.InlineKeyboardMarkup {
+func ResetScopePickerMarkup(lang, viewerText, viewerCallback, creatorText, creatorCallback, bothText, bothCallback, backCallback string) *telego.InlineKeyboardMarkup {
 	return tu.InlineKeyboard(
-		tu.InlineKeyboardRow(DeleteButton(i18n.Translate(lang, btnResetViewerData), viewerCallback)),
-		tu.InlineKeyboardRow(DeleteButton(i18n.Translate(lang, btnResetCreatorData), creatorCallback)),
-		tu.InlineKeyboardRow(DeleteButton(i18n.Translate(lang, btnResetAllData), bothCallback)),
+		tu.InlineKeyboardRow(DeleteButton(viewerText, viewerCallback)),
+		tu.InlineKeyboardRow(DeleteButton(creatorText, creatorCallback)),
+		tu.InlineKeyboardRow(DeleteButton(bothText, bothCallback)),
 		tu.InlineKeyboardRow(BackButton(i18n.Translate(lang, btnBack), backCallback)),
 	)
 }

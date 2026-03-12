@@ -70,6 +70,7 @@ func TestBuildResetExecutionViewCreatorIncludesCleanup(t *testing.T) {
 		CreatorCleanup: core.CreatorGroupCleanupSummary{
 			Action:                  core.CreatorResetKickTrackedMembers,
 			ManagedGroupCount:       2,
+			GroupNames:              []string{"VIP Lounge", "Subscriber Chat"},
 			TargetedMembershipCount: 4,
 			KickFailureCount:        1,
 		},
@@ -77,7 +78,7 @@ func TestBuildResetExecutionViewCreatorIncludesCleanup(t *testing.T) {
 	if view.text == "" {
 		t.Fatalf("buildResetExecutionView() = %+v, want text", view)
 	}
-	if !containsAll(view.text, "Managed groups unlinked", "Tracked memberships targeted for kick") {
+	if !containsAll(view.text, "Managed groups:", "VIP Lounge", "Current group members are being removed in the background") {
 		t.Fatalf("buildResetExecutionView() text = %q, want creator cleanup details", view.text)
 	}
 }

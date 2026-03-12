@@ -46,6 +46,7 @@ type MemberCleanupJob struct {
 	GroupChatID       int64                 `json:"group_chat_id"`
 	GroupName         string                `json:"group_name"`
 	ManagedGroupCount int                   `json:"managed_group_count"`
+	GroupNames        []string              `json:"group_names"`
 	TotalTargets      int                   `json:"total_targets"`
 	SucceededCount    int                   `json:"succeeded_count"`
 	Targets           []MemberCleanupTarget `json:"targets"`
@@ -61,6 +62,7 @@ type MemberCleanupResult struct {
 	CreatorLogin      string
 	GroupName         string
 	ManagedGroupCount int
+	GroupNames        []string
 	TargetedCount     int
 	SucceededCount    int
 	FailedCount       int

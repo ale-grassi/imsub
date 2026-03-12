@@ -28,6 +28,8 @@ var errUnsupportedResetScope = errors.New("unsupported reset scope")
 type resetService interface {
 	LoadScopes(ctx context.Context, telegramUserID int64) (core.ScopeState, error)
 	CountViewerGroups(ctx context.Context, telegramUserID int64) (int, error)
+	ViewerGroupNames(ctx context.Context, telegramUserID int64) ([]string, error)
+	CreatorGroupNames(ctx context.Context, telegramUserID int64) ([]string, error)
 	CountCreatorGroups(ctx context.Context, telegramUserID int64) (int, error)
 	ExecuteViewerReset(ctx context.Context, telegramUserID int64) (core.ViewerResetResult, error)
 	ExecuteCreatorReset(ctx context.Context, telegramUserID int64, action core.CreatorResetGroupAction) (core.CreatorResetResult, error)
@@ -40,6 +42,7 @@ type ResetResult struct {
 	Empty           bool
 	ViewerLogin     string
 	GroupCount      int
+	GroupNames      []string
 	GroupResolution core.GroupResolutionStats
 	DeletedCount    int
 	DeletedNames    []string
@@ -73,6 +76,24 @@ func (u *ResetUseCase) CountViewerGroups(ctx context.Context, telegramUserID int
 		return 0, fmt.Errorf("count viewer groups: %w", err)
 	}
 	return count, nil
+}
+
+// ViewerGroupNames returns the linked viewer group names for reset previews.
+func (u *ResetUseCase) ViewerGroupNames(ctx context.Context, telegramUserID int64) ([]string, error) {
+	names, err := u.svc.ViewerGroupNames(ctx, telegramUserID)
+	if err != nil {
+		return nil, fmt.Errorf("viewer group names: %w", err)
+	}
+	return names, nil
+}
+
+// CreatorGroupNames returns the managed creator group names for reset previews.
+func (u *ResetUseCase) CreatorGroupNames(ctx context.Context, telegramUserID int64) ([]string, error) {
+	names, err := u.svc.CreatorGroupNames(ctx, telegramUserID)
+	if err != nil {
+		return nil, fmt.Errorf("creator group names: %w", err)
+	}
+	return names, nil
 }
 
 // CountCreatorGroups returns the managed-group count for creator-owned groups.
@@ -114,6 +135,7 @@ func (u *ResetUseCase) executeViewer(ctx context.Context, telegramUserID int64) 
 		Scope:           ResetScopeViewer,
 		ViewerLogin:     res.Identity.TwitchLogin,
 		GroupCount:      res.GroupCount,
+		GroupNames:      append([]string(nil), res.GroupNames...),
 		GroupResolution: res.GroupResolution,
 	}, nil
 }
@@ -154,6 +176,7 @@ func (u *ResetUseCase) executeBoth(ctx context.Context, telegramUserID int64, ac
 	out := ResetResult{
 		Scope:           ResetScopeBoth,
 		GroupCount:      res.GroupCount,
+		GroupNames:      append([]string(nil), res.GroupNames...),
 		GroupResolution: res.GroupResolution,
 		DeletedCount:    res.DeletedCount,
 		DeletedNames:    append([]string(nil), res.DeletedNames...),

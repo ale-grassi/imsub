@@ -634,15 +634,10 @@ func PreviewScenarios() []PreviewScenario {
 		{
 			ID:    "reset-creator-action-picker",
 			Group: "Reset",
-			Title: "Choose what to do with tracked members",
+			Title: "Choose what to do with group members",
 			Render: func(lang string) PreviewView {
 				return previewFromShared(sharedView{
-					text: fmt.Sprintf(
-						i18n.Translate(lang, msgResetChooseCreatorActionBoth),
-						html.EscapeString("viewer_name"),
-						html.EscapeString("streamer_one"),
-						2,
-					),
+					text: i18n.Translate(lang, msgResetChooseCreatorActionBoth),
 					opts: buildResetCreatorActionMarkup(lang),
 				})
 			},
@@ -653,7 +648,7 @@ func PreviewScenarios() []PreviewScenario {
 			Title: "Confirm viewer-data deletion",
 			Render: func(lang string) PreviewView {
 				return previewFromShared(sharedView{
-					text: fmt.Sprintf(i18n.Translate(lang, msgResetConfirmViewerHTML), html.EscapeString("viewer_name"), 3),
+					text: fmt.Sprintf(i18n.Translate(lang, msgResetConfirmViewerHTML), html.EscapeString("viewer_name"), renderResetViewerGroups(lang, []string{"VIP Lounge", "Patrons", "Insiders"})),
 					opts: clientResetConfirmMarkup(lang),
 				})
 			},
@@ -664,7 +659,7 @@ func PreviewScenarios() []PreviewScenario {
 			Title: "Confirm creator-data deletion",
 			Render: func(lang string) PreviewView {
 				return previewFromShared(sharedView{
-					text: fmt.Sprintf(i18n.Translate(lang, msgResetConfirmCreatorHTML), html.EscapeString("streamer_one"), 1, 2, i18n.Translate(lang, msgResetActionKickLine)),
+					text: fmt.Sprintf(i18n.Translate(lang, msgResetConfirmCreatorHTML), html.EscapeString("streamer_one"), renderResetViewerGroups(lang, []string{"VIP Lounge", "Subscriber Chat"}), i18n.Translate(lang, msgResetActionKickLine)),
 					opts: clientResetConfirmMarkup(lang),
 				})
 			},
@@ -675,7 +670,7 @@ func PreviewScenarios() []PreviewScenario {
 			Title: "Confirm deleting all linked data",
 			Render: func(lang string) PreviewView {
 				return previewFromShared(sharedView{
-					text: fmt.Sprintf(i18n.Translate(lang, msgResetConfirmBothHTML), html.EscapeString("viewer_name"), html.EscapeString("streamer_one"), 1, 3, 2, i18n.Translate(lang, msgResetActionKickLine)),
+					text: fmt.Sprintf(i18n.Translate(lang, msgResetConfirmBothHTML), html.EscapeString("viewer_name"), renderResetViewerGroups(lang, []string{"VIP Lounge", "Patrons", "Insiders"}), html.EscapeString("streamer_one"), renderResetViewerGroups(lang, []string{"VIP Lounge", "Subscriber Chat"}), i18n.Translate(lang, msgResetActionKickLine)),
 					opts: clientResetConfirmMarkup(lang),
 				})
 			},
@@ -688,7 +683,7 @@ func PreviewScenarios() []PreviewScenario {
 				return previewFromShared(buildResetExecutionView(lang, usecase.ResetResult{
 					Scope:       usecase.ResetScopeViewer,
 					ViewerLogin: "viewer_name",
-					GroupCount:  3,
+					GroupNames:  []string{"VIP Lounge", "Patrons", "Insiders"},
 				}))
 			},
 		},
@@ -704,6 +699,7 @@ func PreviewScenarios() []PreviewScenario {
 					CreatorCleanup: core.CreatorGroupCleanupSummary{
 						Action:                  core.CreatorResetKickTrackedMembers,
 						ManagedGroupCount:       2,
+						GroupNames:              []string{"VIP Lounge", "Subscriber Chat"},
 						TargetedMembershipCount: 14,
 						Queued:                  true,
 					},
@@ -718,12 +714,13 @@ func PreviewScenarios() []PreviewScenario {
 				return previewFromShared(buildResetExecutionView(lang, usecase.ResetResult{
 					Scope:        usecase.ResetScopeBoth,
 					ViewerLogin:  "viewer_name",
-					GroupCount:   3,
+					GroupNames:   []string{"VIP Lounge", "Patrons", "Insiders"},
 					DeletedCount: 1,
 					DeletedNames: []string{"streamer_one"},
 					CreatorCleanup: core.CreatorGroupCleanupSummary{
 						Action:                  core.CreatorResetKickTrackedMembers,
 						ManagedGroupCount:       2,
+						GroupNames:              []string{"VIP Lounge", "Subscriber Chat"},
 						TargetedMembershipCount: 14,
 						Queued:                  true,
 					},
@@ -747,86 +744,35 @@ func PreviewScenarios() []PreviewScenario {
 			},
 		},
 		{
-			ID:    "cleanup-group-done",
+			ID:    "cleanup-group-warning",
 			Group: "Cleanup",
-			Title: "Group cleanup completed",
+			Title: "Group cleanup warning",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(buildMemberCleanupResultView(lang, core.MemberCleanupResult{
-					Kind:           core.MemberCleanupKindGroupUnregistration,
-					GroupName:      "VIP Lounge",
-					TargetedCount:  12,
-					SucceededCount: 12,
-				}))
-			},
-		},
-		{
-			ID:    "cleanup-group-partial",
-			Group: "Cleanup",
-			Title: "Group cleanup completed with leftovers",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildMemberCleanupResultView(lang, core.MemberCleanupResult{
+				view, _ := buildMemberCleanupResultView(lang, core.MemberCleanupResult{
 					Kind:           core.MemberCleanupKindGroupUnregistration,
 					GroupName:      "VIP Lounge",
 					TargetedCount:  12,
 					SucceededCount: 9,
 					FailedCount:    3,
-				}))
+				})
+				return previewFromShared(view)
 			},
 		},
 		{
-			ID:    "cleanup-group-failed",
+			ID:    "cleanup-reset-warning",
 			Group: "Cleanup",
-			Title: "Group cleanup failed",
+			Title: "Creator reset cleanup warning",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(buildMemberCleanupResultView(lang, core.MemberCleanupResult{
-					Kind:          core.MemberCleanupKindGroupUnregistration,
-					GroupName:     "VIP Lounge",
-					TargetedCount: 12,
-					FailedCount:   12,
-				}))
-			},
-		},
-		{
-			ID:    "cleanup-reset-done",
-			Group: "Cleanup",
-			Title: "Creator reset cleanup completed",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildMemberCleanupResultView(lang, core.MemberCleanupResult{
+				view, _ := buildMemberCleanupResultView(lang, core.MemberCleanupResult{
 					Kind:              core.MemberCleanupKindCreatorReset,
 					CreatorLogin:      "streamer_one",
 					ManagedGroupCount: 2,
-					TargetedCount:     14,
-					SucceededCount:    14,
-				}))
-			},
-		},
-		{
-			ID:    "cleanup-reset-partial",
-			Group: "Cleanup",
-			Title: "Creator reset cleanup completed with leftovers",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildMemberCleanupResultView(lang, core.MemberCleanupResult{
-					Kind:              core.MemberCleanupKindCreatorReset,
-					CreatorLogin:      "streamer_one",
-					ManagedGroupCount: 2,
+					GroupNames:        []string{"VIP Lounge", "Subscriber Chat"},
 					TargetedCount:     14,
 					SucceededCount:    10,
 					FailedCount:       4,
-				}))
-			},
-		},
-		{
-			ID:    "cleanup-reset-failed",
-			Group: "Cleanup",
-			Title: "Creator reset cleanup failed",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildMemberCleanupResultView(lang, core.MemberCleanupResult{
-					Kind:              core.MemberCleanupKindCreatorReset,
-					CreatorLogin:      "streamer_one",
-					ManagedGroupCount: 2,
-					TargetedCount:     14,
-					FailedCount:       14,
-				}))
+				})
+				return previewFromShared(view)
 			},
 		},
 	}

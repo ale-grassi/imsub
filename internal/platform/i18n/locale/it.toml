@@ -239,7 +239,7 @@ other = "Non sono riuscito a caricare lo stato del tuo account. Tocca Aggiorna t
 other = "‼️⚠️ Qualcosa e' andato storto. Usa i pulsanti qui sotto per riprovare."
 
 [err_reset]
-other = "Non sono riuscito a eliminare i dati collegati. Riprova."
+other = "‼️⚠️ Qualcosa e' andato storto durante l'aggiornamento della richiesta di reset. Usa i pulsanti qui sotto per riprovare."
 
 [group_not_admin]
 other = "Solo gli admin del gruppo possono registrare questo gruppo."
@@ -335,61 +335,61 @@ other = "✅ <b>Twitch collegato</b>\n🔗 <b>Account:</b> %s\n\n<b>Abbonamenti 
 other = "✅ <b>Twitch collegato</b>\n🔗 <b>Account:</b> %s\n\n<b>Nessun nuovo gruppo Telegram disponibile</b>\nHai abbonamenti attivi, ma al momento non ci sono nuovi gruppi Telegram riservati agli abbonati a cui unirti.\n\n<b>Abbonamenti attivi</b>\n%s\n\n<i>Tocca <b>Aggiorna</b> per controllare di nuovo, oppure usa /reset se questo e' l'account Twitch sbagliato.</i>"
 
 [reset_choose_scope_html]
-other = "🗑️ <b>Scegli cosa eliminare</b>\n\nQuesto account Telegram ha attualmente:\n• <b>Account viewer:</b> %s\n• <b>Account creator:</b> %s\n\nSeleziona i dati che vuoi rimuovere."
+other = "🗑️ <b>Scegli cosa eliminare</b>"
 
 [reset_confirm_both_html]
-other = "⚠️ <b>Eliminare tutti i dati collegati?</b>\n\n<b>Account viewer:</b> %s\n<b>Account creator:</b> %s\n<b>Account creator da rimuovere:</b> %d\n<b>Gruppi viewer che potrebbero essere coinvolti:</b> %d\n<b>Gruppi gestiti:</b> %d\n%s\n\n<i>Potrai collegarti di nuovo in seguito con <code>/start</code> o <code>/creator</code>.</i>"
+other = "⚠️ <b>Eliminare tutti i dati collegati?</b>\n\n<b>Account viewer:</b> %s\n<b>Gruppi riservati agli abbonati:</b>\n%s\n\n<b>Account creator:</b> %s\n<b>Gruppi gestiti:</b>\n%s\n\n<b>Se continui:</b>\n• I tuoi dati viewer verranno eliminati\n• Verrai rimosso da questi gruppi riservati agli abbonati\n• I tuoi dati creator verranno eliminati\n• ImSub non controllera' piu' gli abbonamenti per questi gruppi\n• ImSub non controllera' piu' l'accesso a questi gruppi\n%s"
 
 [reset_confirm_creator_html]
-other = "⚠️ <b>Eliminare i dati creator?</b>\n\n<b>Account creator:</b> %s\n<b>Gruppi gestiti:</b> %d\n%s\n\n<b>Se continui</b>\n• il setup creator verra' rimosso da ImSub\n• i gruppi gestiti verranno scollegati\n• i membri tracciati saranno elaborati in background\n\n<i>Potrai collegarti di nuovo in seguito con <code>/creator</code>.</i>"
+other = "⚠️ <b>Eliminare i dati creator?</b>\n\n<b>Account:</b> %s\n<b>Gruppi gestiti:</b>\n%s\n\n<b>Se continui:</b>\n• I tuoi dati creator verranno eliminati\n• ImSub non controllera' piu' gli abbonamenti per questi gruppi\n• ImSub non controllera' piu' l'accesso a questi gruppi\n%s"
 
 [reset_confirm_viewer_html]
-other = "⚠️ <b>Eliminare i dati viewer?</b>\n\n<b>Account viewer:</b> %s\n<b>Gruppi viewer che potrebbero essere coinvolti:</b> %d\n\n<i>Potrai collegarti di nuovo in seguito con <code>/start</code>.</i>"
+other = "⚠️ <b>Eliminare i dati viewer?</b>\n\n<b>Account:</b> %s\n<b>Gruppi riservati agli abbonati:</b>\n%s\n\n<b>Se continui:</b>\n• I tuoi dati viewer verranno eliminati\n• Verrai rimosso da questi gruppi riservati agli abbonati"
 
 [reset_done_both_html]
-other = "✅ <b>Tutti i dati collegati sono stati eliminati</b>\n\n<b>Account viewer rimosso:</b> %s\n<b>Gruppi viewer processati:</b> %d\n<b>Account creator rimosso:</b> %s\n<b>Account creator eliminati:</b> %d\n<b>Gruppi gestiti:</b> %d\n%s\n\n<b>Vuoi collegarti di nuovo?</b>\n• usa <code>/start</code> per l'accesso viewer\n• usa <code>/creator</code> per il setup creator"
+other = "✅ <b>Tutti i dati collegati sono stati eliminati</b>\n\n<b>Account viewer:</b> %s\n<b>Rimosso da questi gruppi riservati agli abbonati:</b>\n%s\n\n<b>Account creator:</b> %s\n<b>Gruppi gestiti:</b>\n%s\n\n<b>Cosa cambia:</b>\n• ImSub non controlla piu' gli abbonamenti per questi gruppi\n• ImSub non controlla piu' l'accesso a questi gruppi\n%s"
 
 [reset_done_creator_html]
-other = "✅ <b>Dati creator eliminati</b>\n\n<b>Account creator rimosso:</b> %s\n<b>Gruppi scollegati:</b> %d\n%s\n\n<b>Vuoi collegarti di nuovo?</b>\nUsa <code>/creator</code> per il setup creator."
+other = "✅ <b>Dati creator eliminati</b>\n\n<b>Account:</b> %s\n<b>Gruppi gestiti:</b>\n%s\n\n<b>Cosa cambia:</b>\n• ImSub non controlla piu' gli abbonamenti per questi gruppi\n• ImSub non controlla piu' l'accesso a questi gruppi\n%s"
 
 [reset_done_viewer_html]
-other = "✅ <b>Dati viewer eliminati</b>\n\n<b>Account viewer rimosso:</b> %s\n<b>Gruppi viewer processati:</b> %d\n\n<b>Vuoi collegarti di nuovo?</b>\nUsa <code>/start</code> per l'accesso viewer."
+other = "✅ <b>Dati viewer eliminati</b>\n\n<b>Account:</b> %s\n<b>Rimosso da questi gruppi riservati agli abbonati:</b>\n%s"
 
 [reset_exit_html]
-other = "❗️ <b>Nessuna modifica effettuata</b>\n\nI tuoi dati collegati sono al sicuro e non sono stati modificati.\n\n➡️ Premi /start per visualizzare e gestire i tuoi dati."
+other = "❗️ <b>Niente e' stato eliminato</b>"
 
 [reset_nothing_html]
-other = "✅ <b>Niente da reimpostare al momento.</b>\n\nNon ho trovato dati viewer o creator collegati al tuo account."
+other = "✅ <b>Niente da reimpostare al momento.</b>"
 
 [reset_choose_creator_action_creator_html]
-other = "🗑️ <b>Scegli cosa fare con i membri dei gruppi</b>\n\n🎙️ <b>Account creator:</b> %s\n👥 <b>Gruppi gestiti:</b> %d\n\nScegli come ImSub deve gestire i membri tracciati in quei gruppi quando i dati creator vengono eliminati."
+other = "🗑️ <b>Scegli cosa fare con i membri del gruppo</b>"
 
 [reset_choose_creator_action_both_html]
-other = "🗑️ <b>Scegli cosa fare con i membri dei gruppi</b>\n\n🔗 <b>Account viewer:</b> %s\n🎙️ <b>Account creator:</b> %s\n👥 <b>Gruppi gestiti:</b> %d\n\nScegli come ImSub deve gestire i membri tracciati in quei gruppi quando i dati creator vengono eliminati."
+other = "🗑️ <b>Scegli cosa fare con i membri del gruppo</b>"
 
 [reset_action_keep_line]
-other = "• i membri attuali resteranno dove sono"
+other = "• I membri attuali non verranno rimossi"
 
 [reset_action_kick_line]
-other = "• dopo l'eliminazione del setup creator, ImSub provera' a rimuovere in background i membri attualmente tracciati"
+other = "• I membri attuali verranno rimossi"
 
 [reset_creator_kick_targets_line]
-other = "• Membri tracciati presi di mira per l'espulsione: %d"
+other = "• I membri attuali stanno venendo rimossi in background"
 
 [reset_creator_kick_failures_line]
-other = "• Tentativi di espulsione falliti: %d"
-
-[reset_creator_cleanup_queued]
-other = "• La pulizia dei membri in background e' stata messa in coda e verra' inviato un DM al termine"
+other = "• Rimozioni fallite: %d"
 
 [reset_creator_cleanup_queue_failed]
-other = "• Non e' stato possibile mettere in coda la pulizia dei membri; controlla manualmente i gruppi coinvolti se necessario"
+other = "• Non e' stato possibile pianificare la rimozione dei membri attuali. Controlla questi gruppi manualmente"
+
+[reset_no_groups_line]
+other = "• Nessun gruppo"
 
 [btn_reset_keep_members]
 other = "Mantieni membri"
 
 [btn_reset_kick_tracked_members]
-other = "Espelli membri tracciati"
+other = "Rimuovi membri"
 
 [sub_end_partial]
 other = "⚠️ <b>Abbonamento scaduto</b>\n\nIl tuo abbonamento a <b>%s</b> e' scaduto, quindi sei stato rimosso dai gruppi Telegram riservati agli abbonati di questo creator.\n\n🔄 <b>Di nuovo accesso</b>\n1. Rinnova l'abbonamento su Twitch\n2. Torna qui e usa <code>/start</code>"
@@ -412,23 +412,11 @@ other = "✅ <b>Gruppo scollegato</b>\n\nLa pulizia dei membri tracciati e' stat
 [group_unregistered_kick_all_failed_html]
 other = "⚠️ <b>Gruppo scollegato</b>\n\nImSub non e' riuscito a mettere in coda la pulizia dei membri tracciati per %d membership.\n\nControlla il gruppo manualmente e rimuovi gli eventuali membri rimasti, se necessario."
 
-[cleanup_group_done_dm_html]
-other = "✅ <b>Pulizia membri tracciati completata</b>\n\n<b>Gruppo:</b> %s\n• Membership prese di mira: %d\n• Rimosse con successo: %d\n• Fallite dopo i retry: %d"
+[cleanup_group_warning_dm_html]
+other = "⚠️ <b>Avviso pulizia</b>\n\n<b>Gruppo:</b> %s\n\n<b>%d membri</b> non sono stati rimossi automaticamente e sono ancora in questo gruppo."
 
-[cleanup_group_partial_dm_html]
-other = "⚠️ <b>Pulizia membri tracciati completata con residui</b>\n\n<b>Gruppo:</b> %s\n• Membership prese di mira: %d\n• Rimosse con successo: %d\n• Fallite dopo i retry: %d\n\nControlla il gruppo manualmente e rimuovi gli eventuali membri rimasti, se necessario."
-
-[cleanup_group_failed_dm_html]
-other = "⚠️ <b>Pulizia membri tracciati fallita</b>\n\n<b>Gruppo:</b> %s\n• Membership prese di mira: %d\n• Rimosse con successo: %d\n• Fallite dopo i retry: %d\n\nIl gruppo e' gia' stato scollegato, ma la pulizia dei membri non e' avvenuta. Rimuovi manualmente gli eventuali membri rimasti."
-
-[cleanup_reset_done_dm_html]
-other = "✅ <b>Pulizia reset creator completata</b>\n\n<b>Creator:</b> %s\n• Gruppi coinvolti: %d\n• Membership prese di mira: %d\n• Rimosse con successo: %d\n• Fallite dopo i retry: %d"
-
-[cleanup_reset_partial_dm_html]
-other = "⚠️ <b>Pulizia reset creator completata con residui</b>\n\n<b>Creator:</b> %s\n• Gruppi coinvolti: %d\n• Membership prese di mira: %d\n• Rimosse con successo: %d\n• Fallite dopo i retry: %d\n\nI dati creator sono gia' stati eliminati. Controlla i gruppi coinvolti e rimuovi manualmente gli eventuali membri rimasti, se necessario."
-
-[cleanup_reset_failed_dm_html]
-other = "⚠️ <b>Pulizia reset creator fallita</b>\n\n<b>Creator:</b> %s\n• Gruppi coinvolti: %d\n• Membership prese di mira: %d\n• Rimosse con successo: %d\n• Fallite dopo i retry: %d\n\nI dati creator sono gia' stati eliminati, ma la pulizia dei membri non e' avvenuta. Controlla i gruppi coinvolti e rimuovi manualmente gli eventuali membri rimasti."
+[cleanup_reset_warning_dm_html]
+other = "⚠️ <b>Avviso pulizia</b>\n\n<b>Creator:</b> %s\n<b>Gruppi:</b>\n%s\n\n<b>%d membri</b> non sono stati rimossi automaticamente e sono ancora in questi gruppi."
 
 [group_unregister_not_owner]
 other = "Solo il creator che ha collegato questo gruppo può scollegarlo."

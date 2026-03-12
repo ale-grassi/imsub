@@ -239,7 +239,7 @@ other = "I couldn't load your account status right now. Tap Refresh in a moment 
 other = "‼️⚠️ Something went wrong. Use the buttons below to try again."
 
 [err_reset]
-other = "I couldn't delete your linked data right now. Try again."
+other = "‼️⚠️ Something went wrong while updating your reset request. Use the buttons below to try again."
 
 [group_not_admin]
 other = "Only group admins can register this group."
@@ -335,61 +335,61 @@ other = "✅ <b>Twitch connected</b>\n🔗 <b>Account:</b> %s\n\n<b>Active subsc
 other = "✅ <b>Twitch connected</b>\n🔗 <b>Account:</b> %s\n\n<b>No new Telegram groups available</b>\nYou have active subscriptions, but there are no new subscribers-only Telegram groups to join right now.\n\n<b>Active subscriptions</b>\n%s\n\n<i>Tap <b>Refresh</b> to check again, or use /reset if this is the wrong Twitch account.</i>"
 
 [reset_choose_scope_html]
-other = "🗑️ <b>Choose what to delete</b>\n\nThis Telegram account currently has:\n• <b>Viewer account:</b> %s\n• <b>Creator account:</b> %s\n\nSelect the data you want to remove."
+other = "🗑️ <b>Choose what to delete</b>"
 
 [reset_confirm_both_html]
-other = "⚠️ <b>Delete all linked data?</b>\n\n<b>Viewer account:</b> %s\n<b>Creator account:</b> %s\n<b>Creator account(s) to remove:</b> %d\n<b>Viewer groups that may be affected:</b> %d\n<b>Managed groups:</b> %d\n%s\n\n<i>You can connect again later with <code>/start</code> or <code>/creator</code>.</i>"
+other = "⚠️ <b>Delete all linked data?</b>\n\n<b>Viewer account:</b> %s\n<b>Subscribers-only groups:</b>\n%s\n\n<b>Creator account:</b> %s\n<b>Managed groups:</b>\n%s\n\n<b>If you continue:</b>\n• Your viewer data will be deleted\n• You will be removed from these subscribers-only groups\n• Your creator data will be deleted\n• ImSub will no longer check subscriptions for these groups\n• ImSub will no longer control access to these groups\n%s"
 
 [reset_confirm_creator_html]
-other = "⚠️ <b>Delete creator data?</b>\n\n<b>Creator account:</b> %s\n<b>Managed groups:</b> %d\n%s\n\n<b>If you continue</b>\n• your creator setup will be removed from ImSub\n• your managed groups will be unlinked\n• tracked members will be processed in the background\n\n<i>You can connect again later with <code>/creator</code>.</i>"
+other = "⚠️ <b>Delete creator data?</b>\n\n<b>Account:</b> %s\n<b>Managed groups:</b>\n%s\n\n<b>If you continue:</b>\n• Your creator data will be deleted\n• ImSub will no longer check subscriptions for these groups\n• ImSub will no longer control access to these groups\n%s"
 
 [reset_confirm_viewer_html]
-other = "⚠️ <b>Delete viewer data?</b>\n\n<b>Viewer account:</b> %s\n<b>Viewer groups that may be affected:</b> %d\n\n<i>You can connect again later with <code>/start</code>.</i>"
+other = "⚠️ <b>Delete viewer data?</b>\n\n<b>Account:</b> %s\n<b>Subscribers-only groups:</b>\n%s\n\n<b>If you continue:</b>\n• Your viewer data will be deleted\n• You will be removed from these subscribers-only groups"
 
 [reset_done_both_html]
-other = "✅ <b>All linked data deleted</b>\n\n<b>Removed viewer account:</b> %s\n<b>Viewer groups processed:</b> %d\n<b>Removed creator account:</b> %s\n<b>Creator account(s) deleted:</b> %d\n<b>Managed groups:</b> %d\n%s\n\n<b>Want to connect again?</b>\n• use <code>/start</code> for viewer access\n• use <code>/creator</code> for creator setup"
+other = "✅ <b>All linked data deleted</b>\n\n<b>Viewer account:</b> %s\n<b>Removed from subscribers-only groups:</b>\n%s\n\n<b>Creator account:</b> %s\n<b>Managed groups:</b>\n%s\n\n<b>What changed:</b>\n• ImSub no longer checks subscriptions for these groups\n• ImSub no longer controls access to these groups\n%s"
 
 [reset_done_creator_html]
-other = "✅ <b>Creator data deleted</b>\n\n<b>Removed creator account:</b> %s\n<b>Managed groups unlinked:</b> %d\n%s\n\n<b>Want to connect again?</b>\nUse <code>/creator</code> for creator setup."
+other = "✅ <b>Creator data deleted</b>\n\n<b>Account:</b> %s\n<b>Managed groups:</b>\n%s\n\n<b>What changed:</b>\n• ImSub no longer checks subscriptions for these groups\n• ImSub no longer controls access to these groups\n%s"
 
 [reset_done_viewer_html]
-other = "✅ <b>Viewer data deleted</b>\n\n<b>Removed viewer account:</b> %s\n<b>Viewer groups processed:</b> %d\n\n<b>Want to connect again?</b>\nUse <code>/start</code> for viewer access."
+other = "✅ <b>Viewer data deleted</b>\n\n<b>Account:</b> %s\n<b>Removed from subscribers-only groups:</b>\n%s"
 
 [reset_exit_html]
-other = "❗️ <b>No changes made</b>\n\nYour linked data is safe and remains untouched.\n\n➡️ Press /start to view and manage your data."
+other = "❗️ <b>Nothing was deleted</b>"
 
 [reset_nothing_html]
-other = "✅ <b>Nothing to reset right now.</b>\n\nI couldn't find linked viewer or creator data for your account."
+other = "✅ <b>Nothing to reset right now.</b>"
 
 [reset_choose_creator_action_creator_html]
-other = "🗑️ <b>Choose What To Do With Group Members</b>\n\n🎙️ <b>Creator account:</b> %s\n👥 <b>Managed groups owned:</b> %d\n\nChoose how ImSub should handle tracked members in those groups when your creator data is deleted."
+other = "🗑️ <b>Choose what to do with group members</b>"
 
 [reset_choose_creator_action_both_html]
-other = "🗑️ <b>Choose What To Do With Group Members</b>\n\n🔗 <b>Viewer account:</b> %s\n🎙️ <b>Creator account:</b> %s\n👥 <b>Managed groups owned:</b> %d\n\nChoose how ImSub should handle tracked members in those groups when your creator data is deleted."
+other = "🗑️ <b>Choose what to do with group members</b>"
 
 [reset_action_keep_line]
-other = "• current group members stay where they are"
+other = "• Current group members will not be removed"
 
 [reset_action_kick_line]
-other = "• ImSub will try to remove currently tracked members in the background after the creator setup is deleted"
+other = "• Current group members will be removed"
 
 [reset_creator_kick_targets_line]
-other = "• Tracked memberships targeted for kick: %d"
+other = "• Current group members are being removed in the background"
 
 [reset_creator_kick_failures_line]
-other = "• Kick attempts that failed: %d"
-
-[reset_creator_cleanup_queued]
-other = "• Background member cleanup was queued and a DM will be sent when it finishes"
+other = "• Failed removals: %d"
 
 [reset_creator_cleanup_queue_failed]
-other = "• Background member cleanup could not be queued; review the affected groups manually if needed"
+other = "• Current group members could not be scheduled for removal. Check these groups manually"
+
+[reset_no_groups_line]
+other = "• No groups"
 
 [btn_reset_keep_members]
 other = "Keep members"
 
 [btn_reset_kick_tracked_members]
-other = "Kick tracked members"
+other = "Remove members"
 
 [sub_end_partial]
 other = "⚠️ <b>Subscription expired</b>\n\nYour subscription to <b>%s</b> has expired, so you were removed from this creator's subscribers-only Telegram group(s).\n\n🔄 <b>Access again</b>\n1. Resubscribe on Twitch\n2. Come back here and use <code>/start</code>"
@@ -412,23 +412,11 @@ other = "✅ <b>Group unlinked</b>\n\nTracked-member cleanup was queued in the b
 [group_unregistered_kick_all_failed_html]
 other = "⚠️ <b>Group unlinked</b>\n\nImSub could not queue tracked-member cleanup for %d membership(s).\n\nPlease review the group manually and remove leftover members if needed."
 
-[cleanup_group_done_dm_html]
-other = "✅ <b>Tracked-member cleanup finished</b>\n\n<b>Group:</b> %s\n• Targeted memberships: %d\n• Removed successfully: %d\n• Failed after retries: %d"
+[cleanup_group_warning_dm_html]
+other = "⚠️ <b>Cleanup warning</b>\n\n<b>Group:</b> %s\n\n<b>%d members</b> could not be removed automatically and are still in this group."
 
-[cleanup_group_partial_dm_html]
-other = "⚠️ <b>Tracked-member cleanup finished with leftovers</b>\n\n<b>Group:</b> %s\n• Targeted memberships: %d\n• Removed successfully: %d\n• Failed after retries: %d\n\nPlease review the group manually and remove any leftover members if needed."
-
-[cleanup_group_failed_dm_html]
-other = "⚠️ <b>Tracked-member cleanup failed</b>\n\n<b>Group:</b> %s\n• Targeted memberships: %d\n• Removed successfully: %d\n• Failed after retries: %d\n\nThe group was already unregistered, but member cleanup did not happen. Please remove leftover members manually."
-
-[cleanup_reset_done_dm_html]
-other = "✅ <b>Creator reset cleanup finished</b>\n\n<b>Creator:</b> %s\n• Managed groups involved: %d\n• Targeted memberships: %d\n• Removed successfully: %d\n• Failed after retries: %d"
-
-[cleanup_reset_partial_dm_html]
-other = "⚠️ <b>Creator reset cleanup finished with leftovers</b>\n\n<b>Creator:</b> %s\n• Managed groups involved: %d\n• Targeted memberships: %d\n• Removed successfully: %d\n• Failed after retries: %d\n\nCreator data was already deleted. Please review the affected groups and remove leftover members manually if needed."
-
-[cleanup_reset_failed_dm_html]
-other = "⚠️ <b>Creator reset cleanup failed</b>\n\n<b>Creator:</b> %s\n• Managed groups involved: %d\n• Targeted memberships: %d\n• Removed successfully: %d\n• Failed after retries: %d\n\nCreator data was already deleted, but member cleanup did not happen. Please review the affected groups and remove leftover members manually."
+[cleanup_reset_warning_dm_html]
+other = "⚠️ <b>Cleanup warning</b>\n\n<b>Creator:</b> %s\n<b>Groups:</b>\n%s\n\n<b>%d members</b> could not be removed automatically and are still in these groups."
 
 [group_unregister_not_owner]
 other = "⚠️ Only the creator who linked this group can unregister it."

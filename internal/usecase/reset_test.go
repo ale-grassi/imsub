@@ -13,6 +13,8 @@ import (
 type resetServiceStub struct {
 	loadScopesFn   func(context.Context, int64) (core.ScopeState, error)
 	countViewerFn  func(context.Context, int64) (int, error)
+	viewerNamesFn  func(context.Context, int64) ([]string, error)
+	creatorNamesFn func(context.Context, int64) ([]string, error)
 	countCreatorFn func(context.Context, int64) (int, error)
 	viewerFn       func(context.Context, int64) (core.ViewerResetResult, error)
 	creatorFn      func(context.Context, int64, core.CreatorResetGroupAction) (core.CreatorResetResult, error)
@@ -24,6 +26,18 @@ func (s resetServiceStub) LoadScopes(ctx context.Context, telegramUserID int64) 
 }
 func (s resetServiceStub) CountViewerGroups(ctx context.Context, telegramUserID int64) (int, error) {
 	return s.countViewerFn(ctx, telegramUserID)
+}
+func (s resetServiceStub) ViewerGroupNames(ctx context.Context, telegramUserID int64) ([]string, error) {
+	if s.viewerNamesFn == nil {
+		return nil, nil
+	}
+	return s.viewerNamesFn(ctx, telegramUserID)
+}
+func (s resetServiceStub) CreatorGroupNames(ctx context.Context, telegramUserID int64) ([]string, error) {
+	if s.creatorNamesFn == nil {
+		return nil, nil
+	}
+	return s.creatorNamesFn(ctx, telegramUserID)
 }
 func (s resetServiceStub) CountCreatorGroups(ctx context.Context, telegramUserID int64) (int, error) {
 	return s.countCreatorFn(ctx, telegramUserID)

@@ -414,6 +414,7 @@ func (t memberCleanupTask) processJob(ctx context.Context, job core.MemberCleanu
 		CreatorLogin:      job.CreatorLogin,
 		GroupName:         job.GroupName,
 		ManagedGroupCount: job.ManagedGroupCount,
+		GroupNames:        append([]string(nil), job.GroupNames...),
 		TargetedCount:     job.TotalTargets,
 		SucceededCount:    job.SucceededCount,
 		FailedCount:       failed,

@@ -34,6 +34,9 @@ const (
 	msgResetActionKickLine             = "reset_action_kick_line"
 	msgResetCreatorKickTargetsLine     = "reset_creator_kick_targets_line"
 	msgResetCreatorKickFailuresLine    = "reset_creator_kick_failures_line"
+	btnResetViewerData                 = "btn_reset_viewer_data"
+	btnResetCreatorData                = "btn_reset_creator_data"
+	btnResetAllData                    = "btn_reset_all_data"
 	btnResetKeepMembers                = "btn_reset_keep_members"
 	btnResetKickTrackedMembers         = "btn_reset_kick_tracked_members"
 )
@@ -100,7 +103,7 @@ func (c *Bot) renderResetPickedScope(ctx context.Context, telegramUserID int64, 
 		return view.text
 	}
 	if c.scopeNeedsCreatorAction(ctx, telegramUserID, scope, scopes) {
-		view := c.buildResetCreatorActionView(ctx, telegramUserID, lang, scopes, origin, scope)
+		view := c.buildResetCreatorActionView(telegramUserID, lang, scopes, origin, scope)
 		c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
 		return ""
 	}
@@ -210,12 +213,8 @@ func (c *Bot) executeResetScope(ctx context.Context, telegramUserID int64, editM
 	return ""
 }
 
-func resetChooseScopeText(lang string, scopes core.ScopeState) string {
-	return fmt.Sprintf(
-		i18n.Translate(lang, msgResetChooseScopeHTML),
-		html.EscapeString(scopes.Identity.TwitchLogin),
-		html.EscapeString(scopes.Creator.TwitchLogin),
-	)
+func resetChooseScopeText(lang string) string {
+	return i18n.Translate(lang, msgResetChooseScopeHTML)
 }
 
 func (c *Bot) buildResetConfirmView(ctx context.Context, telegramUserID int64, lang string, scopes core.ScopeState, scope resetScope, action core.CreatorResetGroupAction) resetConfirmView {
@@ -228,7 +227,7 @@ func (c *Bot) buildResetConfirmView(ctx context.Context, telegramUserID int64, l
 			text: fmt.Sprintf(
 				i18n.Translate(lang, msgResetConfirmViewerHTML),
 				html.EscapeString(scopes.Identity.TwitchLogin),
-				c.resetViewerGroupCount(ctx, telegramUserID),
+				renderResetViewerGroups(lang, c.resetViewerGroupNames(ctx, telegramUserID)),
 			),
 		}
 	case resetScopeCreator:
@@ -238,7 +237,7 @@ func (c *Bot) buildResetConfirmView(ctx context.Context, telegramUserID int64, l
 		return resetConfirmView{text: fmt.Sprintf(
 			i18n.Translate(lang, msgResetConfirmCreatorHTML),
 			html.EscapeString(scopes.Creator.TwitchLogin),
-			c.resetCreatorGroupCount(ctx, telegramUserID),
+			renderResetViewerGroups(lang, c.resetCreatorGroupNames(ctx, telegramUserID)),
 			resetActionSummaryText(lang, action),
 		)}
 	case resetScopeBoth:
@@ -250,19 +249,16 @@ func (c *Bot) buildResetConfirmView(ctx context.Context, telegramUserID int64, l
 			viewerName = html.EscapeString(scopes.Identity.TwitchLogin)
 		}
 		creatorName := "-"
-		creatorCount := 0
 		if scopes.HasCreator {
 			creatorName = html.EscapeString(scopes.Creator.TwitchLogin)
-			creatorCount = 1
 		}
 		return resetConfirmView{
 			text: fmt.Sprintf(
 				i18n.Translate(lang, msgResetConfirmBothHTML),
 				viewerName,
+				renderResetViewerGroups(lang, c.resetViewerGroupNames(ctx, telegramUserID)),
 				creatorName,
-				creatorCount,
-				c.resetViewerGroupCount(ctx, telegramUserID),
-				c.resetCreatorGroupCount(ctx, telegramUserID),
+				renderResetViewerGroups(lang, c.resetCreatorGroupNames(ctx, telegramUserID)),
 				resetActionSummaryText(lang, action),
 			),
 		}
@@ -272,13 +268,22 @@ func (c *Bot) buildResetConfirmView(ctx context.Context, telegramUserID int64, l
 	}
 }
 
-func (c *Bot) resetViewerGroupCount(ctx context.Context, telegramUserID int64) int {
-	groupCount, err := c.reset.CountViewerGroups(ctx, telegramUserID)
+func (c *Bot) resetViewerGroupNames(ctx context.Context, telegramUserID int64) []string {
+	names, err := c.reset.ViewerGroupNames(ctx, telegramUserID)
 	if err != nil {
-		c.log().Warn("count viewer groups failed", "telegram_user_id", telegramUserID, "error", err)
-		return 0
+		c.log().Warn("load viewer group names failed", "telegram_user_id", telegramUserID, "error", err)
+		return nil
 	}
-	return groupCount
+	return names
+}
+
+func (c *Bot) resetCreatorGroupNames(ctx context.Context, telegramUserID int64) []string {
+	names, err := c.reset.CreatorGroupNames(ctx, telegramUserID)
+	if err != nil {
+		c.log().Warn("load creator group names failed", "telegram_user_id", telegramUserID, "error", err)
+		return nil
+	}
+	return names
 }
 
 func (c *Bot) resetCreatorGroupCount(ctx context.Context, telegramUserID int64) int {
@@ -298,12 +303,15 @@ func buildResetPromptView(lang string, scopes core.ScopeState, origin resetOrigi
 		return sharedView{}, false
 	}
 	return sharedView{
-		text: resetChooseScopeText(lang, scopes),
+		text: resetChooseScopeText(lang),
 		opts: client.MessageOptions{
 			Markup: ui.ResetScopePickerMarkup(
 				lang,
+				i18n.Translate(lang, btnResetViewerData)+": "+scopes.Identity.TwitchLogin,
 				resetPickCallback(origin, resetScopeViewer),
+				i18n.Translate(lang, btnResetCreatorData)+": "+scopes.Creator.TwitchLogin,
 				resetPickCallback(origin, resetScopeCreator),
+				i18n.Translate(lang, btnResetAllData),
 				resetPickCallback(origin, resetScopeBoth),
 				resetPromptBackCallback(origin),
 			),
@@ -357,24 +365,11 @@ func (c *Bot) scopeNeedsCreatorAction(ctx context.Context, telegramUserID int64,
 	return c.resetCreatorGroupCount(ctx, telegramUserID) > 0
 }
 
-func (c *Bot) buildResetCreatorActionView(ctx context.Context, telegramUserID int64, lang string, scopes core.ScopeState, origin resetOrigin, scope resetScope) sharedView {
-	groupCount := c.resetCreatorGroupCount(ctx, telegramUserID)
+func (c *Bot) buildResetCreatorActionView(telegramUserID int64, lang string, scopes core.ScopeState, origin resetOrigin, scope resetScope) sharedView {
 	textKey := msgResetChooseCreatorActionCreator
-	args := []any{
-		html.EscapeString(scopes.Creator.TwitchLogin),
-		groupCount,
-	}
+	args := []any{}
 	if scope == resetScopeBoth {
 		textKey = msgResetChooseCreatorActionBoth
-		viewerName := "-"
-		if scopes.HasIdentity {
-			viewerName = html.EscapeString(scopes.Identity.TwitchLogin)
-		}
-		args = []any{
-			viewerName,
-			html.EscapeString(scopes.Creator.TwitchLogin),
-			groupCount,
-		}
 	}
 	return sharedView{
 		text: fmt.Sprintf(i18n.Translate(lang, textKey), args...),
@@ -401,12 +396,12 @@ func resetPromptBackCallback(origin resetOrigin) string {
 func renderResetExecutionResult(lang string, res usecase.ResetResult) string {
 	switch res.Scope {
 	case usecase.ResetScopeViewer:
-		return fmt.Sprintf(i18n.Translate(lang, msgResetDoneViewerHTML), html.EscapeString(res.ViewerLogin), res.GroupCount)
+		return fmt.Sprintf(i18n.Translate(lang, msgResetDoneViewerHTML), html.EscapeString(res.ViewerLogin), renderResetViewerGroups(lang, res.GroupNames))
 	case usecase.ResetScopeCreator:
 		return fmt.Sprintf(
 			i18n.Translate(lang, msgResetDoneCreatorHTML),
 			html.EscapeString(strings.Join(res.DeletedNames, ", ")),
-			res.CreatorCleanup.ManagedGroupCount,
+			renderResetViewerGroups(lang, res.CreatorCleanup.GroupNames),
 			renderResetCreatorCleanupResult(lang, res.CreatorCleanup),
 		)
 	case usecase.ResetScopeBoth:
@@ -417,10 +412,9 @@ func renderResetExecutionResult(lang string, res usecase.ResetResult) string {
 		return fmt.Sprintf(
 			i18n.Translate(lang, msgResetDoneBothHTML),
 			viewerName,
-			res.GroupCount,
+			renderResetViewerGroups(lang, res.GroupNames),
 			html.EscapeString(strings.Join(res.DeletedNames, ", ")),
-			res.DeletedCount,
-			res.CreatorCleanup.ManagedGroupCount,
+			renderResetViewerGroups(lang, res.CreatorCleanup.GroupNames),
 			renderResetCreatorCleanupResult(lang, res.CreatorCleanup),
 		)
 	default:
@@ -438,14 +432,35 @@ func resetActionSummaryText(lang string, action core.CreatorResetGroupAction) st
 func renderResetCreatorCleanupResult(lang string, cleanup core.CreatorGroupCleanupSummary) string {
 	lines := []string{}
 	if cleanup.Action == core.CreatorResetKickTrackedMembers {
-		lines = append(lines, fmt.Sprintf(i18n.Translate(lang, msgResetCreatorKickTargetsLine), cleanup.TargetedMembershipCount))
 		if cleanup.QueueFailed {
 			lines = append(lines, i18n.Translate(lang, "reset_creator_cleanup_queue_failed"))
-		} else if cleanup.Queued {
-			lines = append(lines, i18n.Translate(lang, "reset_creator_cleanup_queued"))
+		} else if cleanup.Queued || cleanup.TargetedMembershipCount > 0 {
+			lines = append(lines, i18n.Translate(lang, msgResetCreatorKickTargetsLine))
 		}
 	} else {
 		lines = append(lines, i18n.Translate(lang, msgResetActionKeepLine))
 	}
-	return strings.Join(lines, "\n")
+	return strings.Join(compactNonEmpty(lines), "\n")
+}
+
+func compactNonEmpty(lines []string) []string {
+	out := lines[:0]
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		out = append(out, line)
+	}
+	return out
+}
+
+func renderResetViewerGroups(lang string, names []string) string {
+	if len(names) == 0 {
+		return i18n.Translate(lang, "reset_no_groups_line")
+	}
+	items := make([]string, 0, len(names))
+	for _, name := range names {
+		items = append(items, "• "+html.EscapeString(name))
+	}
+	return strings.Join(items, "\n")
 }

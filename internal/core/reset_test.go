@@ -56,6 +56,17 @@ func (f *resetFakeStore) ListManagedGroupsByCreator(_ context.Context, creatorID
 	return append([]ManagedGroup(nil), f.creatorGroups[creatorID]...), nil
 }
 
+func (f *resetFakeStore) ManagedGroupByChatID(_ context.Context, chatID int64) (ManagedGroup, bool, error) {
+	for _, groups := range f.creatorGroups {
+		for _, group := range groups {
+			if group.ChatID == chatID {
+				return group, true, nil
+			}
+		}
+	}
+	return ManagedGroup{}, false, nil
+}
+
 func (f *resetFakeStore) IsCreatorSubscriber(_ context.Context, creatorID, twitchUserID string) (bool, error) {
 	return f.subscriberByCreator[creatorID][twitchUserID], nil
 }
