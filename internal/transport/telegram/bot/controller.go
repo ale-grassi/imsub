@@ -92,6 +92,7 @@ type Dependencies struct {
 	CreatorActivation   *usecase.CreatorActivationUseCase
 	SubscriptionEnd     *usecase.SubscriptionEndUseCase
 	Reset               *usecase.ResetUseCase
+	Privacy             *usecase.PrivacyUseCase
 	Events              events.EventSink
 }
 
@@ -108,6 +109,7 @@ type controllerStore interface {
 	ListManagedGroups(ctx context.Context) ([]core.ManagedGroup, error)
 	DeleteManagedGroup(ctx context.Context, chatID int64) error
 	IsCreatorBlocked(ctx context.Context, creatorID, twitchUserID string) (bool, error)
+	ListTrackedGroupIDsForUser(ctx context.Context, telegramUserID int64) ([]int64, error)
 	CountUntrackedGroupMembers(ctx context.Context, chatID int64) (int, error)
 	IsTrackedGroupMember(ctx context.Context, chatID, telegramUserID int64) (bool, error)
 	AddTrackedGroupMember(ctx context.Context, chatID, telegramUserID int64, source string, at time.Time) error
@@ -141,6 +143,7 @@ type Bot struct {
 	creatorActivation   *usecase.CreatorActivationUseCase
 	subscriptionEnd     *usecase.SubscriptionEndUseCase
 	reset               *usecase.ResetUseCase
+	privacy             *usecase.PrivacyUseCase
 	events              events.EventSink
 
 	backgroundWG sync.WaitGroup
@@ -172,6 +175,7 @@ func New(deps Dependencies) *Bot {
 		creatorActivation:   deps.CreatorActivation,
 		subscriptionEnd:     deps.SubscriptionEnd,
 		reset:               deps.Reset,
+		privacy:             deps.Privacy,
 		events:              events.EnsureSink(deps.Events),
 	}
 	return c
@@ -198,6 +202,14 @@ func (c *Bot) SetResetUseCase(uc *usecase.ResetUseCase) {
 		return
 	}
 	c.reset = uc
+}
+
+// SetPrivacyUseCase wires privacy helpers after controller construction.
+func (c *Bot) SetPrivacyUseCase(uc *usecase.PrivacyUseCase) {
+	if c == nil {
+		return
+	}
+	c.privacy = uc
 }
 
 func (c *Bot) runBackground(ctx context.Context, fn func(context.Context)) {

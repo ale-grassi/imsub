@@ -12,7 +12,6 @@ ARG TARGETARCH
 ARG GOLANGCI_LINT_VERSION=v2.10.0
 ARG FLYCTL_VERSION=
 ARG TWITCH_CLI_VERSION=v1.1.24
-ARG CLOUDFLARED_VERSION=2026.3.0
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PATH=/usr/local/go/bin:/usr/local/bin:${PATH}
@@ -41,25 +40,25 @@ RUN python3 -m pip install --no-cache-dir pre-commit
 
 RUN --mount=type=cache,target=/tmp/gocache \
     --mount=type=cache,target=/tmp/gomodcache \
-    go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION} \
+    go install golang.org/x/tools/gopls@latest \
+    && go install github.com/go-delve/delve/cmd/dlv@latest \
+    && go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION} \
     && go install golang.org/x/vuln/cmd/govulncheck@latest \
     && go install github.com/zricethezav/gitleaks/v8@latest \
     && go install github.com/rhysd/actionlint/cmd/actionlint@latest
 
-RUN npm install -g @openai/codex @anthropic-ai/claude-code @google/gemini-cli
+RUN npm install -g ngrok @openai/codex @anthropic-ai/claude-code @google/gemini-cli
 
 RUN arch="$(dpkg --print-architecture)" \
     && case "${arch}" in \
-      amd64) twitch_asset="twitch-cli_${TWITCH_CLI_VERSION#v}_Linux_x86_64.tar.gz"; cloudflared_asset="cloudflared-linux-amd64" ;; \
-      arm64) twitch_asset="twitch-cli_${TWITCH_CLI_VERSION#v}_Linux_arm64.tar.gz"; cloudflared_asset="cloudflared-linux-arm64" ;; \
+      amd64) twitch_asset="twitch-cli_${TWITCH_CLI_VERSION#v}_Linux_x86_64.tar.gz" ;; \
+      arm64) twitch_asset="twitch-cli_${TWITCH_CLI_VERSION#v}_Linux_arm64.tar.gz" ;; \
       *) echo "unsupported architecture: ${arch}" >&2; exit 1 ;; \
     esac \
     && tmp_dir="$(mktemp -d)" \
     && curl -fsSL "https://github.com/twitchdev/twitch-cli/releases/download/${TWITCH_CLI_VERSION}/${twitch_asset}" -o "${tmp_dir}/twitch-cli.tar.gz" \
     && tar -xzf "${tmp_dir}/twitch-cli.tar.gz" -C "${tmp_dir}" \
     && install -m 0755 "$(find "${tmp_dir}" -type f -name twitch -print -quit)" /usr/local/bin/twitch \
-    && curl -fsSL "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/${cloudflared_asset}" -o /usr/local/bin/cloudflared \
-    && chmod 0755 /usr/local/bin/cloudflared \
     && rm -rf "${tmp_dir}"
 
 RUN tmp_dir="$(mktemp -d)" \

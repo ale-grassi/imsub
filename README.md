@@ -209,11 +209,11 @@ make check
 make run
 ```
 
-For tunnel mode, use the same `.env.dev` file and run `make run-tunnel`.
+For webhook tunnel mode, use the same `.env.dev` file and run `make run-tunnel`.
 
 ### Devcontainer
 
-The repository includes a local-build devcontainer image. Rebuilding the container builds [`.devcontainer/Dockerfile`](/workspace/.devcontainer/Dockerfile), which bakes in the stable toolchain layers: Go, Node.js, `flyctl`, `golangci-lint`, `govulncheck`, `gitleaks`, `pre-commit`, `actionlint`, `xdg-open`, `twitch`, `cloudflared`, and the AI coding CLIs (`codex`, `claude`, `gemini`). Host directories for CLI state (`~/.claude`, `~/.fly`, `~/.codex`, `~/.gemini`) are bind-mounted so login state persists across rebuilds. The `initializeCommand` creates placeholder host paths if missing.
+The repository includes a local-build devcontainer image. Rebuilding the container builds [`.devcontainer/Dockerfile`](/workspace/.devcontainer/Dockerfile), which bakes in the stable toolchain layers: Go, `gopls`, `dlv`, Node.js, `flyctl`, `golangci-lint`, `govulncheck`, `gitleaks`, `pre-commit`, `actionlint`, `xdg-open`, `twitch`, `ngrok`, and the AI coding CLIs (`codex`, `claude`, `gemini`). Host directories for CLI state (`~/.claude`, `~/.fly`, `~/.codex`, `~/.gemini`, `~/.config/ngrok`) are bind-mounted so login state persists across rebuilds. The `initializeCommand` creates placeholder host paths if missing.
 
 The local Redis service lives at `redis://default:@redis:6379/0` from inside the devcontainer and keeps its data in a named Docker volume so seeded data survives rebuilds and restarts.
 
@@ -236,9 +236,9 @@ The post-create step is intentionally small now. It only applies workspace-speci
 | `make secrets-scan` | Scan for leaked secrets with gitleaks |
 | `make run` | Run ImSub locally in long polling mode using `.env.dev` and the devcontainer Redis |
 | `make run-tunnel [PUBLIC_BASE_URL=https://...]` | Run ImSub in local webhook mode using `.env.dev` and the devcontainer Redis |
-| `make tunnel` | Start or reuse a cached Cloudflare quick tunnel for `http://localhost:8080` |
+| `make tunnel` | Start or reuse a cached ngrok HTTPS tunnel for `http://localhost:8080` |
 | `make attach-tunnel URL=https://... [PID=<pid>]` | Cache an already-running tunnel URL for `make run-tunnel` |
-| `make stop-tunnel` | Stop the cached Cloudflare quick tunnel and remove its temp files |
+| `make stop-tunnel` | Stop the cached ngrok tunnel and remove its temp files |
 | `make seed CONFIRM=seed` | Download the latest production backup and load it into the local devcontainer Redis |
 | `make prod-logs CONFIRM=prod-logs` | Show recent production Fly logs |
 | `make prod-redis-proxy CONFIRM=prod-redis-proxy` | Open an interactive production Fly Redis proxy |
@@ -282,15 +282,20 @@ Use the same `.env.dev` file when you need the local app reachable from Twitch a
 
 ```bash
 # Set IMSUB_TELEGRAM_WEBHOOK_SECRET in .env.dev first.
+# Authenticate ngrok once inside the devcontainer if needed.
+ngrok config add-authtoken <your-token>
+
 make run-tunnel
 ```
 
-`make run-tunnel` reuses the cached Cloudflare quick tunnel URL from `tmp/cloudflared-url` when available. If no live tunnel is cached, it starts one automatically, stores its URL and PID under `tmp/`, and uses that public URL for Telegram webhooks and Twitch callbacks.
+`make run-tunnel` reuses the cached ngrok URL from `tmp/ngrok-url` when available. If no live tunnel is cached, it starts one automatically, stores its URL and PID under `tmp/`, and uses that public URL for Telegram webhooks and Twitch callbacks.
 
-If you started `cloudflared` manually outside `make`, adopt it with:
+If your ngrok account has an assigned stable domain, set `IMSUB_PUBLIC_BASE_URL` in `.env.dev` to that `https://...ngrok...` value. `make tunnel` will bind ngrok to the same host so Twitch and Telegram callback URLs stay stable across restarts.
+
+If you started `ngrok` manually outside `make`, adopt it with:
 
 ```bash
-make attach-tunnel URL=https://<your-trycloudflare-url> PID=<optional-pid>
+make attach-tunnel URL=https://<your-ngrok-url> PID=<optional-pid>
 make run-tunnel
 ```
 
@@ -591,7 +596,7 @@ Planned improvements and open design questions, roughly ordered by impact.
 
 - **Telegram operator log channel**: forward high-signal service events to one Telegram channel owned by the operator, such as EventSub failures, OAuth errors, reconciliation warnings, failed kicks, and automatic unregisters. This is for bot/service monitoring, not creator-facing audit logs.
 - **Creator moderation log channel**: let each creator optionally bind one Telegram channel where ImSub posts member-access actions for that creator's groups, such as approved joins, declined joins, kicks, grace-expiry removals, and ban-sync removals, with the affected user and reason.
-- **Product and Telegram metrics**: add Prometheus metrics and Grafana panels for daily active bot users, linked viewer/creator accounts, subscription checks, group registrations, command usage, and kick/access actions so the dashboard answers operational and product questions directly.
+- **Dashboard refinement**: keep expanding Grafana panels and alerting around product health, Telegram API errors, reconciliation drift, and creator reconnect state so operator action is obvious without reading logs.
 
 ### Subscription lifecycle
 
@@ -611,16 +616,14 @@ Planned improvements and open design questions, roughly ordered by impact.
 
 ### GDPR compliance
 
-- **Data export**: provide a `/export` command (or API endpoint) that lets a user download all personal data the bot holds about them (Telegram ID, Twitch links, group memberships, subscription history, timestamps) in a machine-readable format (JSON).
-- **Right to erasure**: the existing reset flow deletes user data, but it should also confirm deletion of all associated records (event logs, untracked membership observations, cached invite links) and return a confirmation receipt.
-- **Consent flow**: before storing any personal data, present a clear consent prompt explaining what data is collected, why, and how long it is retained. Store the consent timestamp.
-- **Data retention policy**: define and enforce retention limits for event logs, untracked membership records, and OAuth tokens. Automatically purge data beyond the retention window.
-- **Privacy policy link**: surface a link to the privacy policy in the `/start`, `/help`, and `/info` flows.
+- **Bot-specific privacy policy**: publish a proper privacy policy covering controller identity, stored data categories, purposes, retention, third parties, and deletion/export behavior, then link it consistently from onboarding and support surfaces.
+- **Retention completion**: extend retention beyond privacy receipts and untracked membership observations to any remaining long-lived OAuth or ancillary records that should expire automatically.
+- **Export scope refinement**: decide whether to add explicit subscription history, richer receipts, or infrastructure-log references to the current JSON export format.
+- **Privacy surface polish**: surface the privacy policy link in `/help` and `/info`, not just the onboarding flows, and keep the `/reset` export/delete copy aligned with the final policy wording.
 
 
 ### Support and info
 
-- **`/help` help desk**: add a dedicated support flow where users can describe a problem or send a report. Once per week, that report can be analyzed by an LLM to return one automatic but practical, on-context answer or suggested resolution.
 - **Localization**: add more languages beyond English and Italian.
 - **Inline status refresh**: let viewers check their subscription status without going through the full `/start` flow again.
 

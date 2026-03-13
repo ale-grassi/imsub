@@ -89,6 +89,7 @@ type ViewerResetResult struct {
 type CreatorResetResult struct {
 	DeletedCount   int
 	DeletedNames   []string
+	Creator        Creator
 	CreatorCleanup CreatorGroupCleanupSummary
 }
 
@@ -101,6 +102,7 @@ type BothResetResult struct {
 	GroupResolution GroupResolutionStats
 	DeletedCount    int
 	DeletedNames    []string
+	Creator         Creator
 	CreatorCleanup  CreatorGroupCleanupSummary
 }
 
@@ -217,6 +219,13 @@ func (r *ResetService) ExecuteViewerReset(ctx context.Context, telegramUserID in
 
 // ExecuteCreatorReset removes creator-owned data.
 func (r *ResetService) ExecuteCreatorReset(ctx context.Context, telegramUserID int64, action CreatorResetGroupAction) (CreatorResetResult, error) {
+	creator, hasCreator, err := r.store.OwnedCreatorForUser(ctx, telegramUserID)
+	if err != nil {
+		return CreatorResetResult{}, fmt.Errorf("load owned creator: %w", err)
+	}
+	if !hasCreator {
+		return CreatorResetResult{}, nil
+	}
 	cleanup, err := r.cleanupCreatorGroupsForReset(ctx, telegramUserID, action)
 	if err != nil {
 		return CreatorResetResult{}, fmt.Errorf("cleanup creator groups for reset: %w", err)
@@ -228,6 +237,7 @@ func (r *ResetService) ExecuteCreatorReset(ctx context.Context, telegramUserID i
 	return CreatorResetResult{
 		DeletedCount:   deletedCount,
 		DeletedNames:   deletedNames,
+		Creator:        creator,
 		CreatorCleanup: cleanup,
 	}, nil
 }
@@ -257,6 +267,13 @@ func (r *ResetService) ExecuteBothReset(ctx context.Context, telegramUserID int6
 	if err != nil {
 		return BothResetResult{}, fmt.Errorf("cleanup creator groups for reset: %w", err)
 	}
+	creator, hasCreator, err := r.store.OwnedCreatorForUser(ctx, telegramUserID)
+	if err != nil {
+		return BothResetResult{}, fmt.Errorf("load owned creator: %w", err)
+	}
+	if !hasCreator {
+		creator = Creator{}
+	}
 
 	deletedCount, deletedNames, err := r.DeleteCreatorData(ctx, telegramUserID)
 	if err != nil {
@@ -271,6 +288,7 @@ func (r *ResetService) ExecuteBothReset(ctx context.Context, telegramUserID int6
 		GroupResolution: resolution,
 		DeletedCount:    deletedCount,
 		DeletedNames:    deletedNames,
+		Creator:         creator,
 		CreatorCleanup:  cleanup,
 	}, nil
 }

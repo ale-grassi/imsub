@@ -48,11 +48,12 @@ func (s *Store) UserIdentity(ctx context.Context, telegramUserID int64) (core.Us
 		verifiedAt = time.Now().UTC()
 	}
 	return core.UserIdentity{
-		TelegramUserID: telegramUserID,
-		TwitchUserID:   vals["twitch_user_id"],
-		TwitchLogin:    vals["twitch_login"],
-		Language:       vals["language"],
-		VerifiedAt:     verifiedAt,
+		TelegramUserID:    telegramUserID,
+		TwitchUserID:      vals["twitch_user_id"],
+		TwitchLogin:       vals["twitch_login"],
+		TwitchDisplayName: vals["twitch_display_name"],
+		Language:          vals["language"],
+		VerifiedAt:        verifiedAt,
 	}, true, nil
 }
 
@@ -90,7 +91,7 @@ func (s *Store) prepareTwitchLink(ctx context.Context, telegramUserID int64, twi
 }
 
 // SaveUserIdentityOnly links a Twitch account to a Telegram user without creator binding.
-func (s *Store) SaveUserIdentityOnly(ctx context.Context, telegramUserID int64, twitchUserID, twitchLogin, language string) (displacedUserID int64, err error) {
+func (s *Store) SaveUserIdentityOnly(ctx context.Context, telegramUserID int64, twitchUserID, twitchLogin, twitchDisplayName, language string) (displacedUserID int64, err error) {
 	displacedUserID, err = s.prepareTwitchLink(ctx, telegramUserID, twitchUserID)
 	if err != nil {
 		return 0, err
@@ -105,6 +106,7 @@ func (s *Store) SaveUserIdentityOnly(ctx context.Context, telegramUserID int64, 
 		strconv.FormatInt(telegramUserID, 10),
 		twitchUserID,
 		twitchLogin,
+		twitchDisplayName,
 		language,
 		time.Now().UTC().Format(time.RFC3339),
 	).Result()
@@ -148,6 +150,9 @@ func (s *Store) DeleteAllUserData(ctx context.Context, telegramUserID int64) err
 	identity, ok, err := s.UserIdentity(ctx, telegramUserID)
 	if err != nil {
 		return err
+	}
+	if _, err := s.DeleteAllUntrackedMembershipsForUser(ctx, telegramUserID); err != nil {
+		return fmt.Errorf("delete all untracked memberships for user: %w", err)
 	}
 
 	pipe := s.rdb.TxPipeline()

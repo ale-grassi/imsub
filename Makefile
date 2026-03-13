@@ -6,19 +6,20 @@ GOVULNCHECK ?= govulncheck
 GITLEAKS ?= gitleaks
 export GOCACHE ?= /tmp/gocache
 export GOLANGCI_LINT_CACHE ?= /tmp/golangci-lint
-TUNNEL_URL_FILE := tmp/cloudflared-url
-TUNNEL_PID_FILE := tmp/cloudflared.pid
-TUNNEL_LOG_FILE := tmp/cloudflared.log
+TUNNEL_URL_FILE := tmp/ngrok-url
+TUNNEL_PID_FILE := tmp/ngrok.pid
+TUNNEL_LOG_FILE := tmp/ngrok.log
+NGROK_API_URL := http://127.0.0.1:4040/api/tunnels
 
 .PHONY: help run run-tunnel tunnel attach-tunnel stop-tunnel seed fmt fmt-check vet test test-integration build check ci-check lint style-check cover cover-open vuln secrets-scan msg-gallery msg-gallery-md msg-gallery-tg prod-logs prod-redis-proxy
 
 help:
 	@echo "Targets:"
 	@echo "  make run      - run ImSub locally inside the devcontainer using .env.dev"
-	@echo "  make run-tunnel [PUBLIC_BASE_URL=https://...] - run ImSub in webhook mode using .env.dev and an existing or auto-started tunnel"
-	@echo "  make tunnel   - start a Cloudflare quick tunnel for http://localhost:8080 and cache the URL in tmp/cloudflared-url"
+	@echo "  make run-tunnel [PUBLIC_BASE_URL=https://...] - run ImSub in webhook mode using .env.dev and an existing or auto-started ngrok tunnel"
+	@echo "  make tunnel   - start an ngrok tunnel for http://localhost:8080 and cache the URL in tmp/ngrok-url"
 	@echo "  make attach-tunnel URL=https://... [PID=<pid>] - cache an already-running tunnel URL for run-tunnel"
-	@echo "  make stop-tunnel - stop the cached Cloudflare quick tunnel and remove tmp/cloudflared state"
+	@echo "  make stop-tunnel - stop the cached ngrok tunnel and remove tmp/ngrok state"
 	@echo "  make fmt      - format Go files with gofmt and golangci-lint fmt (goimports)"
 	@echo "  make fmt-check - fail if Go files need gofmt or golangci-lint fmt (goimports)"
 	@echo "  make vet      - run go vet"
@@ -100,32 +101,59 @@ tunnel:
 	@if [ -s "$(TUNNEL_PID_FILE)" ]; then \
 		pid="$$(cat "$(TUNNEL_PID_FILE)")"; \
 		if kill -0 "$$pid" >/dev/null 2>&1 && [ -s "$(TUNNEL_URL_FILE)" ]; then \
-			echo "cloudflared already running at $$(cat "$(TUNNEL_URL_FILE)")"; \
+			echo "ngrok already running at $$(cat "$(TUNNEL_URL_FILE)")"; \
 			exit 0; \
 		fi; \
 	fi; \
+	public_base_url="$(PUBLIC_BASE_URL)"; \
+	if [ -z "$$public_base_url" ] && [ -f .env.dev ]; then \
+		set -a; . ./.env.dev; set +a; \
+		public_base_url="$$IMSUB_PUBLIC_BASE_URL"; \
+	fi; \
+	ngrok_domain=""; \
+	if [[ "$$public_base_url" =~ ^https://([^/]+)\.ngrok(-free)?\.(app|dev)($$|/) ]]; then \
+		ngrok_domain="$${BASH_REMATCH[1]}.ngrok$${BASH_REMATCH[2]}.$${BASH_REMATCH[3]}"; \
+	fi; \
 	rm -f "$(TUNNEL_PID_FILE)" "$(TUNNEL_URL_FILE)" "$(TUNNEL_LOG_FILE)"; \
-	nohup cloudflared tunnel --no-autoupdate --url http://localhost:8080 >"$(TUNNEL_LOG_FILE)" 2>&1 & \
-	pid="$$!"; \
-	echo "$$pid" >"$(TUNNEL_PID_FILE)"; \
-	for _ in $$(seq 1 50); do \
-		if grep -Eo 'https://[a-z0-9-]+\.trycloudflare\.com' "$(TUNNEL_LOG_FILE)" | grep -v 'https://api\.trycloudflare\.com' | tail -n 1 >"$(TUNNEL_URL_FILE).tmp"; then \
-			if [ -s "$(TUNNEL_URL_FILE).tmp" ]; then \
-				mv "$(TUNNEL_URL_FILE).tmp" "$(TUNNEL_URL_FILE)"; \
-				url="$$(cat "$(TUNNEL_URL_FILE)")"; \
-				echo "cloudflared running at $$url"; \
-				exit 0; \
+	for attempt in 1 2; do \
+		rm -f "$(TUNNEL_URL_FILE).tmp"; \
+		if [ -n "$$ngrok_domain" ]; then \
+			nohup ngrok http --domain="$$ngrok_domain" --log=stdout 8080 >"$(TUNNEL_LOG_FILE)" 2>&1 & \
+		else \
+			nohup ngrok http --log=stdout 8080 >"$(TUNNEL_LOG_FILE)" 2>&1 & \
+		fi; \
+		pid="$$!"; \
+		echo "$$pid" >"$(TUNNEL_PID_FILE)"; \
+		for _ in $$(seq 1 50); do \
+			if python3 -c 'import json, urllib.request; data = json.load(urllib.request.urlopen("$(NGROK_API_URL)", timeout=2)); print(next((t.get("public_url", "") for t in data.get("tunnels", []) if t.get("public_url", "").startswith("https://")), ""))' >"$(TUNNEL_URL_FILE).tmp" 2>/dev/null; then \
+				if grep -Eq '^https://[^[:space:]]+$$' "$(TUNNEL_URL_FILE).tmp"; then \
+					mv "$(TUNNEL_URL_FILE).tmp" "$(TUNNEL_URL_FILE)"; \
+					url="$$(cat "$(TUNNEL_URL_FILE)")"; \
+					echo "ngrok running at $$url"; \
+					exit 0; \
+				fi; \
 			fi; \
+			if ! kill -0 "$$pid" >/dev/null 2>&1; then \
+				break; \
+			fi; \
+			sleep 1; \
+		done; \
+		if kill -0 "$$pid" >/dev/null 2>&1; then \
+			kill "$$pid" >/dev/null 2>&1 || true; \
+			for _ in $$(seq 1 10); do \
+				if ! kill -0 "$$pid" >/dev/null 2>&1; then \
+					break; \
+				fi; \
+				sleep 1; \
+			done; \
 		fi; \
-		if ! kill -0 "$$pid" >/dev/null 2>&1; then \
-			echo "cloudflared exited early; see $(TUNNEL_LOG_FILE)" >&2; \
-			rm -f "$(TUNNEL_PID_FILE)" "$(TUNNEL_URL_FILE)" "$(TUNNEL_URL_FILE).tmp"; \
-			exit 1; \
+		rm -f "$(TUNNEL_PID_FILE)" "$(TUNNEL_URL_FILE).tmp"; \
+		if [ "$$attempt" = "1" ]; then \
+			sleep 2; \
 		fi; \
-		sleep 1; \
 	done; \
 	rm -f "$(TUNNEL_PID_FILE)" "$(TUNNEL_URL_FILE)" "$(TUNNEL_URL_FILE).tmp"; \
-	echo "timed out waiting for cloudflared URL; see $(TUNNEL_LOG_FILE)" >&2; \
+	echo "ngrok exited early or timed out; see $(TUNNEL_LOG_FILE)" >&2; \
 	exit 1
 
 attach-tunnel:
@@ -144,8 +172,13 @@ stop-tunnel:
 	@if [ -s "$(TUNNEL_PID_FILE)" ]; then \
 		pid="$$(cat "$(TUNNEL_PID_FILE)")"; \
 		if kill -0 "$$pid" >/dev/null 2>&1; then \
-			kill "$$pid"; \
-			wait "$$pid" 2>/dev/null || true; \
+			kill "$$pid" >/dev/null 2>&1 || true; \
+			for _ in $$(seq 1 10); do \
+				if ! kill -0 "$$pid" >/dev/null 2>&1; then \
+					break; \
+				fi; \
+				sleep 1; \
+			done; \
 		fi; \
 	fi
 	@rm -f "$(TUNNEL_PID_FILE)" "$(TUNNEL_URL_FILE)" "$(TUNNEL_URL_FILE).tmp" "$(TUNNEL_LOG_FILE)"

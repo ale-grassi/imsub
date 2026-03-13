@@ -9,14 +9,14 @@ import (
 )
 
 type oauthFakeStore struct {
-	saveViewerFn func(ctx context.Context, telegramUserID int64, twitchUserID, twitchLogin, language string) (int64, error)
+	saveViewerFn func(ctx context.Context, telegramUserID int64, twitchUserID, twitchLogin, twitchDisplayName, language string) (int64, error)
 	getOwnedFn   func(ctx context.Context, ownerTelegramID int64) (Creator, bool, error)
 	upsertFn     func(ctx context.Context, c Creator) error
 }
 
-func (f *oauthFakeStore) SaveUserIdentityOnly(ctx context.Context, telegramUserID int64, twitchUserID, twitchLogin, language string) (int64, error) {
+func (f *oauthFakeStore) SaveUserIdentityOnly(ctx context.Context, telegramUserID int64, twitchUserID, twitchLogin, twitchDisplayName, language string) (int64, error) {
 	if f.saveViewerFn != nil {
-		return f.saveViewerFn(ctx, telegramUserID, twitchUserID, twitchLogin, language)
+		return f.saveViewerFn(ctx, telegramUserID, twitchUserID, twitchLogin, twitchDisplayName, language)
 	}
 	return 0, nil
 }
@@ -87,9 +87,9 @@ func TestLinkViewerSuccess(t *testing.T) {
 
 	svc := NewOAuthService(
 		&oauthFakeStore{
-			saveViewerFn: func(_ context.Context, telegramUserID int64, twitchUserID, twitchLogin, language string) (int64, error) {
-				if telegramUserID != 7 || twitchUserID != "tw-1" || twitchLogin != "login1" || language != "en" {
-					t.Fatalf("saveViewerFn() args = tg=%d tw=%q login=%q lang=%q, want tg=7 tw=\"tw-1\" login=\"login1\" lang=\"en\"", telegramUserID, twitchUserID, twitchLogin, language)
+			saveViewerFn: func(_ context.Context, telegramUserID int64, twitchUserID, twitchLogin, twitchDisplayName, language string) (int64, error) {
+				if telegramUserID != 7 || twitchUserID != "tw-1" || twitchLogin != "login1" || twitchDisplayName != "Display1" || language != "en" {
+					t.Fatalf("saveViewerFn() args = tg=%d tw=%q login=%q display=%q lang=%q", telegramUserID, twitchUserID, twitchLogin, twitchDisplayName, language)
 				}
 				return 42, nil
 			},

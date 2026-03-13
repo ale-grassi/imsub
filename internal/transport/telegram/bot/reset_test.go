@@ -20,12 +20,23 @@ func TestBuildResetPromptView(t *testing.T) {
 	t.Parallel()
 	ensureResetTestI18n(t)
 
-	view, ok := buildResetPromptView("en", core.ScopeState{
+	view := buildResetPromptView("en", core.ScopeState{
 		HasIdentity: true,
 		HasCreator:  true,
 	}, resetOriginViewer)
-	if !ok || view.text == "" || view.opts.Markup == nil {
-		t.Fatalf("buildResetPromptView() = (%+v, %t), want populated view", view, ok)
+	if view.text == "" || view.opts.Markup == nil {
+		t.Fatalf("buildResetPromptView() = %+v, want populated view", view)
+	}
+	found := false
+	for _, row := range view.opts.Markup.InlineKeyboard {
+		for _, button := range row {
+			if button.CallbackData == resetExportCallback(resetOriginViewer) {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Fatal("buildResetPromptView() missing export callback")
 	}
 }
 
@@ -33,9 +44,16 @@ func TestBuildResetPromptViewEmpty(t *testing.T) {
 	t.Parallel()
 	ensureResetTestI18n(t)
 
-	view, ok := buildResetPromptView("en", core.ScopeState{}, resetOriginViewer)
-	if !ok || view.text == "" {
-		t.Fatalf("buildResetPromptView() = (%+v, %t), want empty-state view", view, ok)
+	view := buildResetPromptView("en", core.ScopeState{}, resetOriginViewer)
+	if view.text == "" {
+		t.Fatalf("buildResetPromptView() = %+v, want empty-state view", view)
+	}
+	for _, row := range view.opts.Markup.InlineKeyboard {
+		for _, button := range row {
+			if button.CallbackData == resetExportCallback(resetOriginViewer) {
+				t.Fatal("buildResetPromptView() should not include export callback for empty state")
+			}
+		}
 	}
 }
 

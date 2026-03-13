@@ -640,6 +640,7 @@ func TestRegisterTelegramHandlersResetViewerOriginBackReturnsViewerMenu(t *testi
 
 	body := h.caller.lastEditMessageBody()
 	h.assertEditMessageHasCallback(t, body, resetPickCallback(resetOriginViewer, resetScopeViewer))
+	h.assertEditMessageHasCallback(t, body, resetExportCallback(resetOriginViewer))
 	h.assertEditMessageHasCallback(t, body, resetMenuCallback(resetOriginViewer))
 
 	h.handleUpdate(t, telego.Update{
@@ -702,6 +703,7 @@ func TestRegisterTelegramHandlersResetCreatorOriginBackReturnsCreatorMenu(t *tes
 
 	body := h.caller.lastEditMessageBody()
 	h.assertEditMessageHasCallback(t, body, resetPickCallback(resetOriginCreator, resetScopeViewer))
+	h.assertEditMessageHasCallback(t, body, resetExportCallback(resetOriginCreator))
 	h.assertEditMessageHasCallback(t, body, resetMenuCallback(resetOriginCreator))
 
 	h.handleUpdate(t, telego.Update{

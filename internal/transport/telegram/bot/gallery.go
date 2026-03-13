@@ -2,7 +2,6 @@ package bot
 
 import (
 	"fmt"
-	"html"
 	"strings"
 	"time"
 
@@ -59,7 +58,7 @@ func PreviewScenarios() []PreviewScenario {
 			Group: "Viewer",
 			Title: "Linked account, no active subscriptions",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(buildViewerLinkedView(lang, "viewer_name", core.JoinTargets{}))
+				return previewFromShared(buildViewerLinkedView(lang, core.UserIdentity{TwitchLogin: "viewer_name", TwitchDisplayName: "Viewer Name"}, core.JoinTargets{}))
 			},
 		},
 		{
@@ -67,7 +66,7 @@ func PreviewScenarios() []PreviewScenario {
 			Group: "Viewer",
 			Title: "Linked account, active subscriptions with join buttons",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(buildViewerLinkedView(lang, "viewer_name", core.JoinTargets{
+				return previewFromShared(buildViewerLinkedView(lang, core.UserIdentity{TwitchLogin: "viewer_name", TwitchDisplayName: "Viewer Name"}, core.JoinTargets{
 					ActiveCreatorNames: []string{"streamer_one", "streamer_two"},
 					JoinLinks: []core.JoinLink{
 						{CreatorName: "streamer_one", GroupName: "VIP Lounge", InviteLink: "https://t.me/+vip"},
@@ -81,7 +80,7 @@ func PreviewScenarios() []PreviewScenario {
 			Group: "Viewer",
 			Title: "Linked account, subscriptions found but no linked groups",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(buildViewerLinkedView(lang, "viewer_name", core.JoinTargets{
+				return previewFromShared(buildViewerLinkedView(lang, core.UserIdentity{TwitchLogin: "viewer_name", TwitchDisplayName: "Viewer Name"}, core.JoinTargets{
 					ActiveCreatorNames: []string{"streamer_one", "streamer_two"},
 				}))
 			},
@@ -386,14 +385,38 @@ func PreviewScenarios() []PreviewScenario {
 		{
 			ID:    "reset-scope-picker",
 			Group: "Reset",
-			Title: "Reset scope picker",
+			Title: "Reset scope picker with viewer and creator data",
 			Render: func(lang string) PreviewView {
-				view, _ := buildResetPromptView(lang, core.ScopeState{
+				view := buildResetPromptView(lang, core.ScopeState{
 					HasIdentity: true,
-					Identity:    core.UserIdentity{TwitchLogin: "viewer_name"},
+					Identity:    core.UserIdentity{TwitchLogin: "viewer_name", TwitchDisplayName: "Viewer Name"},
 					HasCreator:  true,
 					Creator:     sampleCreator(),
 				}, resetOriginViewer)
+				return previewFromShared(view)
+			},
+		},
+		{
+			ID:    "reset-scope-picker-viewer-only",
+			Group: "Reset",
+			Title: "Reset scope picker with only viewer data",
+			Render: func(lang string) PreviewView {
+				view := buildResetPromptView(lang, core.ScopeState{
+					HasIdentity: true,
+					Identity:    core.UserIdentity{TwitchLogin: "viewer_name", TwitchDisplayName: "Viewer Name"},
+				}, resetOriginViewer)
+				return previewFromShared(view)
+			},
+		},
+		{
+			ID:    "reset-scope-picker-creator-only",
+			Group: "Reset",
+			Title: "Reset scope picker with only creator data",
+			Render: func(lang string) PreviewView {
+				view := buildResetPromptView(lang, core.ScopeState{
+					HasCreator: true,
+					Creator:    sampleCreator(),
+				}, resetOriginCreator)
 				return previewFromShared(view)
 			},
 		},
@@ -417,7 +440,7 @@ func PreviewScenarios() []PreviewScenario {
 				return previewFromShared(sharedView{
 					text: fmt.Sprintf(
 						i18n.Translate(lang, msgResetConfirmViewerHTML),
-						html.EscapeString("viewer_name"),
+						twitchProfileHTML("viewer_name", "Viewer Name"),
 						resetGroupSection(lang, i18n.Translate(lang, "reset_subscriber_groups_title"), groupNames),
 						resetViewerConsequenceLine(lang, len(groupNames)),
 					),
@@ -434,7 +457,7 @@ func PreviewScenarios() []PreviewScenario {
 				return previewFromShared(sharedView{
 					text: fmt.Sprintf(
 						i18n.Translate(lang, msgResetConfirmViewerHTML),
-						html.EscapeString("viewer_name"),
+						twitchProfileHTML("viewer_name", "Viewer Name"),
 						resetGroupSection(lang, i18n.Translate(lang, "reset_subscriber_groups_title"), groupNames),
 						resetViewerConsequenceLine(lang, len(groupNames)),
 					),
@@ -450,7 +473,7 @@ func PreviewScenarios() []PreviewScenario {
 				return previewFromShared(sharedView{
 					text: fmt.Sprintf(
 						i18n.Translate(lang, msgResetConfirmCreatorHTML),
-						html.EscapeString("streamer_one"),
+						twitchProfileHTML("streamer_one", "Streamer One"),
 						resetGroupSection(lang, i18n.Translate(lang, "reset_managed_groups_title"), []string{"VIP Lounge", "Subscriber Chat"}),
 						resetCreatorConsequenceLine(lang, 2),
 						resetCreatorActionSummaryText(lang, core.CreatorResetKickTrackedMembers, 2),
@@ -467,7 +490,7 @@ func PreviewScenarios() []PreviewScenario {
 				return previewFromShared(sharedView{
 					text: fmt.Sprintf(
 						i18n.Translate(lang, msgResetConfirmCreatorHTML),
-						html.EscapeString("streamer_one"),
+						twitchProfileHTML("streamer_one", "Streamer One"),
 						resetGroupSection(lang, i18n.Translate(lang, "reset_managed_groups_title"), nil),
 						resetCreatorConsequenceLine(lang, 0),
 						resetCreatorActionSummaryText(lang, core.CreatorResetKickTrackedMembers, 0),
@@ -485,9 +508,9 @@ func PreviewScenarios() []PreviewScenario {
 				return previewFromShared(sharedView{
 					text: fmt.Sprintf(
 						i18n.Translate(lang, msgResetConfirmBothHTML),
-						html.EscapeString("viewer_name"),
+						twitchProfileHTML("viewer_name", "Viewer Name"),
 						resetGroupSection(lang, i18n.Translate(lang, "reset_subscriber_groups_title"), viewerGroups),
-						html.EscapeString("streamer_one"),
+						twitchProfileHTML("streamer_one", "Streamer One"),
 						resetGroupSection(lang, i18n.Translate(lang, "reset_managed_groups_title"), []string{"VIP Lounge", "Subscriber Chat"}),
 						resetViewerConsequenceLine(lang, len(viewerGroups)),
 						resetCreatorConsequenceLine(lang, 2),
@@ -503,9 +526,10 @@ func PreviewScenarios() []PreviewScenario {
 			Title: "Viewer-data deleted",
 			Render: func(lang string) PreviewView {
 				return previewFromShared(buildResetExecutionView(lang, usecase.ResetResult{
-					Scope:       usecase.ResetScopeViewer,
-					ViewerLogin: "viewer_name",
-					GroupNames:  []string{"VIP Lounge", "Patrons", "Insiders"},
+					Scope:             usecase.ResetScopeViewer,
+					ViewerLogin:       "viewer_name",
+					ViewerDisplayName: "Viewer Name",
+					GroupNames:        []string{"VIP Lounge", "Patrons", "Insiders"},
 				}))
 			},
 		},
@@ -515,9 +539,11 @@ func PreviewScenarios() []PreviewScenario {
 			Title: "Creator-data deleted",
 			Render: func(lang string) PreviewView {
 				return previewFromShared(buildResetExecutionView(lang, usecase.ResetResult{
-					Scope:        usecase.ResetScopeCreator,
-					DeletedCount: 1,
-					DeletedNames: []string{"streamer_one"},
+					Scope:              usecase.ResetScopeCreator,
+					DeletedCount:       1,
+					DeletedNames:       []string{"streamer_one"},
+					CreatorLogin:       "streamer_one",
+					CreatorDisplayName: "Streamer One",
 					CreatorCleanup: core.CreatorGroupCleanupSummary{
 						Action:                  core.CreatorResetKickTrackedMembers,
 						ManagedGroupCount:       2,
@@ -534,11 +560,14 @@ func PreviewScenarios() []PreviewScenario {
 			Title: "All linked data deleted",
 			Render: func(lang string) PreviewView {
 				return previewFromShared(buildResetExecutionView(lang, usecase.ResetResult{
-					Scope:        usecase.ResetScopeBoth,
-					ViewerLogin:  "viewer_name",
-					GroupNames:   []string{"VIP Lounge", "Patrons", "Insiders"},
-					DeletedCount: 1,
-					DeletedNames: []string{"streamer_one"},
+					Scope:              usecase.ResetScopeBoth,
+					ViewerLogin:        "viewer_name",
+					ViewerDisplayName:  "Viewer Name",
+					GroupNames:         []string{"VIP Lounge", "Patrons", "Insiders"},
+					DeletedCount:       1,
+					DeletedNames:       []string{"streamer_one"},
+					CreatorLogin:       "streamer_one",
+					CreatorDisplayName: "Streamer One",
 					CreatorCleanup: core.CreatorGroupCleanupSummary{
 						Action:                  core.CreatorResetKickTrackedMembers,
 						ManagedGroupCount:       2,
@@ -647,9 +676,10 @@ func buildTextViewWithArgs(lang, key string, args ...any) sharedView {
 
 func sampleCreator() core.Creator {
 	return core.Creator{
-		ID:              "creator-1",
-		TwitchLogin:     "streamer_one",
-		OwnerTelegramID: 77,
+		ID:                "creator-1",
+		TwitchLogin:       "streamer_one",
+		TwitchDisplayName: "Streamer One",
+		OwnerTelegramID:   77,
 	}
 }
 

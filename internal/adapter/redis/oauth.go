@@ -17,7 +17,15 @@ func (s *Store) SaveOAuthState(ctx context.Context, state string, payload core.O
 	if err != nil {
 		return fmt.Errorf("json marshal oauth state: %w", err)
 	}
-	if err := s.rdb.Set(ctx, keyOAuthState(state), string(raw), ttl).Err(); err != nil {
+	pipe := s.rdb.TxPipeline()
+	pipe.Set(ctx, keyOAuthState(state), string(raw), ttl)
+	if payload.TelegramUserID != 0 {
+		pipe.SAdd(ctx, keyPrivacyOAuthStates(payload.TelegramUserID), keyOAuthState(state))
+		if ttl > 0 {
+			pipe.Expire(ctx, keyPrivacyOAuthStates(payload.TelegramUserID), ttl)
+		}
+	}
+	if _, err := pipe.Exec(ctx); err != nil {
 		return fmt.Errorf("redis set oauth state: %w", err)
 	}
 	return nil
@@ -45,6 +53,11 @@ func (s *Store) DeleteOAuthState(ctx context.Context, state string) (core.OAuthS
 	var payload core.OAuthStatePayload
 	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
 		return core.OAuthStatePayload{}, fmt.Errorf("json unmarshal oauth state (delete): %w", err)
+	}
+	if payload.TelegramUserID != 0 {
+		if err := s.rdb.SRem(ctx, keyPrivacyOAuthStates(payload.TelegramUserID), keyOAuthState(state)).Err(); err != nil {
+			return core.OAuthStatePayload{}, fmt.Errorf("redis srem oauth state index: %w", err)
+		}
 	}
 	return payload, nil
 }

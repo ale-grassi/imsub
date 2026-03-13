@@ -48,6 +48,7 @@ func (s *Store) parseCreatorHash(vals map[string]string, fallbackID string) core
 	c := core.Creator{
 		ID:                   vals["id"],
 		TwitchLogin:          vals["twitch_login"],
+		TwitchDisplayName:    vals["twitch_display_name"],
 		OwnerTelegramID:      ownerID,
 		AccessToken:          vals["access_token"],
 		RefreshToken:         vals["refresh_token"],
@@ -64,6 +65,9 @@ func (s *Store) parseCreatorHash(vals map[string]string, fallbackID string) core
 	}
 	if c.TwitchLogin == "" {
 		c.TwitchLogin = vals["name"]
+	}
+	if c.TwitchDisplayName == "" {
+		c.TwitchDisplayName = c.TwitchLogin
 	}
 	if c.ID == "" {
 		c.ID = fallbackID
@@ -259,6 +263,7 @@ func (s *Store) UpsertCreator(ctx context.Context, c core.Creator) error {
 	pipe.HSet(ctx, keyCreator(c.ID), map[string]string{
 		"id":                     c.ID,
 		"twitch_login":           c.TwitchLogin,
+		"twitch_display_name":    c.TwitchDisplayName,
 		"owner_telegram_id":      strconv.FormatInt(c.OwnerTelegramID, 10),
 		"access_token":           c.AccessToken,
 		"refresh_token":          c.RefreshToken,
@@ -332,7 +337,11 @@ func (s *Store) DeleteCreatorData(ctx context.Context, ownerTelegramID int64) (d
 		}
 	}
 
-	return 1, []string{c.TwitchLogin}, nil
+	name := c.TwitchDisplayName
+	if strings.TrimSpace(name) == "" {
+		name = c.TwitchLogin
+	}
+	return 1, []string{name}, nil
 }
 
 // UpdateCreatorTokens replaces the creator's OAuth access and refresh tokens.

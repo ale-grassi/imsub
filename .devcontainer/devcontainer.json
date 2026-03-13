@@ -3,7 +3,7 @@
   "dockerComposeFile": "docker-compose.yml",
   "service": "app",
   "workspaceFolder": "/workspace",
-  "initializeCommand": "bash -lc 'mkdir -p \"$HOME/.1password\" \"$HOME/.ssh\" \"$HOME/.claude\" \"$HOME/.codex\" \"$HOME/.fly\" \"$HOME/.gemini\" \"$HOME/.config/git\" && touch \"$HOME/.claude.json\"'",
+  "initializeCommand": "bash -lc 'mkdir -p \"$HOME/.1password\" \"$HOME/.ssh\" \"$HOME/.claude\" \"$HOME/.codex\" \"$HOME/.fly\" \"$HOME/.gemini\" \"$HOME/.config/git\" \"$HOME/.config/ngrok\" && touch \"$HOME/.claude.json\"'",
   "customizations": {
     "vscode": {
       "settings": {
@@ -41,6 +41,7 @@
     "source=${localEnv:HOME}/.fly,target=/home/vscode/.fly,type=bind,consistency=cached",
     "source=${localEnv:HOME}/.gemini,target=/home/vscode/.gemini,type=bind,consistency=cached",
     "source=${localEnv:HOME}/.config/git,target=/mnt/host-git-config,type=bind,readonly",
+    "source=${localEnv:HOME}/.config/ngrok,target=/home/vscode/.config/ngrok,type=bind,consistency=cached",
     "source=/opt/1Password/op-ssh-sign,target=/usr/local/bin/op-ssh-sign,type=bind,readonly"
   ],
   "remoteEnv": {

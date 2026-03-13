@@ -11,7 +11,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const schemaVersionCurrent = 3
+const schemaVersionCurrent = 4
 
 // Store implements [Store] backed by Redis.
 type Store struct {
@@ -133,6 +133,18 @@ func keySubscriptionEndGraceDue() string             { return "imsub:sub_end_gra
 func keySubscriptionEndGraceLock(jobID string) string {
 	return "imsub:sub_end_grace_lock:" + jobID
 }
+func keyConsentRecord(telegramUserID int64) string {
+	return "imsub:privacy:consent:" + strconv.FormatInt(telegramUserID, 10)
+}
+func keyPrivacyOAuthStates(telegramUserID int64) string {
+	return "imsub:privacy:oauth_states:" + strconv.FormatInt(telegramUserID, 10)
+}
+func keyPrivacyReceipts(telegramUserID int64) string {
+	return "imsub:privacy:receipts:" + strconv.FormatInt(telegramUserID, 10)
+}
+func keyPrivacyReceipt(telegramUserID int64, receiptID string) string {
+	return "imsub:privacy:receipt:" + strconv.FormatInt(telegramUserID, 10) + ":" + receiptID
+}
 
 // --- Lua scripts ---
 
@@ -144,8 +156,9 @@ end
 redis.call("HSET", KEYS[1],
   "twitch_user_id", ARGV[2],
   "twitch_login", ARGV[3],
-  "language", ARGV[4],
-  "verified_at", ARGV[5]
+  "twitch_display_name", ARGV[4],
+  "language", ARGV[5],
+  "verified_at", ARGV[6]
 )
 redis.call("SET", KEYS[2], ARGV[1])
 redis.call("SADD", KEYS[3], ARGV[1])

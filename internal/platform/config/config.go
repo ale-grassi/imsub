@@ -34,6 +34,10 @@ type Config struct {
 	S3SecretAccessKey     string
 	S3Region              string
 	BackupInterval        time.Duration
+	PrivacyPolicyURL      string
+	PrivacyPolicyVersion  string
+	PrivacyReceiptTTL     time.Duration
+	UntrackedRetention    time.Duration
 }
 
 // Load reads, normalizes, and validates configuration from the environment.
@@ -57,6 +61,8 @@ func Load() (Config, error) {
 		S3AccessKeyID:         strings.TrimSpace(os.Getenv("IMSUB_S3_ACCESS_KEY_ID")),
 		S3SecretAccessKey:     strings.TrimSpace(os.Getenv("IMSUB_S3_SECRET_ACCESS_KEY")),
 		S3Region:              strings.TrimSpace(os.Getenv("IMSUB_S3_REGION")),
+		PrivacyPolicyURL:      strings.TrimSpace(os.Getenv("IMSUB_PRIVACY_POLICY_URL")),
+		PrivacyPolicyVersion:  strings.TrimSpace(os.Getenv("IMSUB_PRIVACY_POLICY_VERSION")),
 	}
 
 	backupIntervalRaw := strings.TrimSpace(os.Getenv("IMSUB_BACKUP_INTERVAL"))
@@ -68,6 +74,26 @@ func Load() (Config, error) {
 			return Config{}, fmt.Errorf("parse IMSUB_BACKUP_INTERVAL: %w", err)
 		}
 		cfg.BackupInterval = parsedInterval
+	}
+	privacyReceiptTTLRaw := strings.TrimSpace(os.Getenv("IMSUB_PRIVACY_RECEIPT_TTL"))
+	if privacyReceiptTTLRaw == "" {
+		cfg.PrivacyReceiptTTL = 30 * 24 * time.Hour
+	} else {
+		parsedTTL, err := time.ParseDuration(privacyReceiptTTLRaw)
+		if err != nil {
+			return Config{}, fmt.Errorf("parse IMSUB_PRIVACY_RECEIPT_TTL: %w", err)
+		}
+		cfg.PrivacyReceiptTTL = parsedTTL
+	}
+	untrackedRetentionRaw := strings.TrimSpace(os.Getenv("IMSUB_UNTRACKED_RETENTION"))
+	if untrackedRetentionRaw == "" {
+		cfg.UntrackedRetention = 90 * 24 * time.Hour
+	} else {
+		parsedRetention, err := time.ParseDuration(untrackedRetentionRaw)
+		if err != nil {
+			return Config{}, fmt.Errorf("parse IMSUB_UNTRACKED_RETENTION: %w", err)
+		}
+		cfg.UntrackedRetention = parsedRetention
 	}
 
 	if cfg.ListenAddr == "" {
@@ -93,6 +119,9 @@ func Load() (Config, error) {
 	}
 	if cfg.S3Region == "" {
 		cfg.S3Region = "auto"
+	}
+	if cfg.PrivacyPolicyVersion == "" {
+		cfg.PrivacyPolicyVersion = "v1"
 	}
 
 	required := []struct {

@@ -65,6 +65,10 @@ type productMetricsSnapshotStore interface {
 	CountManagedGroups(ctx context.Context) (int, error)
 }
 
+type privacyRetentionStore interface {
+	PurgeExpiredPrivacyData(ctx context.Context, untrackedRetention time.Duration) (int, error)
+}
+
 type productMetricsSink interface {
 	TelegramDailyActiveUsers(count int)
 	LinkedViewerAccounts(count int)
@@ -144,6 +148,11 @@ type productMetricsSnapshotTask struct {
 	window time.Duration
 }
 
+type privacyRetentionTask struct {
+	store              privacyRetentionStore
+	untrackedRetention time.Duration
+}
+
 // NewEventSubTask builds the EventSub reconciliation task.
 func NewEventSubTask(r eventSubReconciler) Task {
 	return eventSubTask{reconciler: r}
@@ -206,6 +215,14 @@ func NewProductMetricsSnapshotTask(store productMetricsSnapshotStore, sink produ
 	}
 }
 
+// NewPrivacyRetentionTask builds the periodic privacy-retention sweep.
+func NewPrivacyRetentionTask(store privacyRetentionStore, untrackedRetention time.Duration) Task {
+	return privacyRetentionTask{
+		store:              store,
+		untrackedRetention: untrackedRetention,
+	}
+}
+
 func (t eventSubTask) Name() string { return "reconcile_eventsubs" }
 
 func (t eventSubTask) Run(ctx context.Context) error {
@@ -219,6 +236,26 @@ func (t eventSubTask) Run(ctx context.Context) error {
 }
 
 func (t eventSubTask) Classify(err error) string {
+	if err != nil {
+		return taskResultFailed
+	}
+	return "ok"
+}
+
+func (t privacyRetentionTask) Name() string { return "privacy_retention" }
+
+func (t privacyRetentionTask) Run(ctx context.Context) error {
+	if t.store == nil {
+		return nil
+	}
+	_, err := t.store.PurgeExpiredPrivacyData(ctx, t.untrackedRetention)
+	if err != nil {
+		return fmt.Errorf("purge expired privacy data: %w", err)
+	}
+	return nil
+}
+
+func (t privacyRetentionTask) Classify(err error) string {
 	if err != nil {
 		return taskResultFailed
 	}

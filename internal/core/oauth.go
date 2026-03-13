@@ -71,7 +71,7 @@ type CreatorResult struct {
 }
 
 type oauthStore interface {
-	SaveUserIdentityOnly(ctx context.Context, telegramUserID int64, twitchUserID, twitchLogin, language string) (displacedUserID int64, err error)
+	SaveUserIdentityOnly(ctx context.Context, telegramUserID int64, twitchUserID, twitchLogin, twitchDisplayName, language string) (displacedUserID int64, err error)
 	OwnedCreatorForUser(ctx context.Context, ownerTelegramID int64) (Creator, bool, error)
 	UpsertCreator(ctx context.Context, c Creator) error
 }
@@ -106,7 +106,7 @@ func (o *OAuthService) LinkViewer(ctx context.Context, code string, payload OAut
 		return ViewerResult{}, &FlowError{Kind: KindUserInfo, Cause: err}
 	}
 
-	displacedUserID, err := o.store.SaveUserIdentityOnly(ctx, payload.TelegramUserID, twitchUserID, twitchLogin, lang)
+	displacedUserID, err := o.store.SaveUserIdentityOnly(ctx, payload.TelegramUserID, twitchUserID, twitchLogin, twitchDisplayName, lang)
 	if err != nil {
 		return ViewerResult{}, &FlowError{Kind: KindSave, Cause: err}
 	}
@@ -139,15 +139,16 @@ func (o *OAuthService) LinkCreator(ctx context.Context, code string, payload OAu
 
 	now := o.now()
 	creator := Creator{
-		ID:              broadcasterID,
-		TwitchLogin:     broadcasterLogin,
-		OwnerTelegramID: payload.TelegramUserID,
-		AccessToken:     tok.AccessToken,
-		RefreshToken:    tok.RefreshToken,
-		GrantedScopes:   append([]string(nil), tok.Scope...),
-		UpdatedAt:       now,
-		AuthStatus:      CreatorAuthHealthy,
-		AuthStatusAt:    now,
+		ID:                broadcasterID,
+		TwitchLogin:       broadcasterLogin,
+		TwitchDisplayName: broadcasterDisplayName,
+		OwnerTelegramID:   payload.TelegramUserID,
+		AccessToken:       tok.AccessToken,
+		RefreshToken:      tok.RefreshToken,
+		GrantedScopes:     append([]string(nil), tok.Scope...),
+		UpdatedAt:         now,
+		AuthStatus:        CreatorAuthHealthy,
+		AuthStatusAt:      now,
 	}
 	if payload.Reconnect {
 		existing, ok, err := o.store.OwnedCreatorForUser(ctx, payload.TelegramUserID)

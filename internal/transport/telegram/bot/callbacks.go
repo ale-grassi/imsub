@@ -28,6 +28,7 @@ const (
 	callbackVerbMenu      callbackVerb = "menu"
 	callbackVerbCancel    callbackVerb = "cancel"
 	callbackVerbExecute   callbackVerb = "exec"
+	callbackVerbExport    callbackVerb = "export"
 )
 
 type resetOrigin string
@@ -57,6 +58,7 @@ type callbackAction struct {
 	resetAction core.CreatorResetGroupAction
 	chatID      int64
 	threadID    int
+	reconnect   bool
 }
 
 func (a callbackAction) String() string {
@@ -84,6 +86,9 @@ func (a callbackAction) String() string {
 	}
 	if a.threadID != 0 {
 		parts = append(parts, strconv.Itoa(a.threadID))
+	}
+	if a.reconnect {
+		parts = append(parts, "reconnect")
 	}
 	return strings.Join(parts, ":")
 }
@@ -143,7 +148,7 @@ func parseCallbackAction(data string) (callbackAction, bool) {
 			}
 			action.chatID = chatID
 			return action, true
-		case callbackVerbRefresh, callbackVerbRegister, callbackVerbReconnect, callbackVerbOpen, callbackVerbBack, callbackVerbMenu, callbackVerbCancel:
+		case callbackVerbRefresh, callbackVerbRegister, callbackVerbReconnect, callbackVerbOpen, callbackVerbBack, callbackVerbMenu, callbackVerbCancel, callbackVerbExport:
 			return callbackAction{}, false
 		default:
 			return callbackAction{}, false
@@ -175,6 +180,15 @@ func parseCallbackAction(data string) (callbackAction, bool) {
 				}
 			}
 			return action, true
+		case callbackVerbExport:
+			if len(parts) != 3 {
+				return callbackAction{}, false
+			}
+			action.origin = resetOrigin(parts[2])
+			if !action.origin.valid() {
+				return callbackAction{}, false
+			}
+			return action, true
 		case callbackVerbRefresh, callbackVerbRegister, callbackVerbReconnect:
 			return callbackAction{}, false
 		default:
@@ -193,7 +207,7 @@ func parseCreatorCallbackAction(action callbackAction, parts []string) (callback
 		return parseCreatorOpenBackAction(action, parts)
 	case callbackVerbPick, callbackVerbExecute:
 		return parseCreatorPickExecuteAction(action, parts)
-	case callbackVerbCancel:
+	case callbackVerbCancel, callbackVerbExport:
 		return callbackAction{}, false
 	default:
 		return callbackAction{}, false
@@ -449,4 +463,8 @@ func resetExecuteCallback(origin resetOrigin, scope resetScope) string {
 
 func resetExecuteWithActionCallback(origin resetOrigin, scope resetScope, action core.CreatorResetGroupAction) string {
 	return callbackAction{domain: callbackDomainReset, verb: callbackVerbExecute, origin: origin, scope: scope, resetAction: action}.String()
+}
+
+func resetExportCallback(origin resetOrigin) string {
+	return callbackAction{domain: callbackDomainReset, verb: callbackVerbExport, origin: origin}.String()
 }

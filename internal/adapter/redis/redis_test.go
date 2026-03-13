@@ -35,7 +35,7 @@ func TestRemoveUserCreatorByTwitchRemovesTrackedGroupMembership(t *testing.T) {
 	s := newTestStore(t)
 	ctx := t.Context()
 
-	if _, err := s.SaveUserIdentityOnly(ctx, 7, "tw-7", "login7", "en"); err != nil {
+	if _, err := s.SaveUserIdentityOnly(ctx, 7, "tw-7", "login7", "Login7", "en"); err != nil {
 		t.Fatalf("SaveUserIdentityOnly failed: %v", err)
 	}
 	if err := s.UpsertManagedGroup(ctx, core.ManagedGroup{ChatID: 111, CreatorID: "creator-1", GroupName: "VIP"}); err != nil {
@@ -93,10 +93,10 @@ func TestProductMetricsSnapshotCounts(t *testing.T) {
 	ctx := t.Context()
 	now := time.Date(2026, 3, 10, 12, 0, 0, 0, time.UTC)
 
-	if _, err := s.SaveUserIdentityOnly(ctx, 7, "tw-7", "viewer7", "en"); err != nil {
+	if _, err := s.SaveUserIdentityOnly(ctx, 7, "tw-7", "viewer7", "Viewer7", "en"); err != nil {
 		t.Fatalf("SaveUserIdentityOnly(7) failed: %v", err)
 	}
-	if _, err := s.SaveUserIdentityOnly(ctx, 8, "tw-8", "viewer8", "en"); err != nil {
+	if _, err := s.SaveUserIdentityOnly(ctx, 8, "tw-8", "viewer8", "Viewer8", "en"); err != nil {
 		t.Fatalf("SaveUserIdentityOnly(8) failed: %v", err)
 	}
 	if err := s.UpsertCreator(ctx, core.Creator{ID: "creator-1", OwnerTelegramID: 42, TwitchLogin: "creator1", UpdatedAt: now}); err != nil {
@@ -165,12 +165,25 @@ func TestDeleteAllUserDataRemovesTrackedGroupLinks(t *testing.T) {
 	if err := s.rdb.SAdd(ctx, keyUsersSet(), "42").Err(); err != nil {
 		t.Fatalf("seed users set failed: %v", err)
 	}
+	if err := s.UpsertCreator(ctx, core.Creator{ID: "creator-42", TwitchLogin: "creator42", OwnerTelegramID: 42}); err != nil {
+		t.Fatalf("seed creator failed: %v", err)
+	}
+	if err := s.UpsertManagedGroup(ctx, core.ManagedGroup{ChatID: 501, CreatorID: "creator-42", GroupName: "Group 501"}); err != nil {
+		t.Fatalf("seed managed group failed: %v", err)
+	}
 	if err := s.AddTrackedGroupMember(ctx, 500, 42, "test", time.Now().UTC()); err != nil {
 		t.Fatalf("seed tracked group failed: %v", err)
 	}
+	if err := s.UpsertUntrackedGroupMember(ctx, 501, 42, "test", "member", time.Now().UTC()); err != nil {
+		t.Fatalf("seed untracked group failed: %v", err)
+	}
 	metaKey := keyTrackedGroupMemberMeta(500, 42)
+	untrackedMetaKey := keyTrackedGroupMemberMeta(501, 42)
 	if exists, err := s.rdb.Exists(ctx, metaKey).Result(); err != nil || exists != 1 {
 		t.Fatalf("tracked member meta key should exist before delete, exists=%d err=%v", exists, err)
+	}
+	if exists, err := s.rdb.Exists(ctx, untrackedMetaKey).Result(); err != nil || exists != 1 {
+		t.Fatalf("untracked member meta key should exist before delete, exists=%d err=%v", exists, err)
 	}
 
 	if err := s.DeleteAllUserData(ctx, 42); err != nil {
@@ -191,6 +204,12 @@ func TestDeleteAllUserDataRemovesTrackedGroupLinks(t *testing.T) {
 	}
 	if exists, err := s.rdb.Exists(ctx, metaKey).Result(); err != nil || exists != 0 {
 		t.Fatalf("tracked member meta key should be deleted, exists=%d err=%v", exists, err)
+	}
+	if members, _ := s.rdb.SMembers(ctx, keyUntrackedGroupMembers(501)).Result(); slices.Contains(members, "42") {
+		t.Fatalf("untracked group members should not contain 42, got %v", members)
+	}
+	if exists, err := s.rdb.Exists(ctx, untrackedMetaKey).Result(); err != nil || exists != 0 {
+		t.Fatalf("untracked member meta key should be deleted, exists=%d err=%v", exists, err)
 	}
 }
 

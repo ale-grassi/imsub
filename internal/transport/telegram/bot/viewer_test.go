@@ -18,7 +18,7 @@ func TestBuildViewerPromptView(t *testing.T) {
 func TestBuildViewerLinkedView(t *testing.T) {
 	t.Parallel()
 
-	view := buildViewerLinkedView("en", "viewer1", core.JoinTargets{
+	view := buildViewerLinkedView("en", core.UserIdentity{TwitchLogin: "viewer1", TwitchDisplayName: "Viewer One"}, core.JoinTargets{
 		ActiveCreatorNames: []string{"creator1"},
 		JoinLinks: []core.JoinLink{{
 			CreatorName: "creator1",

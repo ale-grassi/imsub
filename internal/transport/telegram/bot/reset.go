@@ -24,6 +24,8 @@ const (
 	msgResetDoneCreatorHTML            = "reset_done_creator_html"
 	msgResetDoneBothHTML               = "reset_done_both_html"
 	msgResetChooseScopeHTML            = "reset_choose_scope_html"
+	msgResetChooseScopeViewerHTML      = "reset_choose_scope_viewer_html"
+	msgResetChooseScopeCreatorHTML     = "reset_choose_scope_creator_html"
 	msgResetChooseCreatorActionCreator = "reset_choose_creator_action_creator_html"
 	msgResetChooseCreatorActionBoth    = "reset_choose_creator_action_both_html"
 	msgResetConfirmViewerHTML          = "reset_confirm_viewer_html"
@@ -67,6 +69,8 @@ func (c *Bot) handleResetAction(ctx context.Context, telegramUserID int64, editM
 		return callbackNoAckAfterRender(c.handleResetCancel(ctx, telegramUserID, editMsgID, lang))
 	case callbackVerbExecute:
 		return callbackNoAckAfterRender(c.executeReset(ctx, telegramUserID, editMsgID, lang, action.scope, action.resetAction))
+	case callbackVerbExport:
+		return c.exportMyData(ctx, telegramUserID, lang)
 	case callbackVerbRefresh, callbackVerbRegister, callbackVerbReconnect:
 		c.log().Warn("unsupported reset callback verb", "telegram_user_id", telegramUserID, "verb", action.verb)
 		return noCallbackFeedback()
@@ -84,15 +88,9 @@ func (c *Bot) renderResetPrompt(ctx context.Context, telegramUserID int64, editM
 		return view.text
 	}
 
-	if view, ok := buildResetPromptView(lang, scopes, origin); ok {
-		c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
-		return ""
-	}
-
-	if scopes.HasIdentity {
-		return c.renderResetPickedScope(ctx, telegramUserID, editMsgID, lang, origin, resetScopeViewer)
-	}
-	return c.renderResetPickedScope(ctx, telegramUserID, editMsgID, lang, origin, resetScopeCreator)
+	view := buildResetPromptView(lang, scopes, origin)
+	c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
+	return ""
 }
 
 func (c *Bot) renderResetPickedScope(ctx context.Context, telegramUserID int64, editMsgID int, lang string, origin resetOrigin, scope resetScope) string {
@@ -208,6 +206,14 @@ func (c *Bot) executeResetScope(ctx context.Context, telegramUserID int64, editM
 		c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
 		return ""
 	}
+	if c.privacy != nil {
+		receipt, err := c.privacy.RecordDeletionReceipt(ctx, telegramUserID, res)
+		if err != nil {
+			c.log().Warn("record deletion receipt failed", "telegram_user_id", telegramUserID, "scope", scope, "error", err)
+		} else {
+			res.Receipt = receipt
+		}
+	}
 	view := buildResetExecutionView(lang, res)
 	c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
 	return ""
@@ -227,7 +233,7 @@ func (c *Bot) buildResetConfirmView(ctx context.Context, telegramUserID int64, l
 		return resetConfirmView{
 			text: fmt.Sprintf(
 				i18n.Translate(lang, msgResetConfirmViewerHTML),
-				html.EscapeString(scopes.Identity.TwitchLogin),
+				twitchProfileHTML(scopes.Identity.TwitchLogin, scopes.Identity.TwitchDisplayName),
 				resetGroupSection(lang, i18n.Translate(lang, "reset_subscriber_groups_title"), viewerGroups),
 				resetViewerConsequenceLine(lang, len(viewerGroups)),
 			),
@@ -239,7 +245,7 @@ func (c *Bot) buildResetConfirmView(ctx context.Context, telegramUserID int64, l
 		creatorGroups := c.resetCreatorGroupNames(ctx, telegramUserID)
 		return resetConfirmView{text: fmt.Sprintf(
 			i18n.Translate(lang, msgResetConfirmCreatorHTML),
-			html.EscapeString(scopes.Creator.TwitchLogin),
+			twitchProfileHTML(scopes.Creator.TwitchLogin, scopes.Creator.TwitchDisplayName),
 			resetGroupSection(lang, i18n.Translate(lang, "reset_managed_groups_title"), creatorGroups),
 			resetCreatorConsequenceLine(lang, len(creatorGroups)),
 			resetCreatorActionSummaryText(lang, action, len(creatorGroups)),
@@ -250,13 +256,13 @@ func (c *Bot) buildResetConfirmView(ctx context.Context, telegramUserID int64, l
 		}
 		viewerName := "-"
 		if scopes.HasIdentity {
-			viewerName = html.EscapeString(scopes.Identity.TwitchLogin)
+			viewerName = twitchProfileHTML(scopes.Identity.TwitchLogin, scopes.Identity.TwitchDisplayName)
 		}
 		viewerGroups := c.resetViewerGroupNames(ctx, telegramUserID)
 		creatorGroups := c.resetCreatorGroupNames(ctx, telegramUserID)
 		creatorName := "-"
 		if scopes.HasCreator {
-			creatorName = html.EscapeString(scopes.Creator.TwitchLogin)
+			creatorName = twitchProfileHTML(scopes.Creator.TwitchLogin, scopes.Creator.TwitchDisplayName)
 		}
 		return resetConfirmView{
 			text: fmt.Sprintf(
@@ -303,28 +309,25 @@ func (c *Bot) resetCreatorGroupCount(ctx context.Context, telegramUserID int64) 
 	return groupCount
 }
 
-func buildResetPromptView(lang string, scopes core.ScopeState, origin resetOrigin) (sharedView, bool) {
+func buildResetPromptView(lang string, scopes core.ScopeState, origin resetOrigin) sharedView {
 	if !scopes.HasIdentity && !scopes.HasCreator {
-		return buildResetEmptyView(lang), true
+		view := buildResetEmptyView(lang)
+		view.opts.Markup = resetPromptMarkup(lang, scopes, origin)
+		return view
 	}
-	if !scopes.HasIdentity || !scopes.HasCreator {
-		return sharedView{}, false
+	text := resetChooseScopeText(lang)
+	if scopes.HasIdentity && !scopes.HasCreator {
+		text = fmt.Sprintf(i18n.Translate(lang, msgResetChooseScopeViewerHTML), twitchProfileHTML(scopes.Identity.TwitchLogin, scopes.Identity.TwitchDisplayName))
+	}
+	if !scopes.HasIdentity && scopes.HasCreator {
+		text = fmt.Sprintf(i18n.Translate(lang, msgResetChooseScopeCreatorHTML), twitchProfileHTML(scopes.Creator.TwitchLogin, scopes.Creator.TwitchDisplayName))
 	}
 	return sharedView{
-		text: resetChooseScopeText(lang),
+		text: text,
 		opts: client.MessageOptions{
-			Markup: ui.ResetScopePickerMarkup(
-				lang,
-				i18n.Translate(lang, btnResetViewerData)+": "+scopes.Identity.TwitchLogin,
-				resetPickCallback(origin, resetScopeViewer),
-				i18n.Translate(lang, btnResetCreatorData)+": "+scopes.Creator.TwitchLogin,
-				resetPickCallback(origin, resetScopeCreator),
-				i18n.Translate(lang, btnResetAllData),
-				resetPickCallback(origin, resetScopeBoth),
-				resetPromptBackCallback(origin),
-			),
+			Markup: resetPromptMarkup(lang, scopes, origin),
 		},
-	}, true
+	}
 }
 
 func (c *Bot) buildResetConfirmReply(ctx context.Context, telegramUserID int64, lang string, scopes core.ScopeState, view resetConfirmView, origin resetOrigin, scope resetScope, action core.CreatorResetGroupAction) sharedView {
@@ -361,6 +364,30 @@ func buildResetExecutionView(lang string, res usecase.ResetResult) sharedView {
 		text: renderResetExecutionResult(lang, res),
 		opts: client.MessageOptions{},
 	}
+}
+
+func resetPromptMarkup(lang string, scopes core.ScopeState, origin resetOrigin) *telego.InlineKeyboardMarkup {
+	rows := make([][]telego.InlineKeyboardButton, 0, 5)
+	switch {
+	case scopes.HasIdentity && scopes.HasCreator:
+		rows = append(rows,
+			tu.InlineKeyboardRow(ui.DeleteButton(i18n.Translate(lang, btnResetViewerData)+": "+twitchAccountLabel(scopes.Identity.TwitchLogin, scopes.Identity.TwitchDisplayName), resetPickCallback(origin, resetScopeViewer))),
+			tu.InlineKeyboardRow(ui.DeleteButton(i18n.Translate(lang, btnResetCreatorData)+": "+twitchAccountLabel(scopes.Creator.TwitchLogin, scopes.Creator.TwitchDisplayName), resetPickCallback(origin, resetScopeCreator))),
+			tu.InlineKeyboardRow(ui.DeleteButton(i18n.Translate(lang, btnResetAllData), resetPickCallback(origin, resetScopeBoth))),
+		)
+	case scopes.HasIdentity:
+		rows = append(rows, tu.InlineKeyboardRow(ui.DeleteButton(i18n.Translate(lang, btnResetViewerData)+": "+twitchAccountLabel(scopes.Identity.TwitchLogin, scopes.Identity.TwitchDisplayName), resetPickCallback(origin, resetScopeViewer))))
+	case scopes.HasCreator:
+		rows = append(rows, tu.InlineKeyboardRow(ui.DeleteButton(i18n.Translate(lang, btnResetCreatorData)+": "+twitchAccountLabel(scopes.Creator.TwitchLogin, scopes.Creator.TwitchDisplayName), resetPickCallback(origin, resetScopeCreator))))
+	}
+	if scopes.HasIdentity || scopes.HasCreator {
+		rows = append(rows, tu.InlineKeyboardRow(ui.IconCallbackButton(i18n.Translate(lang, btnExportData), resetExportCallback(origin), exportDataEmojiID)))
+	}
+	backCallback := resetPromptBackCallback(origin)
+	if backCallback != "" {
+		rows = append(rows, tu.InlineKeyboardRow(ui.BackButton(i18n.Translate(lang, btnBack), backCallback)))
+	}
+	return tu.InlineKeyboard(rows...)
 }
 
 func (c *Bot) scopeNeedsCreatorAction(ctx context.Context, telegramUserID int64, scope resetScope, scopes core.ScopeState) bool {
@@ -402,32 +429,48 @@ func resetPromptBackCallback(origin resetOrigin) string {
 }
 
 func renderResetExecutionResult(lang string, res usecase.ResetResult) string {
+	receiptLine := ""
+	if res.Receipt.ID != "" {
+		receiptLine = "\n\nReceipt ID: <code>" + html.EscapeString(res.Receipt.ID) + "</code>"
+	}
 	switch res.Scope {
 	case usecase.ResetScopeViewer:
-		return fmt.Sprintf(i18n.Translate(lang, msgResetDoneViewerHTML), html.EscapeString(res.ViewerLogin), renderResetViewerGroups(lang, res.GroupNames))
+		return fmt.Sprintf(i18n.Translate(lang, msgResetDoneViewerHTML), twitchProfileHTML(res.ViewerLogin, res.ViewerDisplayName), renderResetViewerGroups(lang, res.GroupNames)) + receiptLine
 	case usecase.ResetScopeCreator:
 		return fmt.Sprintf(
 			i18n.Translate(lang, msgResetDoneCreatorHTML),
-			html.EscapeString(strings.Join(res.DeletedNames, ", ")),
+			twitchProfileHTML(res.CreatorLogin, res.CreatorDisplayName),
 			renderResetViewerGroups(lang, res.CreatorCleanup.GroupNames),
 			renderResetCreatorCleanupResult(lang, res.CreatorCleanup),
-		)
+		) + receiptLine
 	case usecase.ResetScopeBoth:
 		viewerName := "-"
 		if res.ViewerLogin != "" {
-			viewerName = html.EscapeString(res.ViewerLogin)
+			viewerName = twitchProfileHTML(res.ViewerLogin, res.ViewerDisplayName)
 		}
 		return fmt.Sprintf(
 			i18n.Translate(lang, msgResetDoneBothHTML),
 			viewerName,
 			renderResetViewerGroups(lang, res.GroupNames),
-			html.EscapeString(strings.Join(res.DeletedNames, ", ")),
+			twitchProfileHTML(res.CreatorLogin, res.CreatorDisplayName),
 			renderResetViewerGroups(lang, res.CreatorCleanup.GroupNames),
 			renderResetCreatorCleanupResult(lang, res.CreatorCleanup),
-		)
+		) + receiptLine
 	default:
 		return i18n.Translate(lang, msgErrReset)
 	}
+}
+
+func twitchProfileHTML(login, displayName string) string {
+	return ui.TwitchProfileHTML(login, displayName)
+}
+
+func twitchAccountLabel(login, displayName string) string {
+	name := strings.TrimSpace(displayName)
+	if name != "" {
+		return name
+	}
+	return strings.TrimSpace(login)
 }
 
 func resetCreatorActionSummaryText(lang string, action core.CreatorResetGroupAction, groupCount int) string {

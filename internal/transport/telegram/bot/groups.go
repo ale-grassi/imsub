@@ -209,7 +209,7 @@ func (c *Bot) handleGroupCallback(ctx context.Context, userID, chatID int64, cha
 		view := buildGroupUnregisteredView(lang, editMsgID)
 		c.reply(ctx, chatID, editMsgID, view.text, &view.opts)
 		return noCallbackFeedback()
-	case callbackVerbRefresh, callbackVerbRegister, callbackVerbReconnect, callbackVerbOpen, callbackVerbBack, callbackVerbMenu, callbackVerbCancel:
+	case callbackVerbRefresh, callbackVerbRegister, callbackVerbReconnect, callbackVerbOpen, callbackVerbBack, callbackVerbMenu, callbackVerbCancel, callbackVerbExport:
 		c.log().Warn("known but unsupported group callback verb", "telegram_user_id", userID, "verb", action.verb, "chat_id", action.chatID)
 		return noCallbackFeedback()
 	default:

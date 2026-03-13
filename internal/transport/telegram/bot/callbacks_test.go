@@ -31,6 +31,7 @@ func TestParseCallbackAction(t *testing.T) {
 		{name: "reset pick both", in: "reset:pick:viewer:both", want: callbackAction{domain: callbackDomainReset, verb: callbackVerbPick, origin: resetOriginViewer, scope: resetScopeBoth}, ok: true},
 		{name: "reset pick creator action", in: "reset:pick:creator:creator:kick_tracked_members", want: callbackAction{domain: callbackDomainReset, verb: callbackVerbPick, origin: resetOriginCreator, scope: resetScopeCreator, resetAction: core.CreatorResetKickTrackedMembers}, ok: true},
 		{name: "reset execute creator action", in: "reset:exec:creator:both:keep_members", want: callbackAction{domain: callbackDomainReset, verb: callbackVerbExecute, origin: resetOriginCreator, scope: resetScopeBoth, resetAction: core.CreatorResetKeepMembers}, ok: true},
+		{name: "reset export", in: "reset:export:viewer", want: callbackAction{domain: callbackDomainReset, verb: callbackVerbExport, origin: resetOriginViewer}, ok: true},
 		{name: "invalid domain", in: "other:refresh", ok: false},
 		{name: "invalid creator target", in: "creator:open:other", ok: false},
 		{name: "invalid creator policy", in: "creator:pick:policy:nope:123", ok: false},

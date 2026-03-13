@@ -12,7 +12,7 @@ import (
 func TestProfileAndButtons(t *testing.T) {
 	t.Parallel()
 
-	htmlOut := TwitchProfileHTML(`a/b & "x"`)
+	htmlOut := TwitchProfileHTML(`a/b & "x"`, `A/B & "X"`)
 	if !strings.Contains(htmlOut, "https://twitch.tv/a%2Fb") {
 		t.Errorf("TwitchProfileHTML(%q) = %q, want path-escaped URL", `a/b & "x"`, htmlOut)
 	}
@@ -305,7 +305,7 @@ func TestLinkedStatusWithNoGroupsMessage(t *testing.T) {
 		t.Fatalf("i18n.Ensure failed: %v", err)
 	}
 
-	got := LinkedStatusWithJoinStateHTML("en", "alice", []string{"Creator One"}, false)
+	got := LinkedStatusWithJoinStateHTML("en", "alice", "Alice", []string{"Creator One"}, false)
 	if !strings.Contains(got, "No new Telegram groups available") {
 		t.Errorf("LinkedStatusWithJoinStateHTML(%q, %q, %v, %t) = %q, want message containing %q", "en", "alice", []string{"Creator One"}, false, got, "No new Telegram groups available")
 	}

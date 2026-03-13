@@ -203,13 +203,17 @@ func (r *viewerEligibilityResolver) resolveActiveCreators(ctx context.Context, a
 			}
 		}
 
-		out.activeCreatorNames = append(out.activeCreatorNames, item.Creator.TwitchLogin)
+		creatorName := item.Creator.TwitchDisplayName
+		if creatorName == "" {
+			creatorName = item.Creator.TwitchLogin
+		}
+		out.activeCreatorNames = append(out.activeCreatorNames, creatorName)
 		for _, group := range item.Groups {
 			if r.membership.IsGroupMember(ctx, group.ChatID, telegramUserID) {
 				continue
 			}
 			out.inviteGroups = append(out.inviteGroups, resolvedJoinGroup{
-				creatorName: item.Creator.TwitchLogin,
+				creatorName: creatorName,
 				group:       group,
 			})
 		}

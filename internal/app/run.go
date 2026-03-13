@@ -120,6 +120,7 @@ func Run() error {
 	creatorStatusUC := usecase.NewCreatorStatusUseCase(creatorSvc, eventSink)
 	viewerOAuthUC := usecase.NewViewerOAuthUseCase(oauthSvc, eventSink)
 	creatorOAuthUC := usecase.NewCreatorOAuthUseCase(oauthSvc, eventSink)
+	privacyUC := usecase.NewPrivacyUseCase(s, cfg.PrivacyPolicyVersion, cfg.PrivacyReceiptTTL)
 	groupRegistrationUC := usecase.NewGroupRegistrationUseCase(s, eventSink)
 	groupPolicyUpdateUC := usecase.NewGroupPolicyUpdateUseCase(s, eventSink)
 	creatorActivationUC := usecase.NewCreatorActivationUseCase(eventSubSvc, eventSink)
@@ -153,6 +154,7 @@ func Run() error {
 		GroupPolicyUpdate:   groupPolicyUpdateUC,
 		CreatorActivation:   creatorActivationUC,
 		SubscriptionEnd:     subscriptionEndUC,
+		Privacy:             privacyUC,
 		Events:              eventSink,
 	})
 	viewerAccessUC := usecase.NewViewerAccessUseCase(core.NewViewerService(s, flowController.ViewerGroupOps(), logger, eventSink), eventSink)
@@ -163,6 +165,7 @@ func Run() error {
 	subscriptionGraceTask := jobs.NewSubscriptionGraceTask(s, tgGroups, flowController, logger)
 	memberCleanupTask := jobs.NewMemberCleanupTask(s, tgGroups, flowController, logger)
 	productMetricsTask := jobs.NewProductMetricsSnapshotTask(s, metrics)
+	privacyRetentionTask := jobs.NewPrivacyRetentionTask(s, cfg.UntrackedRetention)
 	var backupTask jobs.Task
 	if cfg.BackupEnabled() {
 		s3Client, err := s3.NewClient(cfg.S3Endpoint, cfg.S3Bucket, cfg.S3AccessKeyID, cfg.S3SecretAccessKey, cfg.S3Region)
@@ -273,6 +276,12 @@ func Run() error {
 		return jobRunner.RunScheduled(gctx, jobs.Schedule{
 			Task:     productMetricsTask,
 			Interval: 5 * time.Minute,
+		})
+	})
+	g.Go(func() error {
+		return jobRunner.RunScheduled(gctx, jobs.Schedule{
+			Task:     privacyRetentionTask,
+			Interval: 12 * time.Hour,
 		})
 	})
 	if backupTask != nil {

@@ -76,6 +76,15 @@ other = "Dati creator"
 [btn_reset_viewer_data]
 other = "Dati viewer"
 
+[btn_export_data]
+other = "Esporta i miei dati"
+
+[btn_consent_agree]
+other = "Accetto"
+
+[btn_privacy_policy]
+other = "Privacy policy"
+
 [btn_subscribe]
 other = "Abbonati su Twitch"
 
@@ -116,10 +125,10 @@ other = "🛡️ <b>Cambia policy del gruppo</b>\n\nScegli cosa deve succedere q
 other = "⚠️ <b>Cambiare policy del gruppo?</b>\n\n<b>Gruppo:</b> %s\n<b>Policy attuale:</b> %s\n<b>Nuova policy:</b> %s"
 
 [creator_register_info]
-other = "🎙️ <b>Configura il tuo account creator</b>\n\nCollega il tuo <b>account creator Twitch</b> per configurare gruppi Telegram riservati agli abbonati.\n\n⚠️ <b>Solo creator</b>\nQuesti passaggi servono solo ai creator che vogliono proteggere un gruppo.\nSe vuoi entrare in un gruppo come subscriber, usa invece /start.\n\n<b>Per iniziare</b>\n1. Tocca <b>Collega account creator</b>\n2. Accedi su Twitch e approva l'accesso\n3. Nel gruppo che vuoi proteggere, esegui <code>/linkgroup</code>. Devi essere admin in quel gruppo.\n\n<i>Se hai qualsiasi problema, copia il link usando il pulsante qui sotto e incollalo in un browser. Se il problema persiste, incollalo nella modalita' in incognito del browser.</i>"
+other = "🎙️ <b>Configura il tuo account creator</b>\n\nCollega il tuo <b>account creator Twitch</b> per configurare gruppi Telegram riservati agli abbonati.\n\n⚠️ <b>Solo creator</b>\nQuesti passaggi servono solo ai creator che vogliono proteggere un gruppo.\nSe vuoi entrare in un gruppo come subscriber, usa invece /start.\n\n<b>Per iniziare</b>\n1. Tocca <b>Collega account creator</b>\n2. Accedi su Twitch e approva l'accesso\n3. Nel gruppo che vuoi proteggere, esegui <code>/linkgroup</code>. Devi essere admin in quel gruppo.\n\n<b>Nota privacy</b>\nImSub memorizza il tuo ID Telegram, l'account creator Twitch collegato, i token OAuth creator e le impostazioni dei gruppi gestiti per far funzionare il controllo degli accessi. Usa /reset per esportare o eliminare i dati del bot.\n\n<i>Se hai qualsiasi problema, copia il link usando il pulsante qui sotto e incollalo in un browser. Se il problema persiste, incollalo nella modalita' in incognito del browser.</i>"
 
 [creator_reconnect_info]
-other = "🔄 <b>Ricollega account creator</b>\n\n<b>Ricollega</b> il tuo account creator per continuare a gestire i tuoi gruppi.\n\n<i>Se hai qualsiasi problema, copia il link usando il pulsante qui sotto e incollalo in un browser. Se il problema persiste, incollalo nella modalita' in incognito del browser.</i>"
+other = "🔄 <b>Ricollega account creator</b>\n\n<b>Ricollega</b> il tuo account creator per continuare a gestire i tuoi gruppi.\n\n<b>Nota privacy</b>\nImSub memorizza il tuo ID Telegram, l'account creator Twitch collegato, i token OAuth creator e le impostazioni dei gruppi gestiti per far funzionare il controllo degli accessi. Usa /reset per esportare o eliminare i dati del bot.\n\n<i>Se hai qualsiasi problema, copia il link usando il pulsante qui sotto e incollalo in un browser. Se il problema persiste, incollalo nella modalita' in incognito del browser.</i>"
 
 [creator_registered_html]
 other = "✅ <b>Dashboard creator</b>\n🎙️ <b>Account:</b> %s\n\n%s\n\n<b>Gruppi gestiti</b>\n%s\n\n<i>Usa i pulsanti qui sotto per gestire i gruppi o cambiare le impostazioni di accesso.</i>"
@@ -208,6 +217,18 @@ other = "‼️⚠️ Qualcosa e' andato storto. Usa i pulsanti qui sotto per ri
 [err_reset]
 other = "‼️⚠️ Qualcosa e' andato storto durante l'aggiornamento della richiesta di reset. Usa i pulsanti qui sotto per riprovare."
 
+[consent_prompt_html]
+other = "🔐 <b>Consenso richiesto</b>\n\nPrima che ImSub memorizzi i tuoi dati personali, devi accettare l'informativa privacy.\n\n<b>Dati raccolti</b>\n• ID utente Telegram\n• Dati dell'account Twitch collegato\n• Stato di appartenenza ai gruppi usato per concedere o revocare l'accesso\n• Dati OAuth creator quando configuri le funzioni creator\n\n<b>Perche'</b>\nPer collegare l'account Twitch, gestire l'accesso ai gruppi per abbonati e processare richieste di eliminazione o esportazione dei dati.\n\nTocca <b>Accetto</b> per continuare."
+
+[consent_saved_html]
+other = "✅ <b>Consenso salvato</b>\n\nOra puoi continuare con la procedura di collegamento."
+
+[export_sent_html]
+other = "L'esportazione JSON e' stata inviata qui."
+
+[export_failed_html]
+other = "Non sono riuscito a preparare l'esportazione dei dati in questo momento. Riprova tra poco."
+
 [group_not_admin]
 other = "⚠️ Devi essere admin del gruppo per renderlo riservato agli abbonati."
 
@@ -278,7 +299,7 @@ other = "⚠️ Il tuo account creator <b>%s</b> e' gia' collegato al gruppo <b>
 other = "⚠️ Questo gruppo e' gia' collegato a un altro account creator (<b>%s</b>).\n\nOgni gruppo puo' essere collegato a un solo creator. L'altro creator deve prima usare <code>/unlinkgroup</code>."
 
 [link_prompt_html]
-other = "😊 <b>Benvenuto, %s</b>\n\nCollega il tuo <b>account Twitch</b> per vedere quali <b>gruppi Telegram</b> puoi raggiungere.\n\n<b>Per iniziare</b>\n1. Tocca <b>Collega Twitch</b>\n2. Accedi su Twitch e approva l'accesso\n3. Torna qui per vedere i gruppi disponibili\n\n<i>Se hai qualsiasi problema, copia il link usando il pulsante qui sotto e incollalo in un browser. Se il problema persiste, incollalo nella modalita' in incognito del browser.</i>"
+other = "😊 <b>Benvenuto, %s</b>\n\nCollega il tuo <b>account Twitch</b> per vedere quali <b>gruppi Telegram</b> puoi raggiungere.\n\n<b>Per iniziare</b>\n1. Tocca <b>Collega Twitch</b>\n2. Accedi su Twitch e approva l'accesso\n3. Torna qui per vedere i gruppi disponibili\n\n<b>Nota privacy</b>\nImSub memorizza il tuo ID Telegram, l'account Twitch collegato e lo stato di accesso ai gruppi per verificare gli abbonamenti e gestire l'accesso su Telegram. Usa /reset per esportare o eliminare i dati del bot.\n\n<i>Se hai qualsiasi problema, copia il link usando il pulsante qui sotto e incollalo in un browser. Se il problema persiste, incollalo nella modalita' in incognito del browser.</i>"
 
 [linked_status_no_subs_html]
 other = "✅ <b>Twitch collegato</b>\n🔗 <b>Account:</b> %s\n\n<b>Nessun abbonamento attivo trovato</b>\nNon hai abbonamenti attivi collegati a gruppi Telegram riservati agli abbonati in questo momento.\n\n<i>Tocca <b>Aggiorna</b> per controllare di nuovo, oppure usa /reset se questo e' l'account Twitch sbagliato.</i>"
@@ -291,6 +312,12 @@ other = "✅ <b>Twitch collegato</b>\n🔗 <b>Account:</b> %s\n\n<b>Nessun nuovo
 
 [reset_choose_scope_html]
 other = "🗑️ <b>Scegli cosa eliminare</b>"
+
+[reset_choose_scope_viewer_html]
+other = "🗑️ <b>Gestisci i tuoi dati</b>\n\nScegli se esportare i dati del bot o eliminare questo account viewer collegato.\n\n<b>Account:</b> %s"
+
+[reset_choose_scope_creator_html]
+other = "🗑️ <b>Gestisci i tuoi dati</b>\n\nScegli se esportare i dati del bot o eliminare questo account creator collegato.\n\n<b>Account:</b> %s"
 
 [reset_confirm_both_html]
 other = "⚠️ <b>Eliminare tutti i dati collegati?</b>\n\n<b>Account viewer:</b> %s%s\n\n<b>Account creator:</b> %s%s\n\n<b>Se continui:</b>\n• I dati viewer verranno eliminati%s\n• I dati creator verranno eliminati%s\n%s"

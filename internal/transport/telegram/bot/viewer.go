@@ -79,7 +79,7 @@ func (c *Bot) handleViewerStartForUser(ctx context.Context, telegramUserID int64
 		return ""
 	}
 
-	view := buildViewerLinkedView(lang, access.Identity.TwitchLogin, access.Targets)
+	view := buildViewerLinkedView(lang, access.Identity, access.Targets)
 	c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
 	return ""
 }
@@ -122,7 +122,7 @@ func (c *Bot) HandleViewerOAuthCallback(ctx context.Context, code string, payloa
 		c.sendMsg(ctx, payload.TelegramUserID, view.text, &view.opts)
 		return resultLoadStatusFailed, res.TwitchDisplayName, fmt.Errorf("load viewer access: %w", buildErr)
 	}
-	view := buildViewerLinkedView(lang, res.TwitchLogin, access.Targets)
+	view := buildViewerLinkedView(lang, access.Identity, access.Targets)
 	c.reply(ctx, payload.TelegramUserID, 0, view.text, &view.opts)
 
 	return res.ResultLabel, res.TwitchDisplayName, nil
@@ -145,10 +145,10 @@ func buildViewerPromptView(lang, userName, authURL string) sharedView {
 	}
 }
 
-func buildViewerLinkedView(lang, twitchLogin string, targets core.JoinTargets) sharedView {
+func buildViewerLinkedView(lang string, identity core.UserIdentity, targets core.JoinTargets) sharedView {
 	joinRows := renderJoinButtons(targets, lang)
 	return sharedView{
-		text: ui.LinkedStatusWithJoinStateHTML(lang, twitchLogin, targets.ActiveCreatorNames, len(joinRows) > 0),
+		text: ui.LinkedStatusWithJoinStateHTML(lang, identity.TwitchLogin, identity.TwitchDisplayName, targets.ActiveCreatorNames, len(joinRows) > 0),
 		opts: client.MessageOptions{
 			Markup:         ui.WithMainMenu(lang, viewerMainMenuCallbacks(), joinRows...),
 			DisablePreview: true,

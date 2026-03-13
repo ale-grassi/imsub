@@ -31,7 +31,7 @@ func TestProductMetricCounts(t *testing.T) {
 		t.Fatalf("CountTelegramActiveUsersSince = %d, want 2", gotActive)
 	}
 
-	if _, err := s.SaveUserIdentityOnly(ctx, 7, "tw-7", "viewer7", "en"); err != nil {
+	if _, err := s.SaveUserIdentityOnly(ctx, 7, "tw-7", "viewer7", "Viewer7", "en"); err != nil {
 		t.Fatalf("SaveUserIdentityOnly failed: %v", err)
 	}
 	if err := s.UpsertCreator(ctx, creatorFixture("c1", 7)); err != nil {

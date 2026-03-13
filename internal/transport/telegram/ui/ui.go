@@ -134,8 +134,8 @@ func ResetConfirmMarkup(lang, confirmCallback, backCallback string) *telego.Inli
 
 // LinkedStatusWithJoinStateHTML renders the viewer linked status block for the
 // current join availability.
-func LinkedStatusWithJoinStateHTML(lang, twitchLogin string, activeNames []string, hasJoinButtons bool) string {
-	profileDisplay := TwitchProfileHTML(twitchLogin)
+func LinkedStatusWithJoinStateHTML(lang, twitchLogin, twitchDisplayName string, activeNames []string, hasJoinButtons bool) string {
+	profileDisplay := TwitchProfileHTML(twitchLogin, twitchDisplayName)
 	if len(activeNames) == 0 {
 		return fmt.Sprintf(i18n.Translate(lang, msgLinkedStatusNoSubsHTML), profileDisplay)
 	}
@@ -155,13 +155,18 @@ func LinkedStatusWithJoinStateHTML(lang, twitchLogin string, activeNames []strin
 }
 
 // TwitchProfileHTML renders an escaped Twitch profile hyperlink.
-func TwitchProfileHTML(login string) string {
+func TwitchProfileHTML(login, displayName string) string {
 	profileURL := "https://twitch.tv/" + url.PathEscape(login)
+	label := strings.TrimSpace(displayName)
+	if label == "" {
+		label = login
+	}
+	linkLabel := "twitch.tv/" + login
 	return fmt.Sprintf(
 		"<code>%s</code> (<a href=\"%s\">%s</a>)",
-		html.EscapeString(login),
+		html.EscapeString(label),
 		html.EscapeString(profileURL),
-		html.EscapeString(profileURL),
+		html.EscapeString(linkLabel),
 	)
 }
 

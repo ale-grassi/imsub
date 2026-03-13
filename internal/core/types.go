@@ -21,11 +21,12 @@ const (
 
 // UserIdentity represents a Telegram user who has linked their Twitch account.
 type UserIdentity struct {
-	TelegramUserID int64
-	TwitchUserID   string
-	TwitchLogin    string
-	Language       string
-	VerifiedAt     time.Time
+	TelegramUserID    int64
+	TwitchUserID      string
+	TwitchLogin       string
+	TwitchDisplayName string
+	Language          string
+	VerifiedAt        time.Time
 }
 
 // CreatorAuthStatus describes whether a creator's stored OAuth state is usable.
@@ -42,6 +43,7 @@ const (
 type Creator struct {
 	ID                   string
 	TwitchLogin          string
+	TwitchDisplayName    string
 	OwnerTelegramID      int64
 	AccessToken          string `json:"access_token"`  // #nosec G117 -- stored OAuth field name must match serialized schema
 	RefreshToken         string `json:"refresh_token"` // #nosec G117 -- stored OAuth field name must match serialized schema

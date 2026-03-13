@@ -113,6 +113,7 @@ func newRouteTestHarnessWithCleaner(t *testing.T, cleaner usecaseGroupUnregistra
 		GroupRegistration:   usecase.NewGroupRegistrationUseCase(store, nil),
 		GroupUnregistration: usecase.NewGroupUnregistrationUseCase(store, cleaner, nil),
 		GroupPolicyUpdate:   usecase.NewGroupPolicyUpdateUseCase(store, nil),
+		Privacy:             usecase.NewPrivacyUseCase(store, "v1", 24*time.Hour),
 		Events:              eventSink,
 	})
 	controller.SetViewerAccessUseCase(usecase.NewViewerAccessUseCase(core.NewViewerService(store, controller.ViewerGroupOps(), nil, nil), nil))
@@ -460,6 +461,9 @@ type routeTestStore struct {
 	untrackedCountByChatID  map[int64]int
 	blockedByCreatorUser    map[string]map[string]bool
 	activeUsers             []int64
+	consentRecord           core.ConsentRecord
+	consentOK               bool
+	privacyReceipts         []core.PrivacyReceipt
 }
 
 type routeTestUntrackedUpsert struct {
@@ -566,11 +570,110 @@ func (s *routeTestStore) SaveOAuthState(_ context.Context, _ string, payload cor
 	return nil
 }
 
+func (s *routeTestStore) ConsentRecord(_ context.Context, telegramUserID int64) (core.ConsentRecord, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.consentOK || s.consentRecord.TelegramUserID != telegramUserID {
+		return core.ConsentRecord{}, false, nil
+	}
+	return s.consentRecord, true, nil
+}
+
+func (s *routeTestStore) SaveConsentRecord(_ context.Context, record core.ConsentRecord) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.consentRecord = record
+	s.consentOK = true
+	return nil
+}
+
+func (s *routeTestStore) DeleteConsentRecord(_ context.Context, telegramUserID int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.consentOK && s.consentRecord.TelegramUserID == telegramUserID {
+		s.consentOK = false
+		s.consentRecord = core.ConsentRecord{}
+	}
+	return nil
+}
+
 func (s *routeTestStore) DeleteOAuthState(_ context.Context, _ string) (core.OAuthStatePayload, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.deleteOAuthStateCalls++
 	return core.OAuthStatePayload{}, nil
+}
+
+func (s *routeTestStore) ListUntrackedMembershipsForUser(_ context.Context, telegramUserID int64) ([]core.UntrackedGroupMember, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []core.UntrackedGroupMember
+	for _, members := range s.untrackedMembersByGroup {
+		if member, ok := members[telegramUserID]; ok {
+			out = append(out, member)
+		}
+	}
+	return out, nil
+}
+
+func (s *routeTestStore) DeleteAllUntrackedMembershipsForUser(_ context.Context, telegramUserID int64) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	count := 0
+	for chatID, members := range s.untrackedMembersByGroup {
+		if _, ok := members[telegramUserID]; ok {
+			delete(members, telegramUserID)
+			count++
+			s.untrackedMembersByGroup[chatID] = members
+		}
+	}
+	return count, nil
+}
+
+func (s *routeTestStore) ListTrackedGroupIDsForUser(_ context.Context, telegramUserID int64) ([]int64, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var out []int64
+	for chatID, members := range s.trackedMembersByGroup {
+		if members[telegramUserID] {
+			out = append(out, chatID)
+		}
+	}
+	return out, nil
+}
+
+func (s *routeTestStore) DeleteOAuthStatesForUser(context.Context, int64) (int, error) {
+	return 0, nil
+}
+
+func (s *routeTestStore) ListPrivacyReceipts(_ context.Context, telegramUserID int64) ([]core.PrivacyReceipt, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]core.PrivacyReceipt, 0, len(s.privacyReceipts))
+	for _, receipt := range s.privacyReceipts {
+		if receipt.TelegramUserID == telegramUserID {
+			out = append(out, receipt)
+		}
+	}
+	return out, nil
+}
+
+func (s *routeTestStore) SavePrivacyReceipt(_ context.Context, receipt core.PrivacyReceipt, _ time.Duration) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.privacyReceipts = append(s.privacyReceipts, receipt)
+	return nil
+}
+
+func (s *routeTestStore) DeletePrivacyArtifacts(_ context.Context, telegramUserID int64, _ string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.consentOK && s.consentRecord.TelegramUserID == telegramUserID {
+		s.consentOK = false
+		s.consentRecord = core.ConsentRecord{}
+	}
+	s.privacyReceipts = nil
+	return nil
 }
 
 func (s *routeTestStore) UserIdentity(_ context.Context, telegramUserID int64) (core.UserIdentity, bool, error) {

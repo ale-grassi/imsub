@@ -122,6 +122,9 @@ func (c *Bot) handleCreatorCallback(ctx context.Context, userID int64, editMsgID
 	case callbackVerbCancel:
 		c.log().Warn("unsupported creator callback verb", "telegram_user_id", userID, "verb", action.verb)
 		return noCallbackFeedback()
+	case callbackVerbExport:
+		c.log().Warn("unsupported creator callback verb", "telegram_user_id", userID, "verb", action.verb)
+		return noCallbackFeedback()
 	default:
 		c.log().Warn("unsupported creator callback verb", "telegram_user_id", userID, "verb", action.verb)
 		return noCallbackFeedback()
@@ -746,7 +749,7 @@ func buildCreatorPromptView(lang, authURL string, reconnect bool) sharedView {
 }
 
 func buildCreatorStatusView(lang, reconnectURL string, creator core.Creator, status core.Status, groups []core.ManagedGroup) sharedView {
-	profileDisplay := ui.TwitchProfileHTML(creator.TwitchLogin)
+	profileDisplay := ui.TwitchProfileHTML(creator.TwitchLogin, creator.TwitchDisplayName)
 	groupLines := CreatorGroupLines(lang, groups)
 	eventSubStatus := creatorEventSubStatusText(status, lang)
 	authStatus := creatorAuthStatusText(status, lang)

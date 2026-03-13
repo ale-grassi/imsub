@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"log/slog"
 	"strings"
@@ -17,12 +18,20 @@ type limiter interface {
 	Wait(ctx context.Context, chatID int64) error
 }
 
+type namedBytesReader struct {
+	*bytes.Reader
+	name string
+}
+
+func (r namedBytesReader) Name() string { return r.name }
+
 // MessageOptions configures send/edit operations.
 type MessageOptions struct {
 	DisableHTML        bool
 	DisableCustomEmoji bool
 	Markup             *telego.InlineKeyboardMarkup
 	DisablePreview     bool
+	EnablePreview      bool
 	MessageThreadID    int
 	ReplyToMessageID   int
 }
@@ -100,6 +109,7 @@ func (c *Client) Send(ctx context.Context, chatID int64, text string, opts *Mess
 	text = transformOutgoingText(text, opts)
 	params := tu.Message(tu.ID(chatID), text)
 	params.WithParseMode(telego.ModeHTML)
+	params.WithLinkPreviewOptions(&telego.LinkPreviewOptions{IsDisabled: true})
 	if opts != nil {
 		if opts.Markup != nil {
 			params.WithReplyMarkup(opts.Markup)
@@ -107,7 +117,9 @@ func (c *Client) Send(ctx context.Context, chatID int64, text string, opts *Mess
 		if opts.DisableHTML {
 			params.ParseMode = ""
 		}
-		if opts.DisablePreview {
+		if opts.EnablePreview && !opts.DisablePreview {
+			params.WithLinkPreviewOptions(&telego.LinkPreviewOptions{IsDisabled: false})
+		} else if opts.DisablePreview {
 			params.WithLinkPreviewOptions(&telego.LinkPreviewOptions{IsDisabled: true})
 		}
 		if opts.MessageThreadID > 0 {
@@ -147,6 +159,7 @@ func (c *Client) Edit(ctx context.Context, chatID int64, messageID int, text str
 	text = transformOutgoingText(text, opts)
 	params := tu.EditMessageText(tu.ID(chatID), messageID, text)
 	params.WithParseMode(telego.ModeHTML)
+	params.WithLinkPreviewOptions(&telego.LinkPreviewOptions{IsDisabled: true})
 	if opts != nil {
 		if opts.Markup != nil {
 			params.WithReplyMarkup(opts.Markup)
@@ -154,7 +167,9 @@ func (c *Client) Edit(ctx context.Context, chatID int64, messageID int, text str
 		if opts.DisableHTML {
 			params.ParseMode = ""
 		}
-		if opts.DisablePreview {
+		if opts.EnablePreview && !opts.DisablePreview {
+			params.WithLinkPreviewOptions(&telego.LinkPreviewOptions{IsDisabled: false})
+		} else if opts.DisablePreview {
 			params.WithLinkPreviewOptions(&telego.LinkPreviewOptions{IsDisabled: true})
 		}
 	}
@@ -206,6 +221,40 @@ func (c *Client) Delete(ctx context.Context, chatID int64, messageID int) {
 		}
 		c.emitTelegramAPIError(ctx, "delete_message", err)
 	}
+}
+
+// SendDocument sends a small generated document to a Telegram chat.
+func (c *Client) SendDocument(ctx context.Context, chatID int64, filename string, body []byte, caption string) int {
+	if c == nil || c.bot == nil {
+		return 0
+	}
+	if c.limiter != nil {
+		if err := c.limiter.Wait(ctx, chatID); err != nil {
+			c.logger.Warn("Send document rate limit wait failed", "chat_id", chatID, "error", err)
+			return 0
+		}
+	}
+	msg, err := c.bot.SendDocument(ctx, &telego.SendDocumentParams{
+		ChatID: tu.ID(chatID),
+		Document: telego.InputFile{
+			File: namedBytesReader{
+				Reader: bytes.NewReader(body),
+				name:   filename,
+			},
+		},
+		Caption: caption,
+	})
+	if err != nil {
+		if !telegram.IsForbidden(err) {
+			c.logger.Warn("Send document failed", "chat_id", chatID, "error", err)
+		}
+		c.emitTelegramAPIError(ctx, "send_document", err)
+		return 0
+	}
+	if msg == nil {
+		return 0
+	}
+	return msg.MessageID
 }
 
 // SendDraft streams a partial message draft to a private chat.

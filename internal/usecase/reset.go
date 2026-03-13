@@ -38,15 +38,19 @@ type resetService interface {
 
 // ResetResult is a transport-friendly summary of a reset execution.
 type ResetResult struct {
-	Scope           ResetScope
-	Empty           bool
-	ViewerLogin     string
-	GroupCount      int
-	GroupNames      []string
-	GroupResolution core.GroupResolutionStats
-	DeletedCount    int
-	DeletedNames    []string
-	CreatorCleanup  core.CreatorGroupCleanupSummary
+	Scope              ResetScope
+	Empty              bool
+	ViewerLogin        string
+	ViewerDisplayName  string
+	GroupCount         int
+	GroupNames         []string
+	GroupResolution    core.GroupResolutionStats
+	DeletedCount       int
+	DeletedNames       []string
+	CreatorLogin       string
+	CreatorDisplayName string
+	CreatorCleanup     core.CreatorGroupCleanupSummary
+	Receipt            core.PrivacyReceipt
 }
 
 // ResetUseCase coordinates reset execution and observability.
@@ -132,11 +136,12 @@ func (u *ResetUseCase) executeViewer(ctx context.Context, telegramUserID int64) 
 	u.recordResolution(ctx, res.GroupResolution)
 	u.recordExecution(ctx, ResetScopeViewer, "ok")
 	return ResetResult{
-		Scope:           ResetScopeViewer,
-		ViewerLogin:     res.Identity.TwitchLogin,
-		GroupCount:      res.GroupCount,
-		GroupNames:      append([]string(nil), res.GroupNames...),
-		GroupResolution: res.GroupResolution,
+		Scope:             ResetScopeViewer,
+		ViewerLogin:       res.Identity.TwitchLogin,
+		ViewerDisplayName: res.Identity.TwitchDisplayName,
+		GroupCount:        res.GroupCount,
+		GroupNames:        append([]string(nil), res.GroupNames...),
+		GroupResolution:   res.GroupResolution,
 	}, nil
 }
 
@@ -153,10 +158,12 @@ func (u *ResetUseCase) executeCreator(ctx context.Context, telegramUserID int64,
 	u.recordCreatorCleanup(ctx, res.CreatorCleanup)
 	u.recordExecution(ctx, ResetScopeCreator, "ok")
 	return ResetResult{
-		Scope:          ResetScopeCreator,
-		DeletedCount:   res.DeletedCount,
-		DeletedNames:   append([]string(nil), res.DeletedNames...),
-		CreatorCleanup: res.CreatorCleanup,
+		Scope:              ResetScopeCreator,
+		DeletedCount:       res.DeletedCount,
+		DeletedNames:       append([]string(nil), res.DeletedNames...),
+		CreatorLogin:       res.Creator.TwitchLogin,
+		CreatorDisplayName: res.Creator.TwitchDisplayName,
+		CreatorCleanup:     res.CreatorCleanup,
 	}, nil
 }
 
@@ -174,16 +181,19 @@ func (u *ResetUseCase) executeBoth(ctx context.Context, telegramUserID int64, ac
 	u.recordCreatorCleanup(ctx, res.CreatorCleanup)
 	u.recordExecution(ctx, ResetScopeBoth, "ok")
 	out := ResetResult{
-		Scope:           ResetScopeBoth,
-		GroupCount:      res.GroupCount,
-		GroupNames:      append([]string(nil), res.GroupNames...),
-		GroupResolution: res.GroupResolution,
-		DeletedCount:    res.DeletedCount,
-		DeletedNames:    append([]string(nil), res.DeletedNames...),
-		CreatorCleanup:  res.CreatorCleanup,
+		Scope:              ResetScopeBoth,
+		GroupCount:         res.GroupCount,
+		GroupNames:         append([]string(nil), res.GroupNames...),
+		GroupResolution:    res.GroupResolution,
+		DeletedCount:       res.DeletedCount,
+		DeletedNames:       append([]string(nil), res.DeletedNames...),
+		CreatorLogin:       res.Creator.TwitchLogin,
+		CreatorDisplayName: res.Creator.TwitchDisplayName,
+		CreatorCleanup:     res.CreatorCleanup,
 	}
 	if res.HasIdentity {
 		out.ViewerLogin = res.Identity.TwitchLogin
+		out.ViewerDisplayName = res.Identity.TwitchDisplayName
 	}
 	return out, nil
 }
