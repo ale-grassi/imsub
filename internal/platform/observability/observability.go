@@ -57,6 +57,7 @@ type Metrics struct {
 	telegramCommandTime  *prometheus.HistogramVec
 	telegramAPIErrors    *prometheus.CounterVec
 	telegramKickActions  *prometheus.CounterVec
+	telegramMTProtoBoot  *prometheus.CounterVec
 }
 
 // New creates and registers all Prometheus metrics.
@@ -316,6 +317,13 @@ func New() *Metrics {
 			},
 			[]string{"reason", "result"},
 		),
+		telegramMTProtoBoot: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "imsub_telegram_mtproto_bootstrap_total",
+				Help: "Initial MTProto bootstrap sync attempts by outcome.",
+			},
+			[]string{"outcome"},
+		),
 	}
 
 	m.registry.MustRegister(
@@ -358,6 +366,7 @@ func New() *Metrics {
 		m.telegramCommandTime,
 		m.telegramAPIErrors,
 		m.telegramKickActions,
+		m.telegramMTProtoBoot,
 	)
 
 	return m
@@ -596,6 +605,14 @@ func (m *Metrics) TelegramKickAction(reason, result string) {
 	).Inc()
 }
 
+// TelegramMTProtoBootstrap records MTProto bootstrap attempts by outcome.
+func (m *Metrics) TelegramMTProtoBootstrap(outcome string) {
+	if m == nil {
+		return
+	}
+	m.telegramMTProtoBoot.WithLabelValues(httputil.LabelOrUnknown(outcome)).Inc()
+}
+
 // Emit projects application events into observability metrics.
 func (m *Metrics) Emit(_ context.Context, evt events.Event) {
 	if m == nil {
@@ -656,6 +673,8 @@ func (m *Metrics) Emit(_ context.Context, evt events.Event) {
 		m.TelegramAPIError(evt.Fields["method"], evt.Fields["reason"])
 	case events.NameTelegramKickAction:
 		m.TelegramKickAction(evt.Fields["reason"], evt.Outcome)
+	case events.NameTelegramMTProtoBootstrap:
+		m.TelegramMTProtoBootstrap(evt.Outcome)
 	}
 }
 

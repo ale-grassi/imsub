@@ -25,6 +25,7 @@ const (
 	NameTelegramCommandResponse     = "telegram_command_response"
 	NameTelegramAPIError            = "telegram_api_error"
 	NameTelegramKickAction          = "telegram_kick_action"
+	NameTelegramMTProtoBootstrap    = "telegram_mtproto_bootstrap"
 	NameCreatorTokenRefresh         = "creator_token_refresh"
 	NameCreatorBlocklistSync        = "creator_blocklist_sync"
 	NameCreatorBlocklistEnforcement = "creator_blocklist_enforcement"

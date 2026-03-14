@@ -48,6 +48,48 @@ func TestLoadBackupConfigRequiresKeys(t *testing.T) {
 	}
 }
 
+func TestLoadMTProtoConfigReadsDotEnv(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	envPath := filepath.Join(dir, ".env.dev")
+	data := "" +
+		"IMSUB_TELEGRAM_MTPROTO_API_ID=12345\n" +
+		"IMSUB_TELEGRAM_MTPROTO_API_HASH=hash-value\n"
+	if err := os.WriteFile(envPath, []byte(data), 0o600); err != nil {
+		t.Fatalf("write .env.dev: %v", err)
+	}
+
+	cfg, err := loadMTProtoConfig(envPath)
+	if err != nil {
+		t.Fatalf("loadMTProtoConfig() error = %v", err)
+	}
+	if cfg.AppID != 12345 {
+		t.Fatalf("AppID = %d, want 12345", cfg.AppID)
+	}
+	if cfg.AppHash != "hash-value" {
+		t.Fatalf("AppHash = %q, want hash-value", cfg.AppHash)
+	}
+}
+
+func TestLoadMTProtoConfigRequiresKeys(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	envPath := filepath.Join(dir, ".env.dev")
+	if err := os.WriteFile(envPath, []byte("IMSUB_TELEGRAM_MTPROTO_API_ID=\n"), 0o600); err != nil {
+		t.Fatalf("write .env.dev: %v", err)
+	}
+
+	_, err := loadMTProtoConfig(envPath)
+	if err == nil {
+		t.Fatal("loadMTProtoConfig() error = nil, want non-nil")
+	}
+	if !strings.Contains(err.Error(), "IMSUB_TELEGRAM_MTPROTO_API_ID") || !strings.Contains(err.Error(), "IMSUB_TELEGRAM_MTPROTO_API_HASH") {
+		t.Fatalf("loadMTProtoConfig() error = %v, want mtproto env mentions", err)
+	}
+}
+
 func TestResolveRedisURLUsesOverride(t *testing.T) {
 	t.Parallel()
 
@@ -123,5 +165,8 @@ func TestUsageErrorIncludesBackupCommands(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "imsub-admin backup-load") {
 		t.Fatalf("usageError() = %q, want backup-load usage", err)
+	}
+	if !strings.Contains(err.Error(), "imsub-admin mtproto-session") {
+		t.Fatalf("usageError() = %q, want mtproto-session usage", err)
 	}
 }

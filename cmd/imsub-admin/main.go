@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"encoding/base64"
 	"errors"
 	"flag"
 	"fmt"
@@ -11,11 +13,16 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"imsub/internal/adapter/redis"
 	"imsub/internal/adapter/s3"
 
+	"github.com/gotd/td/session"
+	"github.com/gotd/td/telegram"
+	"github.com/gotd/td/telegram/auth"
+	"github.com/gotd/td/tg"
 	"github.com/joho/godotenv"
 )
 
@@ -27,6 +34,9 @@ var (
 	errBackupConfigMissing       = errors.New("missing backup env vars")
 	errNoBackupObjects           = errors.New("no backup objects found under backups/")
 	errDownloadOutRequired       = errors.New("download requires -out")
+	errMTProtoConfigMissing      = errors.New("missing mtproto env vars")
+	errInvalidMTProtoAppID       = errors.New("invalid IMSUB_TELEGRAM_MTPROTO_API_ID")
+	errMTProtoSignupUnsupported  = errors.New("telegram sign-up is not supported for mtproto-session")
 	errUsage                     = errors.New("usage")
 )
 
@@ -36,6 +46,11 @@ type backupConfig struct {
 	S3AccessKeyID     string
 	S3SecretAccessKey string
 	S3Region          string
+}
+
+type mtprotoConfig struct {
+	AppID   int
+	AppHash string
 }
 
 func main() {
@@ -54,9 +69,59 @@ func run(args []string) error {
 		return runDownload(args[1:])
 	case "backup-load":
 		return runBackupLoad(args[1:])
+	case "mtproto-session":
+		return runMTProtoSession(args[1:])
 	default:
 		return usageError("unknown command %q", args[0])
 	}
+}
+
+func runMTProtoSession(args []string) error {
+	fs := flag.NewFlagSet("mtproto-session", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	envPath := fs.String("env", ".env.dev", "path to .env file")
+	phone := fs.String("phone", "", "phone number for the Telegram user account")
+	if err := fs.Parse(args); err != nil {
+		return fmt.Errorf("parse mtproto-session flags: %w", err)
+	}
+
+	cfg, err := loadMTProtoConfig(*envPath)
+	if err != nil {
+		return err
+	}
+
+	storage := &session.StorageMemory{}
+	client := telegram.NewClient(cfg.AppID, cfg.AppHash, telegram.Options{
+		SessionStorage: storage,
+	})
+	prompter := &interactiveAuth{
+		reader: bufio.NewReader(os.Stdin),
+		writer: os.Stdout,
+		phone:  strings.TrimSpace(*phone),
+	}
+
+	if err := client.Run(context.Background(), func(ctx context.Context) error {
+		status, err := client.Auth().Status(ctx)
+		if err != nil {
+			return fmt.Errorf("load auth status: %w", err)
+		}
+		if status.Authorized {
+			return nil
+		}
+		return auth.NewFlow(prompter, auth.SendCodeOptions{}).Run(ctx, client.Auth())
+	}); err != nil {
+		return fmt.Errorf("generate mtproto session: %w", err)
+	}
+
+	raw, err := storage.Bytes(nil)
+	if err != nil {
+		return fmt.Errorf("read mtproto session: %w", err)
+	}
+	if _, err := fmt.Fprintf(os.Stdout, "IMSUB_TELEGRAM_MTPROTO_SESSION=%s\n", base64.StdEncoding.EncodeToString(raw)); err != nil {
+		return fmt.Errorf("write mtproto session: %w", err)
+	}
+	return nil
 }
 
 func runDownload(args []string) error {
@@ -237,6 +302,39 @@ func loadBackupConfig(envPath string) (backupConfig, error) {
 	return cfg, nil
 }
 
+func loadMTProtoConfig(envPath string) (mtprotoConfig, error) {
+	envMap, err := loadEnvMap(envPath)
+	if err != nil {
+		return mtprotoConfig{}, err
+	}
+
+	appIDRaw := strings.TrimSpace(envMap["IMSUB_TELEGRAM_MTPROTO_API_ID"])
+	appHash := strings.TrimSpace(envMap["IMSUB_TELEGRAM_MTPROTO_API_HASH"])
+	missing := make([]string, 0, 2)
+	if appIDRaw == "" {
+		missing = append(missing, "IMSUB_TELEGRAM_MTPROTO_API_ID")
+	}
+	if appHash == "" {
+		missing = append(missing, "IMSUB_TELEGRAM_MTPROTO_API_HASH")
+	}
+	if len(missing) > 0 {
+		sort.Strings(missing)
+		return mtprotoConfig{}, fmt.Errorf("%w in %s: %s", errMTProtoConfigMissing, envPath, strings.Join(missing, ", "))
+	}
+
+	appID, err := strconv.Atoi(appIDRaw)
+	if err != nil {
+		return mtprotoConfig{}, fmt.Errorf("parse IMSUB_TELEGRAM_MTPROTO_API_ID in %s: %w", envPath, err)
+	}
+	if appID <= 0 {
+		return mtprotoConfig{}, fmt.Errorf("%w in %s: must be > 0", errInvalidMTProtoAppID, envPath)
+	}
+	return mtprotoConfig{
+		AppID:   appID,
+		AppHash: appHash,
+	}, nil
+}
+
 func loadEnvMap(envPath string) (map[string]string, error) {
 	envMap, err := godotenv.Read(envPath)
 	if err != nil {
@@ -283,5 +381,50 @@ func selectLatestBackupKey(objects []s3.ObjectInfo) (string, error) {
 
 func usageError(format string, args ...any) error {
 	msg := fmt.Sprintf(format, args...)
-	return fmt.Errorf("%w: %s\nusage:\n  imsub-admin backup-download [-env .env] [-key backups/...jsonl.gz] -out tmp/backups/latest.jsonl.gz\n  imsub-admin backup-load [-env .env] [-key backups/...jsonl.gz] [-from-file tmp/backups/latest.jsonl.gz] [-redis-url redis://default:@redis:6379/0] -confirm=%s", errUsage, msg, backupLoadConfirmValue)
+	return fmt.Errorf("%w: %s\nusage:\n  imsub-admin backup-download [-env .env] [-key backups/...jsonl.gz] -out tmp/backups/latest.jsonl.gz\n  imsub-admin backup-load [-env .env] [-key backups/...jsonl.gz] [-from-file tmp/backups/latest.jsonl.gz] [-redis-url redis://default:@redis:6379/0] -confirm=%s\n  imsub-admin mtproto-session [-env .env.dev] [-phone +123456789]", errUsage, msg, backupLoadConfirmValue)
+}
+
+type interactiveAuth struct {
+	reader *bufio.Reader
+	writer io.Writer
+	phone  string
+}
+
+func (a *interactiveAuth) Phone(context.Context) (string, error) {
+	if a.phone != "" {
+		return a.phone, nil
+	}
+	return a.prompt("Telegram phone number: ")
+}
+
+func (a *interactiveAuth) Password(context.Context) (string, error) {
+	return a.prompt("Telegram 2FA password (leave empty if not enabled): ")
+}
+
+func (a *interactiveAuth) AcceptTermsOfService(context.Context, tg.HelpTermsOfService) error {
+	return errMTProtoSignupUnsupported
+}
+
+func (a *interactiveAuth) SignUp(context.Context) (auth.UserInfo, error) {
+	return auth.UserInfo{}, errMTProtoSignupUnsupported
+}
+
+func (a *interactiveAuth) Code(ctx context.Context, sentCode *tg.AuthSentCode) (string, error) {
+	if sentCode != nil {
+		if _, err := fmt.Fprintf(a.writer, "Code sent via %s\n", sentCode.GetType().TypeName()); err != nil {
+			return "", fmt.Errorf("write sent-code hint: %w", err)
+		}
+	}
+	return a.prompt("Telegram login code: ")
+}
+
+func (a *interactiveAuth) prompt(label string) (string, error) {
+	if _, err := fmt.Fprint(a.writer, label); err != nil {
+		return "", fmt.Errorf("write prompt: %w", err)
+	}
+	line, err := a.reader.ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return "", fmt.Errorf("read prompt response: %w", err)
+	}
+	return strings.TrimSpace(line), nil
 }

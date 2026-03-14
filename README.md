@@ -127,6 +127,9 @@ All configuration is done through environment variables. See `.env.example` for 
 | Variable | Description |
 |----------|-------------|
 | `IMSUB_TELEGRAM_BOT_TOKEN` | Telegram bot token from @BotFather |
+| `IMSUB_TELEGRAM_MTPROTO_API_ID` | Telegram MTProto application ID for the operator-managed user session |
+| `IMSUB_TELEGRAM_MTPROTO_API_HASH` | Telegram MTProto application hash for the operator-managed user session |
+| `IMSUB_TELEGRAM_MTPROTO_SESSION` | Base64-encoded serialized MTProto session for the operator-managed user account |
 | `IMSUB_TWITCH_CLIENT_ID` | Twitch application client ID |
 | `IMSUB_TWITCH_CLIENT_SECRET` | Twitch application client secret |
 | `IMSUB_TWITCH_EVENTSUB_SECRET` | Shared secret for Twitch EventSub HMAC verification |
@@ -389,6 +392,7 @@ Key metrics include:
 | `imsub_telegram_command_response_duration_seconds` | Histogram | Telegram command latency to first successful bot response, or handler error before one is sent |
 | `imsub_telegram_api_errors_total` | Counter | Telegram API call failures by method and normalized reason |
 | `imsub_telegram_kick_actions_total` | Counter | Telegram kick actions by reason and result |
+| `imsub_telegram_mtproto_bootstrap_total` | Counter | Initial MTProto bootstrap sync attempts by outcome |
 
 Fly.io's managed Prometheus can scrape this endpoint for Grafana dashboards.
 
@@ -616,20 +620,12 @@ Planned improvements and open design questions, roughly ordered by impact.
 
 ### GDPR compliance
 
-- **Bot-specific privacy policy**: publish a proper privacy policy covering controller identity, stored data categories, purposes, retention, third parties, and deletion/export behavior, then link it consistently from onboarding and support surfaces.
-- **Retention completion**: extend retention beyond privacy receipts and untracked membership observations to any remaining long-lived OAuth or ancillary records that should expire automatically.
-- **Export scope refinement**: decide whether to add explicit subscription history, richer receipts, or infrastructure-log references to the current JSON export format.
 - **Privacy surface polish**: surface the privacy policy link in `/help` and `/info`, not just the onboarding flows, and keep the `/reset` export/delete copy aligned with the final policy wording.
-
 
 ### Support and info
 
 - **Localization**: add more languages beyond English and Italian.
 - **Inline status refresh**: let viewers check their subscription status without going through the full `/start` flow again.
-
-### API access
-
-- **User API keys for group member export**: optionally let developers provide a Telegram user API key (MTProto) so ImSub can fetch the full member list of a managed group. Telegram Bot API cannot enumerate group members, so a user API key would bypass that limitation and enable bulk member retrieval for reconciliation, pre-populated group handling, and untracked member detection. Keys would be stored encrypted, rate-limited, and revocable.
 
 ---
 

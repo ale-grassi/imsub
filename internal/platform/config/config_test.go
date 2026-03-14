@@ -7,8 +7,24 @@ import (
 	"time"
 )
 
+func setRequiredEnv(t *testing.T) {
+	t.Helper()
+	t.Setenv("IMSUB_TELEGRAM_BOT_TOKEN", "tg-token")
+	t.Setenv("IMSUB_TELEGRAM_MTPROTO_API_ID", "1001")
+	t.Setenv("IMSUB_TELEGRAM_MTPROTO_API_HASH", "mtproto-hash")
+	t.Setenv("IMSUB_TELEGRAM_MTPROTO_SESSION", "c2Vzc2lvbg==")
+	t.Setenv("IMSUB_TWITCH_CLIENT_ID", "tw-client")
+	t.Setenv("IMSUB_TWITCH_CLIENT_SECRET", "tw-secret")
+	t.Setenv("IMSUB_TWITCH_EVENTSUB_SECRET", "eventsub-secret")
+	t.Setenv("IMSUB_PUBLIC_BASE_URL", "https://example.com")
+	t.Setenv("IMSUB_REDIS_URL", "redis://localhost:6379/0")
+}
+
 func TestLoadMissingEnvOrder(t *testing.T) {
 	t.Setenv("IMSUB_TELEGRAM_BOT_TOKEN", "")
+	t.Setenv("IMSUB_TELEGRAM_MTPROTO_API_ID", "")
+	t.Setenv("IMSUB_TELEGRAM_MTPROTO_API_HASH", "")
+	t.Setenv("IMSUB_TELEGRAM_MTPROTO_SESSION", "")
 	t.Setenv("IMSUB_TWITCH_CLIENT_ID", "")
 	t.Setenv("IMSUB_TWITCH_CLIENT_SECRET", "")
 	t.Setenv("IMSUB_TWITCH_EVENTSUB_SECRET", "")
@@ -37,13 +53,57 @@ func TestLoadMissingEnvOrder(t *testing.T) {
 	}
 }
 
-func TestLoadDefaultsAndNormalization(t *testing.T) {
+func TestLoadAllowsMTProtoToBeUnset(t *testing.T) {
 	t.Setenv("IMSUB_TELEGRAM_BOT_TOKEN", "tg-token")
+	t.Setenv("IMSUB_TELEGRAM_MTPROTO_API_ID", "")
+	t.Setenv("IMSUB_TELEGRAM_MTPROTO_API_HASH", "")
+	t.Setenv("IMSUB_TELEGRAM_MTPROTO_SESSION", "")
 	t.Setenv("IMSUB_TWITCH_CLIENT_ID", "tw-client")
 	t.Setenv("IMSUB_TWITCH_CLIENT_SECRET", "tw-secret")
 	t.Setenv("IMSUB_TWITCH_EVENTSUB_SECRET", "eventsub-secret")
-	t.Setenv("IMSUB_PUBLIC_BASE_URL", "https://example.com/")
+	t.Setenv("IMSUB_PUBLIC_BASE_URL", "https://example.com")
 	t.Setenv("IMSUB_REDIS_URL", "redis://localhost:6379/0")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v, want nil", err)
+	}
+	if cfg.MTProtoEnabled() {
+		t.Fatal("Load().MTProtoEnabled() = true, want false")
+	}
+}
+
+func TestLoadRequiresCompleteMTProtoWhenPartiallyConfigured(t *testing.T) {
+	t.Setenv("IMSUB_TELEGRAM_BOT_TOKEN", "tg-token")
+	t.Setenv("IMSUB_TELEGRAM_MTPROTO_API_ID", "1001")
+	t.Setenv("IMSUB_TELEGRAM_MTPROTO_API_HASH", "")
+	t.Setenv("IMSUB_TELEGRAM_MTPROTO_SESSION", "")
+	t.Setenv("IMSUB_TWITCH_CLIENT_ID", "tw-client")
+	t.Setenv("IMSUB_TWITCH_CLIENT_SECRET", "tw-secret")
+	t.Setenv("IMSUB_TWITCH_EVENTSUB_SECRET", "eventsub-secret")
+	t.Setenv("IMSUB_PUBLIC_BASE_URL", "https://example.com")
+	t.Setenv("IMSUB_REDIS_URL", "redis://localhost:6379/0")
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("Load() error = nil, want missing mtproto env error")
+	}
+	if !errors.Is(err, ErrMissingEnv) {
+		t.Fatalf("Load() error = %v, want ErrMissingEnv", err)
+	}
+	for _, env := range []string{
+		"IMSUB_TELEGRAM_MTPROTO_API_HASH",
+		"IMSUB_TELEGRAM_MTPROTO_SESSION",
+	} {
+		if !strings.Contains(err.Error(), env) {
+			t.Fatalf("Load() error = %q, want to mention %q", err.Error(), env)
+		}
+	}
+}
+
+func TestLoadDefaultsAndNormalization(t *testing.T) {
+	setRequiredEnv(t)
+	t.Setenv("IMSUB_PUBLIC_BASE_URL", "https://example.com/")
 	t.Setenv("IMSUB_LISTEN_ADDR", "")
 	t.Setenv("IMSUB_TWITCH_WEBHOOK_PATH", "hooks/twitch")
 	t.Setenv("IMSUB_TELEGRAM_WEBHOOK_PATH", "hooks/tg")
@@ -68,6 +128,15 @@ func TestLoadDefaultsAndNormalization(t *testing.T) {
 	if cfg.TelegramWebhookPath != "/hooks/tg" {
 		t.Errorf("Load().TelegramWebhookPath = %q, want %q", cfg.TelegramWebhookPath, "/hooks/tg")
 	}
+	if cfg.TelegramMTProtoAppID != 1001 {
+		t.Errorf("Load().TelegramMTProtoAppID = %d, want %d", cfg.TelegramMTProtoAppID, 1001)
+	}
+	if cfg.TelegramMTProtoHash != "mtproto-hash" {
+		t.Errorf("Load().TelegramMTProtoHash = %q, want %q", cfg.TelegramMTProtoHash, "mtproto-hash")
+	}
+	if cfg.TelegramMTProtoSession != "c2Vzc2lvbg==" {
+		t.Errorf("Load().TelegramMTProtoSession = %q, want %q", cfg.TelegramMTProtoSession, "c2Vzc2lvbg==")
+	}
 	if cfg.MetricsPath != "/metrics" {
 		t.Errorf("Load().MetricsPath = %q, want %q", cfg.MetricsPath, "/metrics")
 	}
@@ -86,12 +155,7 @@ func TestLoadDefaultsAndNormalization(t *testing.T) {
 }
 
 func TestLoadBackupConfigEnabled(t *testing.T) {
-	t.Setenv("IMSUB_TELEGRAM_BOT_TOKEN", "tg-token")
-	t.Setenv("IMSUB_TWITCH_CLIENT_ID", "tw-client")
-	t.Setenv("IMSUB_TWITCH_CLIENT_SECRET", "tw-secret")
-	t.Setenv("IMSUB_TWITCH_EVENTSUB_SECRET", "eventsub-secret")
-	t.Setenv("IMSUB_PUBLIC_BASE_URL", "https://example.com")
-	t.Setenv("IMSUB_REDIS_URL", "redis://localhost:6379/0")
+	setRequiredEnv(t)
 	t.Setenv("IMSUB_S3_ENDPOINT", "https://fly.storage.tigris.dev")
 	t.Setenv("IMSUB_S3_BUCKET", "imsub-backups")
 	t.Setenv("IMSUB_S3_ACCESS_KEY_ID", "ak")
@@ -115,12 +179,7 @@ func TestLoadBackupConfigEnabled(t *testing.T) {
 }
 
 func TestLoadBackupConfigRequiresCompleteCredentials(t *testing.T) {
-	t.Setenv("IMSUB_TELEGRAM_BOT_TOKEN", "tg-token")
-	t.Setenv("IMSUB_TWITCH_CLIENT_ID", "tw-client")
-	t.Setenv("IMSUB_TWITCH_CLIENT_SECRET", "tw-secret")
-	t.Setenv("IMSUB_TWITCH_EVENTSUB_SECRET", "eventsub-secret")
-	t.Setenv("IMSUB_PUBLIC_BASE_URL", "https://example.com")
-	t.Setenv("IMSUB_REDIS_URL", "redis://localhost:6379/0")
+	setRequiredEnv(t)
 	t.Setenv("IMSUB_S3_ENDPOINT", "fly.storage.tigris.dev")
 
 	_, err := Load()
@@ -142,12 +201,7 @@ func TestLoadBackupConfigRequiresCompleteCredentials(t *testing.T) {
 }
 
 func TestLoadBackupConfigRejectsInvalidInterval(t *testing.T) {
-	t.Setenv("IMSUB_TELEGRAM_BOT_TOKEN", "tg-token")
-	t.Setenv("IMSUB_TWITCH_CLIENT_ID", "tw-client")
-	t.Setenv("IMSUB_TWITCH_CLIENT_SECRET", "tw-secret")
-	t.Setenv("IMSUB_TWITCH_EVENTSUB_SECRET", "eventsub-secret")
-	t.Setenv("IMSUB_PUBLIC_BASE_URL", "https://example.com")
-	t.Setenv("IMSUB_REDIS_URL", "redis://localhost:6379/0")
+	setRequiredEnv(t)
 	t.Setenv("IMSUB_S3_ENDPOINT", "fly.storage.tigris.dev")
 	t.Setenv("IMSUB_S3_BUCKET", "imsub-backups")
 	t.Setenv("IMSUB_S3_ACCESS_KEY_ID", "ak")
@@ -164,12 +218,7 @@ func TestLoadBackupConfigRejectsInvalidInterval(t *testing.T) {
 }
 
 func TestLoadBackupDefaultsAloneDoNotEnableValidation(t *testing.T) {
-	t.Setenv("IMSUB_TELEGRAM_BOT_TOKEN", "tg-token")
-	t.Setenv("IMSUB_TWITCH_CLIENT_ID", "tw-client")
-	t.Setenv("IMSUB_TWITCH_CLIENT_SECRET", "tw-secret")
-	t.Setenv("IMSUB_TWITCH_EVENTSUB_SECRET", "eventsub-secret")
-	t.Setenv("IMSUB_PUBLIC_BASE_URL", "https://example.com")
-	t.Setenv("IMSUB_REDIS_URL", "redis://localhost:6379/0")
+	setRequiredEnv(t)
 	t.Setenv("IMSUB_S3_REGION", "auto")
 	t.Setenv("IMSUB_BACKUP_INTERVAL", "6h")
 

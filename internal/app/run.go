@@ -26,6 +26,7 @@ import (
 	telegrambot "imsub/internal/transport/telegram/bot"
 	telegramclient "imsub/internal/transport/telegram/client"
 	telegramgroups "imsub/internal/transport/telegram/groups"
+	telegrammtproto "imsub/internal/transport/telegram/mtproto"
 	"imsub/internal/usecase"
 
 	"github.com/mymmrac/telego"
@@ -135,6 +136,19 @@ func Run() error {
 	gracePolicyTask := jobs.NewGracePolicyTask(s, tgGroups, logger)
 	integrityTask := jobs.NewIntegrityAuditTask(s, logger, eventSink)
 	blocklistSvc = core.NewCreatorBlocklistService(s, twitchAPI, tgGroups, logger)
+	var groupBootstrapSvc *core.GroupBootstrapService
+	if cfg.MTProtoEnabled() {
+		mtprotoClient, err := telegrammtproto.New(cfg.TelegramMTProtoAppID, cfg.TelegramMTProtoHash, cfg.TelegramMTProtoSession)
+		if err != nil {
+			return fmt.Errorf("telegram mtproto init failed: %w", err)
+		}
+		if _, err := mtprotoClient.Validate(ctx); err != nil {
+			return fmt.Errorf("telegram mtproto validation failed: %w", err)
+		}
+		groupBootstrapSvc = core.NewGroupBootstrapService(s, tgGroups, mtprotoClient, eventSink, logger)
+	} else {
+		logger.Info("telegram mtproto bootstrap disabled; groups will not dump pre-existing members on registration")
+	}
 
 	flowController := telegrambot.New(telegrambot.Dependencies{
 		Config:              cfg,
@@ -152,6 +166,7 @@ func Run() error {
 		GroupRegistration:   groupRegistrationUC,
 		GroupUnregistration: groupUnregistrationUC,
 		GroupPolicyUpdate:   groupPolicyUpdateUC,
+		GroupBootstrap:      groupBootstrapSvc,
 		CreatorActivation:   creatorActivationUC,
 		SubscriptionEnd:     subscriptionEndUC,
 		Privacy:             privacyUC,

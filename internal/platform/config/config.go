@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -15,57 +16,77 @@ var errInvalidBackupInterval = errors.New("IMSUB_BACKUP_INTERVAL must be > 0")
 
 // Config holds runtime configuration sourced from environment variables.
 type Config struct {
-	TelegramBotToken      string
-	TelegramWebhookSecret string
-	TelegramWebhookPath   string
-	TwitchClientID        string
-	TwitchClientSecret    string
-	TwitchEventSubSecret  string
-	PublicBaseURL         string
-	TwitchWebhookPath     string
-	ListenAddr            string
-	RedisURL              string
-	DebugLogs             bool
-	MetricsEnabled        bool
-	MetricsPath           string
-	S3Endpoint            string
-	S3Bucket              string
-	S3AccessKeyID         string
-	S3SecretAccessKey     string
-	S3Region              string
-	BackupInterval        time.Duration
-	PrivacyPolicyURL      string
-	PrivacyPolicyVersion  string
-	PrivacyReceiptTTL     time.Duration
-	UntrackedRetention    time.Duration
+	TelegramBotToken       string
+	TelegramWebhookSecret  string
+	TelegramWebhookPath    string
+	TelegramMTProtoAppID   int
+	TelegramMTProtoHash    string
+	TelegramMTProtoSession string
+	TwitchClientID         string
+	TwitchClientSecret     string
+	TwitchEventSubSecret   string
+	PublicBaseURL          string
+	TwitchWebhookPath      string
+	ListenAddr             string
+	RedisURL               string
+	DebugLogs              bool
+	MetricsEnabled         bool
+	MetricsPath            string
+	S3Endpoint             string
+	S3Bucket               string
+	S3AccessKeyID          string
+	S3SecretAccessKey      string
+	S3Region               string
+	BackupInterval         time.Duration
+	PrivacyPolicyURL       string
+	PrivacyPolicyVersion   string
+	PrivacyReceiptTTL      time.Duration
+	UntrackedRetention     time.Duration
+}
+
+// MTProtoEnabled reports whether MTProto bootstrap support is fully configured.
+func (c Config) MTProtoEnabled() bool {
+	return c.TelegramMTProtoAppID > 0 &&
+		c.TelegramMTProtoHash != "" &&
+		c.TelegramMTProtoSession != ""
 }
 
 // Load reads, normalizes, and validates configuration from the environment.
 func Load() (Config, error) {
 	cfg := Config{
-		TelegramBotToken:      os.Getenv("IMSUB_TELEGRAM_BOT_TOKEN"),
-		TelegramWebhookSecret: os.Getenv("IMSUB_TELEGRAM_WEBHOOK_SECRET"),
-		TelegramWebhookPath:   os.Getenv("IMSUB_TELEGRAM_WEBHOOK_PATH"),
-		TwitchClientID:        os.Getenv("IMSUB_TWITCH_CLIENT_ID"),
-		TwitchClientSecret:    os.Getenv("IMSUB_TWITCH_CLIENT_SECRET"),
-		TwitchEventSubSecret:  os.Getenv("IMSUB_TWITCH_EVENTSUB_SECRET"),
-		PublicBaseURL:         strings.TrimRight(os.Getenv("IMSUB_PUBLIC_BASE_URL"), "/"),
-		TwitchWebhookPath:     os.Getenv("IMSUB_TWITCH_WEBHOOK_PATH"),
-		ListenAddr:            os.Getenv("IMSUB_LISTEN_ADDR"),
-		RedisURL:              os.Getenv("IMSUB_REDIS_URL"),
-		DebugLogs:             IsTrueEnv(os.Getenv("IMSUB_DEBUG_LOGS")),
-		MetricsEnabled:        !IsFalseEnv(os.Getenv("IMSUB_METRICS_ENABLED")),
-		MetricsPath:           os.Getenv("IMSUB_METRICS_PATH"),
-		S3Endpoint:            strings.TrimSpace(os.Getenv("IMSUB_S3_ENDPOINT")),
-		S3Bucket:              strings.TrimSpace(os.Getenv("IMSUB_S3_BUCKET")),
-		S3AccessKeyID:         strings.TrimSpace(os.Getenv("IMSUB_S3_ACCESS_KEY_ID")),
-		S3SecretAccessKey:     strings.TrimSpace(os.Getenv("IMSUB_S3_SECRET_ACCESS_KEY")),
-		S3Region:              strings.TrimSpace(os.Getenv("IMSUB_S3_REGION")),
-		PrivacyPolicyURL:      strings.TrimSpace(os.Getenv("IMSUB_PRIVACY_POLICY_URL")),
-		PrivacyPolicyVersion:  strings.TrimSpace(os.Getenv("IMSUB_PRIVACY_POLICY_VERSION")),
+		TelegramBotToken:       os.Getenv("IMSUB_TELEGRAM_BOT_TOKEN"),
+		TelegramWebhookSecret:  os.Getenv("IMSUB_TELEGRAM_WEBHOOK_SECRET"),
+		TelegramWebhookPath:    os.Getenv("IMSUB_TELEGRAM_WEBHOOK_PATH"),
+		TelegramMTProtoHash:    strings.TrimSpace(os.Getenv("IMSUB_TELEGRAM_MTPROTO_API_HASH")),
+		TelegramMTProtoSession: strings.TrimSpace(os.Getenv("IMSUB_TELEGRAM_MTPROTO_SESSION")),
+		TwitchClientID:         os.Getenv("IMSUB_TWITCH_CLIENT_ID"),
+		TwitchClientSecret:     os.Getenv("IMSUB_TWITCH_CLIENT_SECRET"),
+		TwitchEventSubSecret:   os.Getenv("IMSUB_TWITCH_EVENTSUB_SECRET"),
+		PublicBaseURL:          strings.TrimRight(os.Getenv("IMSUB_PUBLIC_BASE_URL"), "/"),
+		TwitchWebhookPath:      os.Getenv("IMSUB_TWITCH_WEBHOOK_PATH"),
+		ListenAddr:             os.Getenv("IMSUB_LISTEN_ADDR"),
+		RedisURL:               os.Getenv("IMSUB_REDIS_URL"),
+		DebugLogs:              IsTrueEnv(os.Getenv("IMSUB_DEBUG_LOGS")),
+		MetricsEnabled:         !IsFalseEnv(os.Getenv("IMSUB_METRICS_ENABLED")),
+		MetricsPath:            os.Getenv("IMSUB_METRICS_PATH"),
+		S3Endpoint:             strings.TrimSpace(os.Getenv("IMSUB_S3_ENDPOINT")),
+		S3Bucket:               strings.TrimSpace(os.Getenv("IMSUB_S3_BUCKET")),
+		S3AccessKeyID:          strings.TrimSpace(os.Getenv("IMSUB_S3_ACCESS_KEY_ID")),
+		S3SecretAccessKey:      strings.TrimSpace(os.Getenv("IMSUB_S3_SECRET_ACCESS_KEY")),
+		S3Region:               strings.TrimSpace(os.Getenv("IMSUB_S3_REGION")),
+		PrivacyPolicyURL:       strings.TrimSpace(os.Getenv("IMSUB_PRIVACY_POLICY_URL")),
+		PrivacyPolicyVersion:   strings.TrimSpace(os.Getenv("IMSUB_PRIVACY_POLICY_VERSION")),
 	}
 
 	backupIntervalRaw := strings.TrimSpace(os.Getenv("IMSUB_BACKUP_INTERVAL"))
+	mtprotoAppIDRaw := strings.TrimSpace(os.Getenv("IMSUB_TELEGRAM_MTPROTO_API_ID"))
+	if mtprotoAppIDRaw != "" {
+		mtprotoAppID, err := strconv.Atoi(mtprotoAppIDRaw)
+		if err != nil {
+			return Config{}, fmt.Errorf("parse IMSUB_TELEGRAM_MTPROTO_API_ID: %w", err)
+		}
+		cfg.TelegramMTProtoAppID = mtprotoAppID
+	}
 	if backupIntervalRaw == "" {
 		cfg.BackupInterval = 6 * time.Hour
 	} else {
@@ -143,6 +164,24 @@ func Load() (Config, error) {
 	}
 	if len(missing) > 0 {
 		return Config{}, fmt.Errorf("missing env vars %s: %w", strings.Join(missing, ", "), ErrMissingEnv)
+	}
+	if mtprotoAppIDRaw != "" || cfg.TelegramMTProtoHash != "" || cfg.TelegramMTProtoSession != "" {
+		mtprotoMissing := make([]string, 0, 3)
+		for _, req := range []struct {
+			key string
+			val string
+		}{
+			{key: "IMSUB_TELEGRAM_MTPROTO_API_ID", val: mtprotoAppIDRaw},
+			{key: "IMSUB_TELEGRAM_MTPROTO_API_HASH", val: cfg.TelegramMTProtoHash},
+			{key: "IMSUB_TELEGRAM_MTPROTO_SESSION", val: cfg.TelegramMTProtoSession},
+		} {
+			if strings.TrimSpace(req.val) == "" {
+				mtprotoMissing = append(mtprotoMissing, req.key)
+			}
+		}
+		if len(mtprotoMissing) > 0 {
+			return Config{}, fmt.Errorf("missing env vars %s: %w", strings.Join(mtprotoMissing, ", "), ErrMissingEnv)
+		}
 	}
 	if anyBackupConfigSet(cfg) {
 		backupRequired := []struct {

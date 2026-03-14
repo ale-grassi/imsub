@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"strconv"
 	"strings"
 	"time"
 
 	"imsub/internal/core"
+	"imsub/internal/events"
 	"imsub/internal/platform/i18n"
 	"imsub/internal/transport/telegram/client"
 	telegramui "imsub/internal/transport/telegram/ui"
@@ -18,6 +20,8 @@ import (
 	tghandler "github.com/mymmrac/telego/telegohandler"
 	"github.com/mymmrac/telego/telegoutil"
 )
+
+const groupBootstrapTimeout = 30 * time.Second
 
 type botGroupCapabilities struct {
 	isAdmin            bool
@@ -487,7 +491,8 @@ func buildGroupRegistrationView(lang string, replyToMessageID int, regRes usecas
 }
 
 func (c *Bot) dispatchGroupRegistrationFollowUp(ctx context.Context, msg telego.Message, lang string, regRes usecase.RegisterGroupResult, view groupRegistrationView, groupMsgID int, messageThreadID int) {
-	if !regRes.FollowUp.NeedsActivation && !regRes.FollowUp.NeedsSettingsCheck {
+	shouldBootstrap := regRes.Outcome == usecase.RegisterGroupOutcomeRegistered
+	if !regRes.FollowUp.NeedsActivation && !regRes.FollowUp.NeedsSettingsCheck && !shouldBootstrap {
 		return
 	}
 	if regRes.FollowUp.NeedsActivation && c.creatorActivation != nil {
@@ -495,11 +500,71 @@ func (c *Bot) dispatchGroupRegistrationFollowUp(ctx context.Context, msg telego.
 			c.activateCreatorOnFirstGroupRegistration(bg, regRes.Creator, lang)
 		})
 	}
-	if !regRes.FollowUp.NeedsSettingsCheck {
+	if regRes.FollowUp.NeedsSettingsCheck {
+		c.runBackground(context.WithoutCancel(ctx), func(bg context.Context) {
+			c.sendPostRegistrationSettingsCheck(bg, msg.Chat.ID, groupMsgID, messageThreadID, lang, view.groupBaseText)
+		})
+	}
+	if !shouldBootstrap {
+		return
+	}
+	if c.groupBootstrap == nil {
+		c.emitGroupBootstrapOutcome(ctx, regRes.ExistingGroup, "disabled", "mtproto_not_configured")
+		c.log().Info("group mtproto bootstrap skipped", "chat_id", regRes.ExistingGroup.ChatID, "creator_id", regRes.ExistingGroup.CreatorID, "reason", "mtproto_not_configured")
+		return
+	}
+	if supported, reason := c.groupBootstrapSupport(ctx, regRes.ExistingGroup); !supported {
+		c.emitGroupBootstrapOutcome(ctx, regRes.ExistingGroup, "unsupported", reason)
+		c.log().Info("group mtproto bootstrap skipped", "chat_id", regRes.ExistingGroup.ChatID, "creator_id", regRes.ExistingGroup.CreatorID, "reason", reason)
 		return
 	}
 	c.runBackground(context.WithoutCancel(ctx), func(bg context.Context) {
-		c.sendPostRegistrationSettingsCheck(bg, msg.Chat.ID, groupMsgID, messageThreadID, lang, view.groupBaseText)
+		bootstrapCtx, cancel := context.WithTimeout(bg, groupBootstrapTimeout)
+		defer cancel()
+		if err := c.groupBootstrap.BootstrapGroup(bootstrapCtx, regRes.ExistingGroup); err != nil {
+			c.log().Warn("group mtproto bootstrap failed", "chat_id", regRes.ExistingGroup.ChatID, "creator_id", regRes.ExistingGroup.CreatorID, "error", err)
+		}
+	})
+}
+
+func (c *Bot) groupBootstrapSupport(ctx context.Context, group core.ManagedGroup) (bool, string) {
+	caps, err := c.loadBotGroupCapabilities(ctx, group.ChatID)
+	if err != nil {
+		c.log().Warn("group mtproto bootstrap support check failed; proceeding", "chat_id", group.ChatID, "creator_id", group.CreatorID, "error", err)
+		return true, ""
+	}
+	return bootstrapSupportForCapabilities(caps.evaluation(), group.Policy)
+}
+
+func bootstrapSupportForCapabilities(caps groupCapabilityEvaluation, policy core.GroupPolicy) (bool, string) {
+	if caps.botMissing {
+		return false, "bot_missing"
+	}
+	if !caps.canInviteUsers {
+		return false, "bot_no_invite_rights"
+	}
+	if policy == core.GroupPolicyKick && !caps.canRestrictUsers {
+		return false, "bot_no_restrict_rights"
+	}
+	return true, ""
+}
+
+func (c *Bot) emitGroupBootstrapOutcome(ctx context.Context, group core.ManagedGroup, outcome, reason string) {
+	if c == nil || c.events == nil {
+		return
+	}
+	fields := map[string]string{
+		"chat_id":    strconv.FormatInt(group.ChatID, 10),
+		"creator_id": group.CreatorID,
+		"policy":     string(group.Policy),
+	}
+	if reason != "" {
+		fields["reason"] = reason
+	}
+	c.events.Emit(ctx, events.Event{
+		Name:    events.NameTelegramMTProtoBootstrap,
+		Outcome: outcome,
+		Fields:  fields,
 	})
 }
 

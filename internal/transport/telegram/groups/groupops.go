@@ -54,22 +54,34 @@ func New(bot *telego.Bot, lim limiter, logger *slog.Logger, store creatorStore, 
 // CreateInviteLink creates a single-use, join-request invite link for
 // groupChatID that expires in 10 minutes.
 func (c *Client) CreateInviteLink(ctx context.Context, groupChatID int64, telegramUserID int64, name string) (string, error) {
+	return c.buildInviteLink(ctx, groupChatID, fmt.Sprintf("imsub-%d-%s", telegramUserID, name), true, 0)
+}
+
+// CreateBootstrapInviteLink creates a single-use direct invite link for the MTProto bootstrap user.
+func (c *Client) CreateBootstrapInviteLink(ctx context.Context, groupChatID int64) (string, error) {
+	return c.buildInviteLink(ctx, groupChatID, "imsub-bootstrap", false, 1)
+}
+
+func (c *Client) buildInviteLink(ctx context.Context, groupChatID int64, linkName string, createsJoinRequest bool, memberLimit int) (string, error) {
 	if c == nil || c.bot == nil {
 		return "", errBotNotInitialized
 	}
 	expire := time.Now().Add(10 * time.Minute).Unix()
-	linkName := fmt.Sprintf("imsub-%d-%s", telegramUserID, name)
 	if c.limiter != nil {
 		if err := c.limiter.Wait(ctx, groupChatID); err != nil {
 			return "", fmt.Errorf("limiter wait: %w", err)
 		}
 	}
-	result, err := c.bot.CreateChatInviteLink(ctx, &telego.CreateChatInviteLinkParams{
+	params := &telego.CreateChatInviteLinkParams{
 		ChatID:             tu.ID(groupChatID),
-		CreatesJoinRequest: true,
+		CreatesJoinRequest: createsJoinRequest,
 		ExpireDate:         expire,
 		Name:               linkName,
-	})
+	}
+	if memberLimit > 0 {
+		params.MemberLimit = memberLimit
+	}
+	result, err := c.bot.CreateChatInviteLink(ctx, params)
 	if err != nil {
 		return "", fmt.Errorf("create chat invite link: %w", err)
 	}

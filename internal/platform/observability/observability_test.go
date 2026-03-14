@@ -37,6 +37,7 @@ func TestNilSafety(t *testing.T) {
 	m.TelegramCommandResponse("start", "private", "ok", 150*time.Millisecond)
 	m.TelegramAPIError("answer_callback_query", "message_too_long")
 	m.TelegramKickAction("group_policy", "ok")
+	m.TelegramMTProtoBootstrap("ok")
 	m.TelegramDailyActiveUsers(4)
 	m.LinkedViewerAccounts(5)
 	m.LinkedCreatorAccounts(2)
@@ -76,6 +77,7 @@ func TestMetricsExposure(t *testing.T) {
 	m.TelegramCommandResponse("start", "private", "ok", 150*time.Millisecond)
 	m.TelegramAPIError("answer_callback_query", "message_too_long")
 	m.TelegramKickAction("group_policy", "ok")
+	m.TelegramMTProtoBootstrap("ok")
 	m.TelegramDailyActiveUsers(4)
 	m.LinkedViewerAccounts(5)
 	m.LinkedCreatorAccounts(2)
@@ -115,6 +117,7 @@ func TestMetricsExposure(t *testing.T) {
 		"imsub_telegram_command_response_duration_seconds",
 		"imsub_telegram_api_errors_total",
 		"imsub_telegram_kick_actions_total",
+		"imsub_telegram_mtproto_bootstrap_total",
 		"imsub_telegram_daily_active_users",
 		"imsub_linked_viewer_accounts",
 		"imsub_linked_creator_accounts",
@@ -201,6 +204,10 @@ func TestEmitProjectsTelegramEvents(t *testing.T) {
 		Outcome: "ok",
 		Fields:  map[string]string{"reason": "group_policy"},
 	})
+	m.Emit(t.Context(), events.Event{
+		Name:    events.NameTelegramMTProtoBootstrap,
+		Outcome: "ok",
+	})
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
 	rec := httptest.NewRecorder()
@@ -221,6 +228,9 @@ func TestEmitProjectsTelegramEvents(t *testing.T) {
 	}
 	if !strings.Contains(body, `imsub_telegram_kick_actions_total{reason="group_policy",result="ok"} 1`) {
 		t.Fatalf("metrics output missing projected telegram_kick_action event: %s", body)
+	}
+	if !strings.Contains(body, `imsub_telegram_mtproto_bootstrap_total{outcome="ok"} 1`) {
+		t.Fatalf("metrics output missing projected telegram_mtproto_bootstrap event: %s", body)
 	}
 }
 

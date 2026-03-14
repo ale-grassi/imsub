@@ -1,11 +1,23 @@
 package bot
 
 import (
+	"context"
 	"testing"
 
 	"imsub/internal/core"
+	"imsub/internal/events"
 	"imsub/internal/usecase"
+
+	"github.com/mymmrac/telego"
 )
+
+type bootstrapEventSinkStub struct {
+	events []events.Event
+}
+
+func (s *bootstrapEventSinkStub) Emit(_ context.Context, evt events.Event) {
+	s.events = append(s.events, evt)
+}
 
 func TestCheckGroupSettingsIncludesBotCapabilityWarnings(t *testing.T) {
 	t.Parallel()
@@ -115,5 +127,60 @@ func TestFormatGroupPolicyLine(t *testing.T) {
 
 	if got := formatGroupPolicyLine("en", core.GroupPolicyObserveWarn); got == "" {
 		t.Fatal("formatGroupPolicyLine() = empty, want text")
+	}
+}
+
+func TestBootstrapSupportForCapabilities(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		caps   groupCapabilityEvaluation
+		policy core.GroupPolicy
+		wantOK bool
+		want   string
+	}{
+		{name: "bot missing", caps: groupCapabilityEvaluation{botMissing: true}, policy: core.GroupPolicyObserve, want: "bot_missing"},
+		{name: "no invite", caps: groupCapabilityEvaluation{canRestrictUsers: true}, policy: core.GroupPolicyObserve, want: "bot_no_invite_rights"},
+		{name: "kick needs restrict", caps: groupCapabilityEvaluation{canInviteUsers: true}, policy: core.GroupPolicyKick, want: "bot_no_restrict_rights"},
+		{name: "observe without restrict allowed", caps: groupCapabilityEvaluation{canInviteUsers: true}, policy: core.GroupPolicyObserve, wantOK: true},
+		{name: "kick supported", caps: groupCapabilityEvaluation{canInviteUsers: true, canRestrictUsers: true}, policy: core.GroupPolicyKick, wantOK: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			gotOK, gotReason := bootstrapSupportForCapabilities(tc.caps, tc.policy)
+			if gotOK != tc.wantOK || gotReason != tc.want {
+				t.Fatalf("bootstrapSupportForCapabilities(%+v, %q) = (%v, %q), want (%v, %q)", tc.caps, tc.policy, gotOK, gotReason, tc.wantOK, tc.want)
+			}
+		})
+	}
+}
+
+func TestDispatchGroupRegistrationFollowUpEmitsDisabledBootstrapOutcome(t *testing.T) {
+	t.Parallel()
+
+	sink := &bootstrapEventSinkStub{}
+	b := &Bot{events: sink}
+	regRes := usecase.RegisterGroupResult{
+		Outcome: usecase.RegisterGroupOutcomeRegistered,
+		ExistingGroup: core.ManagedGroup{
+			ChatID:    42,
+			CreatorID: "creator-1",
+			Policy:    core.GroupPolicyObserve,
+		},
+	}
+
+	b.dispatchGroupRegistrationFollowUp(t.Context(), telego.Message{Chat: telego.Chat{ID: 42}}, "en", regRes, groupRegistrationView{}, 0, 0)
+
+	if len(sink.events) != 1 {
+		t.Fatalf("emitted events = %d, want 1", len(sink.events))
+	}
+	if got := sink.events[0].Outcome; got != "disabled" {
+		t.Fatalf("event outcome = %q, want %q", got, "disabled")
+	}
+	if got := sink.events[0].Fields["reason"]; got != "mtproto_not_configured" {
+		t.Fatalf("event reason = %q, want %q", got, "mtproto_not_configured")
 	}
 }
