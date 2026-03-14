@@ -86,6 +86,28 @@ func TestListTrackedGroupIDsForUserRoundTrip(t *testing.T) {
 	}
 }
 
+func TestCountTrackedGroupMembers(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	ctx := t.Context()
+
+	if err := s.AddTrackedGroupMember(ctx, 111, 7, "test", time.Now().UTC()); err != nil {
+		t.Fatalf("AddTrackedGroupMember(7) failed: %v", err)
+	}
+	if err := s.AddTrackedGroupMember(ctx, 111, 8, "test", time.Now().UTC()); err != nil {
+		t.Fatalf("AddTrackedGroupMember(8) failed: %v", err)
+	}
+
+	count, err := s.CountTrackedGroupMembers(ctx, 111)
+	if err != nil {
+		t.Fatalf("CountTrackedGroupMembers failed: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("CountTrackedGroupMembers = %d, want 2", count)
+	}
+}
+
 func TestProductMetricsSnapshotCounts(t *testing.T) {
 	t.Parallel()
 

@@ -46,7 +46,7 @@ func TestCreatorOAuthCompleteSuccess(t *testing.T) {
 	if got.ResultLabel != creatorOAuthResultSuccess || got.Creator.ID != "c1" || got.BroadcasterDisplayName != "Alpha" {
 		t.Fatalf("got = %+v", got)
 	}
-	want := []events.Event{{Name: events.NameCreatorOAuth, Outcome: creatorOAuthResultSuccess}}
+	want := []events.Event{{Name: events.NameCreatorOAuth, Outcome: creatorOAuthResultSuccess, Fields: map[string]string{"creator_id": "c1"}}}
 	if !slices.EqualFunc(obs.events, want, equalEvents) {
 		t.Fatalf("events = %+v, want %+v", obs.events, want)
 	}
@@ -87,7 +87,7 @@ func TestCreatorOAuthCompleteMapsFlowErrors(t *testing.T) {
 			if got.ResultLabel != tc.want {
 				t.Fatalf("ResultLabel = %q, want %q", got.ResultLabel, tc.want)
 			}
-			want := []events.Event{{Name: events.NameCreatorOAuth, Outcome: tc.want}}
+			want := []events.Event{{Name: events.NameCreatorOAuth, Outcome: tc.want, Fields: map[string]string{"creator_id": ""}}}
 			if !slices.EqualFunc(obs.events, want, equalEvents) {
 				t.Fatalf("events = %+v, want %+v", obs.events, want)
 			}

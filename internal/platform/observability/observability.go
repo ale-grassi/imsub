@@ -25,6 +25,13 @@ type Metrics struct {
 	linkedViewers        prometheus.Gauge
 	linkedCreators       prometheus.Gauge
 	managedGroups        prometheus.Gauge
+	creatorInfo          *prometheus.GaugeVec
+	creatorManagedGroups *prometheus.GaugeVec
+	creatorSubscribers   *prometheus.GaugeVec
+	creatorBlockedUsers  *prometheus.GaugeVec
+	creatorTracked       *prometheus.GaugeVec
+	creatorUntracked     *prometheus.GaugeVec
+	creatorReconnectReq  *prometheus.GaugeVec
 	oauthCallbacksTotal  *prometheus.CounterVec
 	eventsubTotal        *prometheus.CounterVec
 	telegramWebhook      *prometheus.CounterVec
@@ -99,6 +106,55 @@ func New() *Metrics {
 			Name: "imsub_managed_groups",
 			Help: "Current count of managed Telegram groups.",
 		}),
+		creatorInfo: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "imsub_creator_info",
+				Help: "Creator identity metadata for dashboard selection.",
+			},
+			[]string{"creator_id", "display_name", "login"},
+		),
+		creatorManagedGroups: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "imsub_creator_managed_groups",
+				Help: "Current managed Telegram groups per creator.",
+			},
+			[]string{"creator_id"},
+		),
+		creatorSubscribers: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "imsub_creator_subscribers",
+				Help: "Current subscriber count per creator.",
+			},
+			[]string{"creator_id"},
+		),
+		creatorBlockedUsers: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "imsub_creator_blocked_users",
+				Help: "Current blocked-user count per creator.",
+			},
+			[]string{"creator_id"},
+		),
+		creatorTracked: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "imsub_creator_tracked_members",
+				Help: "Current tracked Telegram group members summed across a creator's groups.",
+			},
+			[]string{"creator_id"},
+		),
+		creatorUntracked: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "imsub_creator_untracked_members",
+				Help: "Current untracked Telegram group members summed across a creator's groups.",
+			},
+			[]string{"creator_id"},
+		),
+		creatorReconnectReq: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "imsub_creator_reconnect_required",
+				Help: "Whether a creator currently requires reconnect.",
+			},
+			[]string{"creator_id"},
+		),
 		oauthCallbacksTotal: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "imsub_oauth_callbacks_total",
@@ -163,28 +219,28 @@ func New() *Metrics {
 				Name: "imsub_creator_token_refresh_total",
 				Help: "Creator token refresh attempts by result.",
 			},
-			[]string{"result"},
+			[]string{"creator_id", "result"},
 		),
 		creatorBlocklistSync: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "imsub_creator_blocklist_sync_total",
 				Help: "Creator blocklist sync item counts by result.",
 			},
-			[]string{"result"},
+			[]string{"creator_id", "result"},
 		),
 		creatorBlockEnforce: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "imsub_creator_blocklist_enforcement_total",
 				Help: "Creator blocklist enforcement actions by result.",
 			},
-			[]string{"result"},
+			[]string{"creator_id", "result"},
 		),
 		creatorAuthChange: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "imsub_creator_auth_state_transitions_total",
 				Help: "Creator auth state transitions by source and destination.",
 			},
-			[]string{"from", "to", "reason"},
+			[]string{"creator_id", "from", "to", "reason"},
 		),
 		creatorsReconnect: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "imsub_creators_reconnect_required",
@@ -195,7 +251,7 @@ func New() *Metrics {
 				Name: "imsub_creator_reconnect_notifications_total",
 				Help: "Creator reconnect-required DM notification attempts by result.",
 			},
-			[]string{"result"},
+			[]string{"creator_id", "result"},
 		),
 		resetExecutions: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
@@ -230,7 +286,7 @@ func New() *Metrics {
 				Name: "imsub_creator_activation_total",
 				Help: "Creator activation workflow results.",
 			},
-			[]string{"result"},
+			[]string{"creator_id", "result"},
 		),
 		subscriptionEnd: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
@@ -258,14 +314,14 @@ func New() *Metrics {
 				Name: "imsub_creator_oauth_total",
 				Help: "Creator OAuth completion results.",
 			},
-			[]string{"result"},
+			[]string{"creator_id", "result"},
 		),
 		creatorStatus: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "imsub_creator_status_total",
 				Help: "Creator status workflow results.",
 			},
-			[]string{"result"},
+			[]string{"creator_id", "result"},
 		),
 		viewerAccess: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
@@ -334,6 +390,13 @@ func New() *Metrics {
 		m.linkedViewers,
 		m.linkedCreators,
 		m.managedGroups,
+		m.creatorInfo,
+		m.creatorManagedGroups,
+		m.creatorSubscribers,
+		m.creatorBlockedUsers,
+		m.creatorTracked,
+		m.creatorUntracked,
+		m.creatorReconnectReq,
 		m.oauthCallbacksTotal,
 		m.eventsubTotal,
 		m.telegramWebhook,
@@ -372,6 +435,20 @@ func New() *Metrics {
 	return m
 }
 
+// ResetCreatorSnapshotMetrics clears creator-scoped snapshot gauges before repopulation.
+func (m *Metrics) ResetCreatorSnapshotMetrics() {
+	if m == nil {
+		return
+	}
+	m.creatorInfo.Reset()
+	m.creatorManagedGroups.Reset()
+	m.creatorSubscribers.Reset()
+	m.creatorBlockedUsers.Reset()
+	m.creatorTracked.Reset()
+	m.creatorUntracked.Reset()
+	m.creatorReconnectReq.Reset()
+}
+
 // TelegramDailyActiveUsers sets the rolling 24h unique Telegram active-user gauge.
 func (m *Metrics) TelegramDailyActiveUsers(count int) {
 	if m == nil {
@@ -404,36 +481,97 @@ func (m *Metrics) ManagedGroups(count int) {
 	m.managedGroups.Set(float64(count))
 }
 
+// CreatorInfo records creator identity metadata for dashboard selection.
+func (m *Metrics) CreatorInfo(creatorID, displayName, login string) {
+	if m == nil || creatorID == "" {
+		return
+	}
+	m.creatorInfo.WithLabelValues(creatorID, httputil.LabelOrUnknown(displayName), httputil.LabelOrUnknown(login)).Set(1)
+}
+
+// CreatorManagedGroups sets the current managed-group count for a creator.
+func (m *Metrics) CreatorManagedGroups(creatorID string, count int) {
+	if m == nil || creatorID == "" {
+		return
+	}
+	m.creatorManagedGroups.WithLabelValues(creatorID).Set(float64(count))
+}
+
+// CreatorSubscribers sets the current subscriber count for a creator.
+func (m *Metrics) CreatorSubscribers(creatorID string, count int) {
+	if m == nil || creatorID == "" {
+		return
+	}
+	m.creatorSubscribers.WithLabelValues(creatorID).Set(float64(count))
+}
+
+// CreatorBlockedUsers sets the current blocked-user count for a creator.
+func (m *Metrics) CreatorBlockedUsers(creatorID string, count int) {
+	if m == nil || creatorID == "" {
+		return
+	}
+	m.creatorBlockedUsers.WithLabelValues(creatorID).Set(float64(count))
+}
+
+// CreatorTrackedMembers sets the current tracked-member count for a creator.
+func (m *Metrics) CreatorTrackedMembers(creatorID string, count int) {
+	if m == nil || creatorID == "" {
+		return
+	}
+	m.creatorTracked.WithLabelValues(creatorID).Set(float64(count))
+}
+
+// CreatorUntrackedMembers sets the current untracked-member count for a creator.
+func (m *Metrics) CreatorUntrackedMembers(creatorID string, count int) {
+	if m == nil || creatorID == "" {
+		return
+	}
+	m.creatorUntracked.WithLabelValues(creatorID).Set(float64(count))
+}
+
+// CreatorReconnectRequired sets whether a creator currently requires reconnect.
+func (m *Metrics) CreatorReconnectRequired(creatorID string, required bool) {
+	if m == nil || creatorID == "" {
+		return
+	}
+	value := 0.0
+	if required {
+		value = 1
+	}
+	m.creatorReconnectReq.WithLabelValues(creatorID).Set(value)
+}
+
 // CreatorTokenRefresh records creator token refresh attempts.
-func (m *Metrics) CreatorTokenRefresh(result string) {
+func (m *Metrics) CreatorTokenRefresh(creatorID, result string) {
 	if m == nil {
 		return
 	}
-	m.creatorTokenRefresh.WithLabelValues(httputil.LabelOrUnknown(result)).Inc()
+	m.creatorTokenRefresh.WithLabelValues(creatorID, httputil.LabelOrUnknown(result)).Inc()
 }
 
 // CreatorBlocklistSync records creator blocklist sync counts by result.
-func (m *Metrics) CreatorBlocklistSync(result string, count int) {
+func (m *Metrics) CreatorBlocklistSync(creatorID, result string, count int) {
 	if m == nil || count <= 0 {
 		return
 	}
-	m.creatorBlocklistSync.WithLabelValues(httputil.LabelOrUnknown(result)).Add(float64(count))
+	m.creatorBlocklistSync.WithLabelValues(creatorID, httputil.LabelOrUnknown(result)).Add(float64(count))
 }
 
 // CreatorBlocklistEnforcement records creator blocklist enforcement actions by result.
-func (m *Metrics) CreatorBlocklistEnforcement(result string, count int) {
+func (m *Metrics) CreatorBlocklistEnforcement(creatorID, result string, count int) {
 	if m == nil || count <= 0 {
 		return
 	}
-	m.creatorBlockEnforce.WithLabelValues(httputil.LabelOrUnknown(result)).Add(float64(count))
+	m.creatorBlockEnforce.WithLabelValues(creatorID, httputil.LabelOrUnknown(result)).Add(float64(count))
 }
 
 // CreatorAuthTransition records a creator auth state transition.
-func (m *Metrics) CreatorAuthTransition(from, to, reason string) {
+func (m *Metrics) CreatorAuthTransition(creatorID, from, to, reason string) {
 	if m == nil {
 		return
 	}
 	m.creatorAuthChange.WithLabelValues(
+		creatorID,
 		httputil.LabelOrUnknown(from),
 		httputil.LabelOrUnknown(to),
 		httputil.LabelOrUnknown(reason),
@@ -449,11 +587,11 @@ func (m *Metrics) CreatorsReconnectRequired(count int) {
 }
 
 // CreatorReconnectNotification records reconnect-required owner notifications.
-func (m *Metrics) CreatorReconnectNotification(result string) {
+func (m *Metrics) CreatorReconnectNotification(creatorID, result string) {
 	if m == nil {
 		return
 	}
-	m.creatorReconnectDM.WithLabelValues(httputil.LabelOrUnknown(result)).Inc()
+	m.creatorReconnectDM.WithLabelValues(creatorID, httputil.LabelOrUnknown(result)).Inc()
 }
 
 // ResetExecution records reset executions by scope and result.
@@ -489,11 +627,11 @@ func (m *Metrics) GroupUnregistration(outcome string) {
 }
 
 // CreatorActivation records creator activation outcomes.
-func (m *Metrics) CreatorActivation(result string) {
+func (m *Metrics) CreatorActivation(creatorID, result string) {
 	if m == nil {
 		return
 	}
-	m.creatorActivation.WithLabelValues(httputil.LabelOrUnknown(result)).Inc()
+	m.creatorActivation.WithLabelValues(creatorID, httputil.LabelOrUnknown(result)).Inc()
 }
 
 // SubscriptionEnd records subscription-end workflow outcomes.
@@ -521,19 +659,19 @@ func (m *Metrics) ViewerOAuth(result string) {
 }
 
 // CreatorOAuth records creator OAuth completion results.
-func (m *Metrics) CreatorOAuth(result string) {
+func (m *Metrics) CreatorOAuth(creatorID, result string) {
 	if m == nil {
 		return
 	}
-	m.creatorOAuth.WithLabelValues(httputil.LabelOrUnknown(result)).Inc()
+	m.creatorOAuth.WithLabelValues(creatorID, httputil.LabelOrUnknown(result)).Inc()
 }
 
 // CreatorStatus records creator status workflow results.
-func (m *Metrics) CreatorStatus(result string) {
+func (m *Metrics) CreatorStatus(creatorID, result string) {
 	if m == nil {
 		return
 	}
-	m.creatorStatus.WithLabelValues(httputil.LabelOrUnknown(result)).Inc()
+	m.creatorStatus.WithLabelValues(creatorID, httputil.LabelOrUnknown(result)).Inc()
 }
 
 // ViewerAccess records linked-viewer workflow results.
@@ -628,7 +766,7 @@ func (m *Metrics) Emit(_ context.Context, evt events.Event) {
 	case events.NameGroupUnregistration:
 		m.GroupUnregistration(evt.Outcome)
 	case events.NameCreatorActivation:
-		m.CreatorActivation(evt.Outcome)
+		m.CreatorActivation(evt.Fields["creator_id"], evt.Outcome)
 	case events.NameSubscriptionEnd:
 		m.SubscriptionEnd(evt.Outcome)
 	case events.NameViewerOAuth:
@@ -638,17 +776,17 @@ func (m *Metrics) Emit(_ context.Context, evt events.Event) {
 	case events.NameViewerInviteLink:
 		m.ViewerInviteLink(evt.Outcome)
 	case events.NameCreatorTokenRefresh:
-		m.CreatorTokenRefresh(evt.Outcome)
+		m.CreatorTokenRefresh(evt.Fields["creator_id"], evt.Outcome)
 	case events.NameCreatorBlocklistSync:
-		m.CreatorBlocklistSync(evt.Outcome, evt.Count)
+		m.CreatorBlocklistSync(evt.Fields["creator_id"], evt.Outcome, evt.Count)
 	case events.NameCreatorBlocklistEnforcement:
-		m.CreatorBlocklistEnforcement(evt.Outcome, evt.Count)
+		m.CreatorBlocklistEnforcement(evt.Fields["creator_id"], evt.Outcome, evt.Count)
 	case events.NameCreatorAuthTransition:
-		m.CreatorAuthTransition(evt.Fields["from"], evt.Fields["to"], evt.Fields["reason"])
+		m.CreatorAuthTransition(evt.Fields["creator_id"], evt.Fields["from"], evt.Fields["to"], evt.Fields["reason"])
 	case events.NameCreatorsReconnectRequired:
 		m.CreatorsReconnectRequired(evt.Count)
 	case events.NameCreatorReconnectNotice:
-		m.CreatorReconnectNotification(evt.Outcome)
+		m.CreatorReconnectNotification(evt.Fields["creator_id"], evt.Outcome)
 	case events.NameBackgroundJob:
 		m.BackgroundJob(evt.Fields["job"], evt.Outcome, evt.Duration)
 	case events.NameReconciliationRepair:
@@ -660,9 +798,9 @@ func (m *Metrics) Emit(_ context.Context, evt events.Event) {
 	case events.NameTelegramWebhook:
 		m.TelegramWebhookResult(evt.Outcome)
 	case events.NameCreatorOAuth:
-		m.CreatorOAuth(evt.Outcome)
+		m.CreatorOAuth(evt.Fields["creator_id"], evt.Outcome)
 	case events.NameCreatorStatus:
-		m.CreatorStatus(evt.Outcome)
+		m.CreatorStatus(evt.Fields["creator_id"], evt.Outcome)
 	case events.NameViewerAccess:
 		m.ViewerAccess(evt.Outcome)
 	case events.NameTelegramCommand:

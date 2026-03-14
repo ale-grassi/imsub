@@ -50,11 +50,11 @@ func (u *CreatorStatusUseCase) LoadOwnedCreator(ctx context.Context, telegramUse
 func (u *CreatorStatusUseCase) LoadStatus(ctx context.Context, telegramUserID int64) (CreatorStatusResult, error) {
 	creator, found, loadErr := u.svc.LoadOwnedCreator(ctx, telegramUserID)
 	if loadErr != nil {
-		u.recordResult(ctx, "failed")
+		u.recordResult(ctx, "", "failed")
 		return CreatorStatusResult{}, fmt.Errorf("load owned creator: %w", loadErr)
 	}
 	if !found {
-		u.recordResult(ctx, "unlinked")
+		u.recordResult(ctx, "", "unlinked")
 		return CreatorStatusResult{}, nil
 	}
 
@@ -64,7 +64,7 @@ func (u *CreatorStatusUseCase) LoadStatus(ctx context.Context, telegramUserID in
 	if groupsErr != nil || statusErr != nil {
 		outcome = "degraded"
 	}
-	u.recordResult(ctx, outcome)
+	u.recordResult(ctx, creator.ID, outcome)
 
 	result := CreatorStatusResult{
 		HasCreator:  true,
@@ -81,10 +81,11 @@ func (u *CreatorStatusUseCase) LoadStatus(ctx context.Context, telegramUserID in
 	return result, nil
 }
 
-func (u *CreatorStatusUseCase) recordResult(ctx context.Context, result string) {
+func (u *CreatorStatusUseCase) recordResult(ctx context.Context, creatorID, result string) {
 	u.events.Emit(ctx, events.Event{
 		Name:    events.NameCreatorStatus,
 		Outcome: result,
+		Fields:  map[string]string{"creator_id": creatorID},
 	})
 }
 

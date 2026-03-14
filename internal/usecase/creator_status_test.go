@@ -59,7 +59,7 @@ func TestCreatorStatusLoadStatusUnlinked(t *testing.T) {
 	if got.HasCreator {
 		t.Fatalf("HasCreator = true, want false")
 	}
-	want := []events.Event{{Name: events.NameCreatorStatus, Outcome: "unlinked"}}
+	want := []events.Event{{Name: events.NameCreatorStatus, Outcome: "unlinked", Fields: map[string]string{"creator_id": ""}}}
 	if !slices.EqualFunc(obs.events, want, equalEvents) {
 		t.Fatalf("events = %+v, want %+v", obs.events, want)
 	}
@@ -88,7 +88,7 @@ func TestCreatorStatusLoadStatusLoaded(t *testing.T) {
 	if !got.HasCreator || got.Creator.ID != "c1" || len(got.Groups) != 1 || !got.Status.HasSubscriberCount || got.IsDegraded {
 		t.Fatalf("got = %+v", got)
 	}
-	want := []events.Event{{Name: events.NameCreatorStatus, Outcome: "loaded"}}
+	want := []events.Event{{Name: events.NameCreatorStatus, Outcome: "loaded", Fields: map[string]string{"creator_id": "c1"}}}
 	if !slices.EqualFunc(obs.events, want, equalEvents) {
 		t.Fatalf("events = %+v, want %+v", obs.events, want)
 	}
@@ -120,7 +120,7 @@ func TestCreatorStatusLoadStatusDegraded(t *testing.T) {
 	if !errors.Is(err, got.GroupsError) || !errors.Is(err, got.StatusError) {
 		t.Fatalf("LoadStatus() error = %v, want join(%v,%v)", err, got.GroupsError, got.StatusError)
 	}
-	want := []events.Event{{Name: events.NameCreatorStatus, Outcome: "degraded"}}
+	want := []events.Event{{Name: events.NameCreatorStatus, Outcome: "degraded", Fields: map[string]string{"creator_id": "c1"}}}
 	if !slices.EqualFunc(obs.events, want, equalEvents) {
 		t.Fatalf("events = %+v, want %+v", obs.events, want)
 	}
@@ -146,7 +146,7 @@ func TestCreatorStatusLoadStatusFailure(t *testing.T) {
 	if err == nil {
 		t.Fatal("LoadStatus() error = nil, want non-nil")
 	}
-	want := []events.Event{{Name: events.NameCreatorStatus, Outcome: "failed"}}
+	want := []events.Event{{Name: events.NameCreatorStatus, Outcome: "failed", Fields: map[string]string{"creator_id": ""}}}
 	if !slices.EqualFunc(obs.events, want, equalEvents) {
 		t.Fatalf("events = %+v, want %+v", obs.events, want)
 	}

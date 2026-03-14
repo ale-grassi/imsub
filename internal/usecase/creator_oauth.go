@@ -60,11 +60,11 @@ func (u *CreatorOAuthUseCase) Complete(ctx context.Context, code string, payload
 				label = creatorOAuthResultStoreFailed
 			}
 		}
-		u.recordResult(ctx, label)
+		u.recordResult(ctx, "", label)
 		return CreatorOAuthResult{ResultLabel: label}, fmt.Errorf("complete creator oauth: %w", err)
 	}
 
-	u.recordResult(ctx, creatorOAuthResultSuccess)
+	u.recordResult(ctx, res.Creator.ID, creatorOAuthResultSuccess)
 	return CreatorOAuthResult{
 		ResultLabel:            creatorOAuthResultSuccess,
 		Creator:                res.Creator,
@@ -72,9 +72,10 @@ func (u *CreatorOAuthUseCase) Complete(ctx context.Context, code string, payload
 	}, nil
 }
 
-func (u *CreatorOAuthUseCase) recordResult(ctx context.Context, result string) {
+func (u *CreatorOAuthUseCase) recordResult(ctx context.Context, creatorID, result string) {
 	u.events.Emit(ctx, events.Event{
 		Name:    events.NameCreatorOAuth,
 		Outcome: result,
+		Fields:  map[string]string{"creator_id": creatorID},
 	})
 }

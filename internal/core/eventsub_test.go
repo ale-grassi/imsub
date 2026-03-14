@@ -413,14 +413,15 @@ func TestDumpCurrentSubscribersMarksReconnectRequiredOnceOnRefreshFailure(t *tes
 		t.Fatalf("notified creators = %+v, want one creator c1", notifier.notified)
 	}
 	wantEvents := []events.Event{
-		{Name: events.NameCreatorTokenRefresh, Outcome: "failed"},
+		{Name: events.NameCreatorTokenRefresh, Outcome: "failed", Fields: map[string]string{"creator_id": "c1"}},
 		{Name: events.NameCreatorAuthTransition, Fields: map[string]string{
-			"from":   string(CreatorAuthHealthy),
-			"to":     string(CreatorAuthReconnectRequired),
-			"reason": creatorAuthErrorTokenRefreshFailed,
+			"creator_id": "c1",
+			"from":       string(CreatorAuthHealthy),
+			"to":         string(CreatorAuthReconnectRequired),
+			"reason":     creatorAuthErrorTokenRefreshFailed,
 		}},
 		{Name: events.NameCreatorsReconnectRequired, Count: 1},
-		{Name: events.NameCreatorReconnectNotice, Outcome: "ok"},
+		{Name: events.NameCreatorReconnectNotice, Outcome: "ok", Fields: map[string]string{"creator_id": "c1"}},
 	}
 	if !slices.EqualFunc(observer.events, wantEvents, func(a, b events.Event) bool {
 		return a.Name == b.Name && a.Outcome == b.Outcome && a.Count == b.Count && eventSubMapsEqual(a.Fields, b.Fields)

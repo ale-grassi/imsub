@@ -24,12 +24,12 @@ func TestNilSafety(t *testing.T) {
 	m.ResetGroupTargets("tracked", 2)
 	m.GroupRegistration("registered")
 	m.GroupUnregistration("unregistered")
-	m.CreatorActivation("success")
+	m.CreatorActivation("creator-1", "success")
 	m.SubscriptionEnd("applied")
 	m.ReconciliationRepair("tracked_reverse_index", "ok", 2)
 	m.ViewerOAuth("success")
-	m.CreatorOAuth("success")
-	m.CreatorStatus("loaded")
+	m.CreatorOAuth("creator-1", "success")
+	m.CreatorStatus("creator-1", "loaded")
 	m.ViewerAccess("linked")
 	m.ViewerJoinTargets("invite_groups", 2)
 	m.ViewerInviteLink("ok")
@@ -42,6 +42,13 @@ func TestNilSafety(t *testing.T) {
 	m.LinkedViewerAccounts(5)
 	m.LinkedCreatorAccounts(2)
 	m.ManagedGroups(3)
+	m.CreatorInfo("creator-1", "Alpha", "alpha")
+	m.CreatorManagedGroups("creator-1", 2)
+	m.CreatorSubscribers("creator-1", 10)
+	m.CreatorBlockedUsers("creator-1", 1)
+	m.CreatorTrackedMembers("creator-1", 4)
+	m.CreatorUntrackedMembers("creator-1", 3)
+	m.CreatorReconnectRequired("creator-1", true)
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
 	rec := httptest.NewRecorder()
@@ -64,12 +71,12 @@ func TestMetricsExposure(t *testing.T) {
 	m.ResetGroupTargets("tracked", 2)
 	m.GroupRegistration("registered")
 	m.GroupUnregistration("unregistered")
-	m.CreatorActivation("success")
+	m.CreatorActivation("creator-1", "success")
 	m.SubscriptionEnd("applied")
 	m.ReconciliationRepair("tracked_reverse_index", "ok", 2)
 	m.ViewerOAuth("success")
-	m.CreatorOAuth("success")
-	m.CreatorStatus("loaded")
+	m.CreatorOAuth("creator-1", "success")
+	m.CreatorStatus("creator-1", "loaded")
 	m.ViewerAccess("linked")
 	m.ViewerJoinTargets("invite_groups", 2)
 	m.ViewerInviteLink("ok")
@@ -82,6 +89,13 @@ func TestMetricsExposure(t *testing.T) {
 	m.LinkedViewerAccounts(5)
 	m.LinkedCreatorAccounts(2)
 	m.ManagedGroups(3)
+	m.CreatorInfo("creator-1", "Alpha", "alpha")
+	m.CreatorManagedGroups("creator-1", 2)
+	m.CreatorSubscribers("creator-1", 10)
+	m.CreatorBlockedUsers("creator-1", 1)
+	m.CreatorTrackedMembers("creator-1", 4)
+	m.CreatorUntrackedMembers("creator-1", 3)
+	m.CreatorReconnectRequired("creator-1", true)
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
 	rec := httptest.NewRecorder()
@@ -122,6 +136,13 @@ func TestMetricsExposure(t *testing.T) {
 		"imsub_linked_viewer_accounts",
 		"imsub_linked_creator_accounts",
 		"imsub_managed_groups",
+		"imsub_creator_info",
+		"imsub_creator_managed_groups",
+		"imsub_creator_subscribers",
+		"imsub_creator_blocked_users",
+		"imsub_creator_tracked_members",
+		"imsub_creator_untracked_members",
+		"imsub_creator_reconnect_required",
 	}
 	for _, needle := range needles {
 		if !strings.Contains(body, needle) {
@@ -238,16 +259,17 @@ func TestEmitProjectsEventSubEvents(t *testing.T) {
 	t.Parallel()
 
 	m := New()
-	m.Emit(t.Context(), events.Event{Name: events.NameCreatorTokenRefresh, Outcome: "ok"})
-	m.Emit(t.Context(), events.Event{Name: events.NameCreatorBlocklistSync, Outcome: "ok", Count: 4})
-	m.Emit(t.Context(), events.Event{Name: events.NameCreatorBlocklistEnforcement, Outcome: "ok", Count: 2})
+	m.Emit(t.Context(), events.Event{Name: events.NameCreatorTokenRefresh, Outcome: "ok", Fields: map[string]string{"creator_id": "c1"}})
+	m.Emit(t.Context(), events.Event{Name: events.NameCreatorBlocklistSync, Outcome: "ok", Count: 4, Fields: map[string]string{"creator_id": "c1"}})
+	m.Emit(t.Context(), events.Event{Name: events.NameCreatorBlocklistEnforcement, Outcome: "ok", Count: 2, Fields: map[string]string{"creator_id": "c1"}})
 	m.Emit(t.Context(), events.Event{Name: events.NameCreatorAuthTransition, Fields: map[string]string{
-		"from":   "healthy",
-		"to":     "reconnect_required",
-		"reason": "token_refresh_failed",
+		"creator_id": "c1",
+		"from":       "healthy",
+		"to":         "reconnect_required",
+		"reason":     "token_refresh_failed",
 	}})
 	m.Emit(t.Context(), events.Event{Name: events.NameCreatorsReconnectRequired, Count: 3})
-	m.Emit(t.Context(), events.Event{Name: events.NameCreatorReconnectNotice, Outcome: "failed"})
+	m.Emit(t.Context(), events.Event{Name: events.NameCreatorReconnectNotice, Outcome: "failed", Fields: map[string]string{"creator_id": "c1"}})
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
 	rec := httptest.NewRecorder()
@@ -255,12 +277,12 @@ func TestEmitProjectsEventSubEvents(t *testing.T) {
 
 	body := rec.Body.String()
 	needles := []string{
-		`imsub_creator_token_refresh_total{result="ok"} 1`,
-		`imsub_creator_blocklist_sync_total{result="ok"} 4`,
-		`imsub_creator_blocklist_enforcement_total{result="ok"} 2`,
-		`imsub_creator_auth_state_transitions_total{from="healthy",reason="token_refresh_failed",to="reconnect_required"} 1`,
+		`imsub_creator_token_refresh_total{creator_id="c1",result="ok"} 1`,
+		`imsub_creator_blocklist_sync_total{creator_id="c1",result="ok"} 4`,
+		`imsub_creator_blocklist_enforcement_total{creator_id="c1",result="ok"} 2`,
+		`imsub_creator_auth_state_transitions_total{creator_id="c1",from="healthy",reason="token_refresh_failed",to="reconnect_required"} 1`,
 		`imsub_creators_reconnect_required 3`,
-		`imsub_creator_reconnect_notifications_total{result="failed"} 1`,
+		`imsub_creator_reconnect_notifications_total{creator_id="c1",result="failed"} 1`,
 	}
 	for _, needle := range needles {
 		if !strings.Contains(body, needle) {
@@ -273,7 +295,7 @@ func TestEmitProjectsNewApplicationEvents(t *testing.T) {
 	t.Parallel()
 
 	m := New()
-	m.Emit(t.Context(), events.Event{Name: events.NameCreatorActivation, Outcome: "success"})
+	m.Emit(t.Context(), events.Event{Name: events.NameCreatorActivation, Outcome: "success", Fields: map[string]string{"creator_id": "c1"}})
 	m.Emit(t.Context(), events.Event{Name: events.NameSubscriptionEnd, Outcome: "applied"})
 	m.Emit(t.Context(), events.Event{
 		Name:    events.NameReconciliationRepair,
@@ -288,7 +310,7 @@ func TestEmitProjectsNewApplicationEvents(t *testing.T) {
 
 	body := rec.Body.String()
 	needles := []string{
-		`imsub_creator_activation_total{result="success"} 1`,
+		`imsub_creator_activation_total{creator_id="c1",result="success"} 1`,
 		`imsub_subscription_end_total{result="applied"} 1`,
 		`imsub_reconciliation_repairs_total{outcome="ok",repair="tracked_reverse_index"} 3`,
 	}

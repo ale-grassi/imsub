@@ -113,7 +113,7 @@ func (s *CreatorBlocklistService) SyncCreatorBlocklist(ctx context.Context, crea
 		if err != nil && !refreshed && isUnauthorized(err) {
 			updated, refreshErr := s.refreshCreatorAccessToken(ctx, creator)
 			if refreshErr != nil {
-				s.emitBlocklistSync(ctx, "failed", total)
+				s.emitBlocklistSync(ctx, creator.ID, "failed", total)
 				s.markCreatorReconnectRequired(ctx, creator, creatorAuthErrorBlocklistTokenRefreshFailed)
 				return total, fmt.Errorf("refresh access token on blocklist sync: %w", refreshErr)
 			}
@@ -122,13 +122,13 @@ func (s *CreatorBlocklistService) SyncCreatorBlocklist(ctx context.Context, crea
 			continue
 		}
 		if err != nil {
-			s.emitBlocklistSync(ctx, "failed", total)
+			s.emitBlocklistSync(ctx, creator.ID, "failed", total)
 			return total, fmt.Errorf("list banned user page: %w", err)
 		}
 		total += len(userIDs)
 		if len(userIDs) > 0 {
 			if err := s.store.AddToCreatorBlocklistDump(ctx, tmpKey, userIDs); err != nil {
-				s.emitBlocklistSync(ctx, "failed", total)
+				s.emitBlocklistSync(ctx, creator.ID, "failed", total)
 				return total, fmt.Errorf("add to creator blocklist dump: %w", err)
 			}
 			bannedUserIDs = append(bannedUserIDs, userIDs...)
@@ -140,18 +140,18 @@ func (s *CreatorBlocklistService) SyncCreatorBlocklist(ctx context.Context, crea
 		cursor = nextCursor
 	}
 	if err := s.store.FinalizeCreatorBlocklistDump(ctx, creator.ID, tmpKey, wroteAny); err != nil {
-		s.emitBlocklistSync(ctx, "failed", total)
+		s.emitBlocklistSync(ctx, creator.ID, "failed", total)
 		return total, fmt.Errorf("finalize creator blocklist dump: %w", err)
 	}
 	if err := s.enforceCreatorBlocklist(ctx, creator, bannedUserIDs); err != nil {
-		s.emitBlocklistSync(ctx, "failed", total)
+		s.emitBlocklistSync(ctx, creator.ID, "failed", total)
 		return total, err
 	}
 	if err := s.store.UpdateCreatorLastBanSync(ctx, creator.ID, time.Now().UTC()); err != nil {
-		s.emitBlocklistSync(ctx, "failed", total)
+		s.emitBlocklistSync(ctx, creator.ID, "failed", total)
 		return total, fmt.Errorf("update creator last ban sync: %w", err)
 	}
-	s.emitBlocklistSync(ctx, "ok", total)
+	s.emitBlocklistSync(ctx, creator.ID, "ok", total)
 	return total, nil
 }
 
@@ -174,7 +174,7 @@ func (s *CreatorBlocklistService) HandleBanEvent(ctx context.Context, creatorID,
 	if err != nil {
 		return fmt.Errorf("list managed groups by creator: %w", err)
 	}
-	return s.enforceBlockedUser(ctx, groups, twitchUserID)
+	return s.enforceBlockedUser(ctx, creator.ID, groups, twitchUserID)
 }
 
 // HandleUnbanEvent applies a Twitch channel.unban EventSub notification.
@@ -198,14 +198,14 @@ func (s *CreatorBlocklistService) enforceCreatorBlocklist(ctx context.Context, c
 		return fmt.Errorf("list managed groups by creator: %w", err)
 	}
 	for _, twitchUserID := range twitchUserIDs {
-		if err := s.enforceBlockedUser(ctx, groups, twitchUserID); err != nil {
+		if err := s.enforceBlockedUser(ctx, creator.ID, groups, twitchUserID); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (s *CreatorBlocklistService) enforceBlockedUser(ctx context.Context, groups []ManagedGroup, twitchUserID string) error {
+func (s *CreatorBlocklistService) enforceBlockedUser(ctx context.Context, creatorID string, groups []ManagedGroup, twitchUserID string) error {
 	telegramUserID, found, err := s.store.ResolveTelegramUserIDByTwitch(ctx, twitchUserID)
 	if err != nil {
 		return fmt.Errorf("resolve telegram user by twitch: %w", err)
@@ -225,13 +225,13 @@ func (s *CreatorBlocklistService) enforceBlockedUser(ctx context.Context, groups
 		}
 		enforcedGroups++
 	}
-	s.emitBlocklistEnforcement(ctx, "ok", enforcedGroups)
+	s.emitBlocklistEnforcement(ctx, creatorID, "ok", enforcedGroups)
 	return nil
 }
 
 func (s *CreatorBlocklistService) refreshCreatorAccessToken(ctx context.Context, creator Creator) (Creator, error) {
 	return refreshCreatorAccessToken(ctx, creator, s.twitch, s.store, func(result string) {
-		s.emitTokenRefresh(ctx, result)
+		s.emitTokenRefresh(ctx, creator.ID, result)
 	})
 }
 
@@ -241,34 +241,37 @@ func (s *CreatorBlocklistService) markCreatorReconnectRequired(ctx context.Conte
 	}
 }
 
-func (s *CreatorBlocklistService) emitTokenRefresh(ctx context.Context, result string) {
+func (s *CreatorBlocklistService) emitTokenRefresh(ctx context.Context, creatorID, result string) {
 	if s == nil || s.observer == nil {
 		return
 	}
 	s.observer.Emit(ctx, events.Event{
 		Name:    events.NameCreatorTokenRefresh,
 		Outcome: result,
+		Fields:  map[string]string{"creator_id": creatorID},
 	})
 }
 
-func (s *CreatorBlocklistService) emitBlocklistSync(ctx context.Context, result string, count int) {
+func (s *CreatorBlocklistService) emitBlocklistSync(ctx context.Context, creatorID, result string, count int) {
 	if s == nil || s.observer == nil {
 		return
 	}
 	s.observer.Emit(ctx, events.Event{
 		Name:    events.NameCreatorBlocklistSync,
 		Outcome: result,
+		Fields:  map[string]string{"creator_id": creatorID},
 		Count:   count,
 	})
 }
 
-func (s *CreatorBlocklistService) emitBlocklistEnforcement(ctx context.Context, result string, count int) {
+func (s *CreatorBlocklistService) emitBlocklistEnforcement(ctx context.Context, creatorID, result string, count int) {
 	if s == nil || s.observer == nil || count <= 0 {
 		return
 	}
 	s.observer.Emit(ctx, events.Event{
 		Name:    events.NameCreatorBlocklistEnforcement,
 		Outcome: result,
+		Fields:  map[string]string{"creator_id": creatorID},
 		Count:   count,
 	})
 }

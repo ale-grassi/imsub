@@ -47,7 +47,7 @@ func TestCreatorActivationSuccess(t *testing.T) {
 	if got.ResultLabel != creatorActivationResultSuccess || got.SubscriberCount != 12 {
 		t.Fatalf("got = %+v", got)
 	}
-	want := []events.Event{{Name: events.NameCreatorActivation, Outcome: creatorActivationResultSuccess}}
+	want := []events.Event{{Name: events.NameCreatorActivation, Outcome: creatorActivationResultSuccess, Fields: map[string]string{"creator_id": "c1"}}}
 	if !slices.EqualFunc(obs.events, want, equalEvents) {
 		t.Fatalf("events = %+v, want %+v", obs.events, want)
 	}
@@ -69,7 +69,7 @@ func TestCreatorActivationEnsureFailure(t *testing.T) {
 	if got.ResultLabel != creatorActivationResultEventSubFail {
 		t.Fatalf("ResultLabel = %q, want %q", got.ResultLabel, creatorActivationResultEventSubFail)
 	}
-	want := []events.Event{{Name: events.NameCreatorActivation, Outcome: creatorActivationResultEventSubFail}}
+	want := []events.Event{{Name: events.NameCreatorActivation, Outcome: creatorActivationResultEventSubFail, Fields: map[string]string{"creator_id": "c1"}}}
 	if !slices.EqualFunc(obs.events, want, equalEvents) {
 		t.Fatalf("events = %+v, want %+v", obs.events, want)
 	}
@@ -91,7 +91,7 @@ func TestCreatorActivationDumpFailure(t *testing.T) {
 	if got.ResultLabel != creatorActivationResultDumpFail {
 		t.Fatalf("ResultLabel = %q, want %q", got.ResultLabel, creatorActivationResultDumpFail)
 	}
-	want := []events.Event{{Name: events.NameCreatorActivation, Outcome: creatorActivationResultDumpFail}}
+	want := []events.Event{{Name: events.NameCreatorActivation, Outcome: creatorActivationResultDumpFail, Fields: map[string]string{"creator_id": "c1"}}}
 	if !slices.EqualFunc(obs.events, want, equalEvents) {
 		t.Fatalf("events = %+v, want %+v", obs.events, want)
 	}

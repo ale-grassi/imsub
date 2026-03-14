@@ -56,3 +56,12 @@ func (s *Store) IsTrackedGroupMember(ctx context.Context, chatID, telegramUserID
 	}
 	return res, nil
 }
+
+// CountTrackedGroupMembers returns the number of tracked members in chatID.
+func (s *Store) CountTrackedGroupMembers(ctx context.Context, chatID int64) (int, error) {
+	count, err := s.rdb.SCard(ctx, keyTrackedGroupMembers(chatID)).Result()
+	if err != nil {
+		return 0, fmt.Errorf("redis scard tracked group members: %w", err)
+	}
+	return int(count), nil
+}

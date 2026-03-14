@@ -319,7 +319,7 @@ func (e *EventSubService) DumpCurrentSubscribers(ctx context.Context, creator Cr
 
 func (e *EventSubService) refreshCreatorAccessToken(ctx context.Context, creator Creator) (Creator, error) {
 	return refreshCreatorAccessToken(ctx, creator, e.twitch, e.store, func(result string) {
-		e.emitTokenRefresh(ctx, result)
+		e.emitTokenRefresh(ctx, creator.ID, result)
 	})
 }
 
@@ -330,7 +330,7 @@ func (e *EventSubService) clearCreatorReconnectRequired(ctx context.Context, cre
 	if err := e.store.MarkCreatorAuthHealthy(ctx, creator.ID, at); err != nil {
 		return fmt.Errorf("mark creator auth healthy: %w", err)
 	}
-	e.emitAuthTransition(ctx, string(CreatorAuthReconnectRequired), string(CreatorAuthHealthy), creator.AuthErrorCode)
+	e.emitAuthTransition(ctx, creator.ID, string(CreatorAuthReconnectRequired), string(CreatorAuthHealthy), creator.AuthErrorCode)
 	e.SyncReconnectRequiredGauge(ctx)
 	return nil
 }
@@ -345,56 +345,59 @@ func (e *EventSubService) markCreatorReconnectRequired(ctx context.Context, crea
 	if !transitioned {
 		return
 	}
-	e.emitAuthTransition(ctx, string(CreatorAuthHealthy), string(CreatorAuthReconnectRequired), errorCode)
+	e.emitAuthTransition(ctx, creator.ID, string(CreatorAuthHealthy), string(CreatorAuthReconnectRequired), errorCode)
 	e.SyncReconnectRequiredGauge(ctx)
 	if e.notifier == nil {
 		return
 	}
 	if err := e.notifier.NotifyCreatorReconnectRequired(ctx, creator); err != nil {
 		e.log.Warn("notify creator reconnect required failed", "creator_id", creator.ID, "owner_telegram_id", creator.OwnerTelegramID, "error", err)
-		e.emitReconnectNotification(ctx, "failed")
+		e.emitReconnectNotification(ctx, creator.ID, "failed")
 		return
 	}
 	if err := e.store.UpdateCreatorLastReconnectNotice(ctx, creator.ID, at); err != nil {
 		e.log.Warn("update creator last reconnect notice failed", "creator_id", creator.ID, "error", err)
 	}
-	e.emitReconnectNotification(ctx, "ok")
+	e.emitReconnectNotification(ctx, creator.ID, "ok")
 }
 
 func isUnauthorized(err error) bool {
 	return err != nil && errors.Is(err, ErrUnauthorized)
 }
 
-func (e *EventSubService) emitTokenRefresh(ctx context.Context, result string) {
+func (e *EventSubService) emitTokenRefresh(ctx context.Context, creatorID, result string) {
 	if e == nil || e.observer == nil {
 		return
 	}
 	e.observer.Emit(ctx, events.Event{
 		Name:    events.NameCreatorTokenRefresh,
 		Outcome: result,
+		Fields:  map[string]string{"creator_id": creatorID},
 	})
 }
 
-func (e *EventSubService) emitAuthTransition(ctx context.Context, from, to, reason string) {
+func (e *EventSubService) emitAuthTransition(ctx context.Context, creatorID, from, to, reason string) {
 	if e == nil || e.observer == nil {
 		return
 	}
 	e.observer.Emit(ctx, events.Event{
 		Name: events.NameCreatorAuthTransition,
 		Fields: map[string]string{
-			"from":   from,
-			"to":     to,
-			"reason": reason,
+			"creator_id": creatorID,
+			"from":       from,
+			"to":         to,
+			"reason":     reason,
 		},
 	})
 }
 
-func (e *EventSubService) emitReconnectNotification(ctx context.Context, result string) {
+func (e *EventSubService) emitReconnectNotification(ctx context.Context, creatorID, result string) {
 	if e == nil || e.observer == nil {
 		return
 	}
 	e.observer.Emit(ctx, events.Event{
 		Name:    events.NameCreatorReconnectNotice,
 		Outcome: result,
+		Fields:  map[string]string{"creator_id": creatorID},
 	})
 }

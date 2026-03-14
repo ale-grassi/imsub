@@ -180,6 +180,7 @@ func Run() error {
 	subscriptionGraceTask := jobs.NewSubscriptionGraceTask(s, tgGroups, flowController, logger)
 	memberCleanupTask := jobs.NewMemberCleanupTask(s, tgGroups, flowController, logger)
 	productMetricsTask := jobs.NewProductMetricsSnapshotTask(s, metrics)
+	creatorMetricsTask := jobs.NewCreatorMetricsTask(s, metrics, logger)
 	privacyRetentionTask := jobs.NewPrivacyRetentionTask(s, cfg.UntrackedRetention)
 	var backupTask jobs.Task
 	if cfg.BackupEnabled() {
@@ -290,6 +291,12 @@ func Run() error {
 	g.Go(func() error {
 		return jobRunner.RunScheduled(gctx, jobs.Schedule{
 			Task:     productMetricsTask,
+			Interval: 5 * time.Minute,
+		})
+	})
+	g.Go(func() error {
+		return jobRunner.RunScheduled(gctx, jobs.Schedule{
+			Task:     creatorMetricsTask,
 			Interval: 5 * time.Minute,
 		})
 	})

@@ -198,13 +198,13 @@ func TestCreatorBlocklistSyncCreatorBlocklist(t *testing.T) {
 	if len(observer.events) != 3 {
 		t.Fatalf("observer events = %+v, want 3 events", observer.events)
 	}
-	if observer.events[0].Name != events.NameCreatorBlocklistEnforcement || observer.events[0].Count != 2 {
+	if observer.events[0].Name != events.NameCreatorBlocklistEnforcement || observer.events[0].Count != 2 || observer.events[0].Fields["creator_id"] != "creator-1" {
 		t.Fatalf("observer first event = %+v, want blocklist enforcement count 2", observer.events[0])
 	}
-	if observer.events[1].Name != events.NameCreatorBlocklistEnforcement || observer.events[1].Count != 2 {
+	if observer.events[1].Name != events.NameCreatorBlocklistEnforcement || observer.events[1].Count != 2 || observer.events[1].Fields["creator_id"] != "creator-1" {
 		t.Fatalf("observer second event = %+v, want blocklist enforcement count 2", observer.events[1])
 	}
-	if observer.events[2].Name != events.NameCreatorBlocklistSync || observer.events[2].Outcome != "ok" || observer.events[2].Count != 2 {
+	if observer.events[2].Name != events.NameCreatorBlocklistSync || observer.events[2].Outcome != "ok" || observer.events[2].Count != 2 || observer.events[2].Fields["creator_id"] != "creator-1" {
 		t.Fatalf("observer final event = %+v, want blocklist sync ok count 2", observer.events[2])
 	}
 }
