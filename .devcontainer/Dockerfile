@@ -28,12 +28,14 @@ COPY --from=node-toolchain /usr/local/share /usr/local/share
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+      bubblewrap \
       ca-certificates \
       curl \
       git \
       python3-pip \
       python3-venv \
       redis-tools \
+      skopeo \
       xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
@@ -41,12 +43,14 @@ RUN python3 -m pip install --no-cache-dir pre-commit
 
 RUN --mount=type=cache,target=/tmp/gocache \
     --mount=type=cache,target=/tmp/gomodcache \
+    GOCACHE=/tmp/gocache \
+    GOMODCACHE=/tmp/gomodcache \
     go install golang.org/x/tools/gopls@latest \
-    && go install github.com/go-delve/delve/cmd/dlv@latest \
-    && go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION} \
-    && go install golang.org/x/vuln/cmd/govulncheck@latest \
-    && go install github.com/zricethezav/gitleaks/v8@latest \
-    && go install github.com/rhysd/actionlint/cmd/actionlint@latest
+    && GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go install github.com/go-delve/delve/cmd/dlv@latest \
+    && GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@${GOLANGCI_LINT_VERSION} \
+    && GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go install golang.org/x/vuln/cmd/govulncheck@latest \
+    && GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go install github.com/zricethezav/gitleaks/v8@latest \
+    && GOCACHE=/tmp/gocache GOMODCACHE=/tmp/gomodcache go install github.com/rhysd/actionlint/cmd/actionlint@latest
 
 RUN npm install -g ngrok @openai/codex @anthropic-ai/claude-code @google/gemini-cli
 
@@ -68,5 +72,11 @@ RUN tmp_dir="$(mktemp -d)" \
     && install -m 0755 "${tmp_dir}/bin/flyctl" /usr/local/bin/flyctl \
     && ln -sf /usr/local/bin/flyctl /usr/local/bin/fly \
     && rm -rf "${tmp_dir}"
+
+RUN install -d -o vscode -g vscode \
+      /home/vscode/.cache \
+      /home/vscode/.cache/go-build \
+      /home/vscode/.cache/gomod \
+      /home/vscode/.cache/golangci-lint
 
 USER vscode

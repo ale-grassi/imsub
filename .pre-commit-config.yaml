@@ -3,7 +3,7 @@ repos:
     hooks:
       - id: make-ci-check
         name: make ci-check
-        entry: make ci-check
+        entry: make ci-check-parallel
         language: system
         pass_filenames: false
         always_run: true

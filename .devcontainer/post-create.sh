@@ -2,6 +2,35 @@
 
 set -euo pipefail
 
+configure_caches() {
+  local dir
+
+  for dir in "$HOME/.cache/go-build" "$HOME/.cache/gomod" "$HOME/.cache/golangci-lint" "$HOME/.cache/pre-commit"; do
+    if mkdir -p "$dir" 2>/dev/null; then
+      continue
+    fi
+
+    case "$dir" in
+      "$HOME/.cache/go-build")
+        export GOCACHE=/tmp/imsub-go-build
+        mkdir -p "$GOCACHE"
+        ;;
+      "$HOME/.cache/gomod")
+        export GOMODCACHE=/tmp/imsub-gomod
+        mkdir -p "$GOMODCACHE"
+        ;;
+      "$HOME/.cache/golangci-lint")
+        export GOLANGCI_LINT_CACHE=/tmp/imsub-golangci-lint
+        mkdir -p "$GOLANGCI_LINT_CACHE"
+        ;;
+      "$HOME/.cache/pre-commit")
+        export PRE_COMMIT_HOME=/tmp/imsub-pre-commit
+        mkdir -p "$PRE_COMMIT_HOME"
+        ;;
+    esac
+  done
+}
+
 configure_git() {
   mkdir -p /home/vscode/.config/git
 
@@ -40,10 +69,13 @@ install_repo_hooks() {
 }
 
 main() {
-  mkdir -p "$HOME/.cache/go-build" "$HOME/.cache/gomod" "$HOME/.cache/golangci-lint"
+  configure_caches
   configure_git
   install_repo_hooks
-  go mod download
+
+  if [ "${1:-}" != "--start" ]; then
+    go mod download
+  fi
 }
 
 main "$@"

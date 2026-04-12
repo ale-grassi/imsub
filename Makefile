@@ -5,6 +5,7 @@ GOLANGCI_LINT ?= golangci-lint
 GOVULNCHECK ?= govulncheck
 GITLEAKS ?= gitleaks
 CACHE_HOME ?= $(HOME)/.cache
+CI_CHECK_JOBS ?= 4
 export GOPATH := /tmp/gopath
 export GOMODCACHE := $(CACHE_HOME)/gomod
 export GOCACHE := $(CACHE_HOME)/go-build
@@ -14,7 +15,7 @@ TUNNEL_PID_FILE := tmp/ngrok.pid
 TUNNEL_LOG_FILE := tmp/ngrok.log
 NGROK_API_URL := http://127.0.0.1:4040/api/tunnels
 
-.PHONY: help run run-tunnel tunnel attach-tunnel stop-tunnel seed fmt fmt-check vet test test-integration build check ci-check lint actionlint style-check cover cover-open vuln fly-config-validate secrets-scan msg-gallery msg-gallery-md msg-gallery-tg prod-logs prod-redis-proxy
+.PHONY: help run run-tunnel tunnel attach-tunnel stop-tunnel seed fmt fmt-check vet test test-integration build check ci-check ci-check-parallel lint actionlint style-check cover cover-open vuln fly-config-validate secrets-scan msg-gallery msg-gallery-md msg-gallery-tg prod-logs prod-redis-proxy
 
 help:
 	@echo "Targets:"
@@ -42,6 +43,7 @@ help:
 	@echo "  make seed CONFIRM=seed - download the latest backup and load it into local Redis"
 	@echo "  make check    - fmt + test + build"
 	@echo "  make ci-check - run the full local equivalent of CI checks"
+	@echo "  make ci-check-parallel - run ci-check using detected CPU parallelism"
 	@echo "  make prod-logs CONFIRM=prod-logs - show recent production Fly logs"
 	@echo "  make prod-redis-proxy CONFIRM=prod-redis-proxy - open an interactive production Fly Redis proxy"
 
@@ -261,6 +263,9 @@ msg-gallery-tg:
 check: fmt test build
 
 ci-check: fmt-check vet build test test-integration lint vuln secrets-scan actionlint fly-config-validate
+
+ci-check-parallel:
+	$(MAKE) -j$(CI_CHECK_JOBS) fmt-check vet build test test-integration lint vuln secrets-scan actionlint fly-config-validate
 
 prod-logs:
 	@if [ "$(CONFIRM)" != "prod-logs" ]; then \

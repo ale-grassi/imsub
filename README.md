@@ -216,11 +216,13 @@ For webhook tunnel mode, use the same `.env.dev` file and run `make run-tunnel`.
 
 ### Devcontainer
 
-The repository includes a local-build devcontainer image. Rebuilding the container builds [`.devcontainer/Dockerfile`](/workspace/.devcontainer/Dockerfile), which bakes in the stable toolchain layers: Go, `gopls`, `dlv`, Node.js, `flyctl`, `golangci-lint`, `govulncheck`, `gitleaks`, `pre-commit`, `actionlint`, `xdg-open`, `twitch`, `ngrok`, and the AI coding CLIs (`codex`, `claude`, `gemini`). Host directories for CLI state (`~/.claude`, `~/.fly`, `~/.codex`, `~/.gemini`, `~/.config/ngrok`) are bind-mounted so login state persists across rebuilds. The `initializeCommand` creates placeholder host paths if missing.
+The repository includes a local-build devcontainer image. Rebuilding the container builds [`.devcontainer/Dockerfile`](/workspace/.devcontainer/Dockerfile), which bakes in the stable toolchain layers: Go, `gopls`, `dlv`, Node.js, `flyctl`, `golangci-lint`, `govulncheck`, `gitleaks`, `pre-commit`, `actionlint`, `xdg-open`, `twitch`, `ngrok`, `bubblewrap`, and the AI coding CLIs (`codex`, `claude`, `gemini`). Host directories for CLI state (`~/.claude`, `~/.fly`, `~/.codex`, `~/.gemini`, `~/.config/ngrok`) are bind-mounted so login state persists across rebuilds. The `initializeCommand` creates placeholder host paths if missing.
 
 The local Redis service lives at `redis://default:@redis:6379/0` from inside the devcontainer and keeps its data in a named Docker volume so seeded data survives rebuilds and restarts.
 
 The post-create step is intentionally small now. It only applies workspace-specific setup such as Git config inclusion, commit-signing integration, `pre-commit install`, and `go mod download`.
+
+If Codex reports `could not find bubblewrap on PATH`, rebuild the devcontainer so the packaged `bubblewrap` binary from the image is present inside the container.
 
 **1Password SSH signing:** If you require signed commits, the host must provide `/opt/1Password/op-ssh-sign` and the relevant Git signer configuration. Without that signer, signed commits in the container will not work.
 
@@ -346,7 +348,7 @@ The backup-load flow uses `RESTORE REPLACE` for each `imsub:*` key, so it keeps 
 pre-commit run --all-files
 ```
 
-In the devcontainer, `pre-commit` is installed in the image and the git hook is registered automatically by the post-create step. The pre-commit gate runs `make ci-check`, and `ci-check` is the canonical local equivalent of CI, including `actionlint`, Fly config validation, and the repository security checks.
+In the devcontainer, `pre-commit` is installed in the image and the git hook is registered automatically by the post-create step. The pre-commit gate runs `make ci-check-parallel`, which fans out `make ci-check` using the detected CPU count. `ci-check` remains the canonical local equivalent of CI, including `actionlint`, Fly config validation, and the repository security checks.
 
 ---
 

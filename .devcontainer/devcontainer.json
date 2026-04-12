@@ -51,6 +51,7 @@
     "FLY_ACCESS_TOKEN": "${localEnv:FLY_ACCESS_TOKEN}"
   },
   "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "postStartCommand": "bash .devcontainer/post-create.sh --start",
   "remoteUser": "vscode",
   "forwardPorts": [
     8080,
