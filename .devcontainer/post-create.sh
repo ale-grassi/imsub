@@ -40,6 +40,7 @@ install_repo_hooks() {
 }
 
 main() {
+  mkdir -p "$HOME/.cache/go-build" "$HOME/.cache/gomod" "$HOME/.cache/golangci-lint"
   configure_git
   install_repo_hooks
   go mod download

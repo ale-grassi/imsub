@@ -15,8 +15,9 @@ ARG TWITCH_CLI_VERSION=v1.1.24
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PATH=/usr/local/go/bin:/usr/local/bin:${PATH}
-ENV GOCACHE=/tmp/gocache
-ENV GOMODCACHE=/tmp/gomodcache
+ENV GOCACHE=/home/vscode/.cache/go-build
+ENV GOMODCACHE=/home/vscode/.cache/gomod
+ENV GOLANGCI_LINT_CACHE=/home/vscode/.cache/golangci-lint
 ENV GOBIN=/usr/local/bin
 
 COPY --from=go-toolchain /usr/local/go /usr/local/go

@@ -13,37 +13,56 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    name: Detect relevant changes
+    runs-on: ubuntu-latest
+    outputs:
+      workflows: ${{ steps.filter.outputs.workflows }}
+      fly: ${{ steps.filter.outputs.fly }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            workflows:
+              - '.github/workflows/**'
+            fly:
+              - 'fly.toml'
+              - 'Dockerfile'
+              - '.dockerignore'
+              - '.github/workflows/main.yml'
 
   fly-config:
     name: Fly config validation
+    needs: changes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
+      - name: Skip Fly config validation
+        if: needs.changes.outputs.fly != 'true'
+        run: echo "No Fly or deploy-related changes; skipping Fly config validation."
+
       - uses: superfly/flyctl-actions/setup-flyctl@master
+        if: needs.changes.outputs.fly == 'true'
         with:
           version: v0.4.19
 
       - name: Validate Fly config
+        if: needs.changes.outputs.fly == 'true'
         run: flyctl config validate --strict -c fly.toml
         env:
           FLY_ACCESS_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
-  checks:
-    name: Checks (vet, build, test, integration)
+  vet:
+    name: Vet
     runs-on: ubuntu-latest
-    services:
-      redis:
-        image: redis:8-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
       - uses: actions/checkout@v6
         with:
@@ -57,8 +76,34 @@ jobs:
       - name: Vet
         run: make vet
 
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
       - name: Build
         run: make build
+
+  unit-tests-race:
+    name: Unit Tests (race)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
 
       - name: Test with race detector and coverage
         run: go test -race -count=1 -covermode=atomic -coverprofile=coverage.out ./...
@@ -84,6 +129,29 @@ jobs:
             coverage.out
             coverage.txt
             coverage.html
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
 
       - name: Integration Tests
         run: make test-integration
@@ -113,13 +181,19 @@ jobs:
 
   actionlint:
     name: Workflow lint
+    needs: changes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
+      - name: Skip workflow lint
+        if: needs.changes.outputs.workflows != 'true'
+        run: echo "No workflow changes; skipping actionlint."
+
       - name: Lint GitHub Actions workflows
+        if: needs.changes.outputs.workflows == 'true'
         uses: raven-actions/actionlint@v2
 
   vulncheck:
@@ -153,7 +227,7 @@ jobs:
 
   deploy:
     name: Deploy to production
-    needs: [fly-config, checks, lint, actionlint, vulncheck, gitleaks]
+    needs: [fly-config, vet, build, unit-tests-race, integration-tests, lint, actionlint, vulncheck, gitleaks]
     runs-on: ubuntu-latest
     environment:
       name: production

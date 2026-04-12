@@ -14,19 +14,40 @@ permissions:
   contents: read
 
 jobs:
-  checks:
-    name: Checks (vet, build, test, integration)
+  changes:
+    name: Detect relevant changes
     runs-on: ubuntu-latest
-    services:
-      redis:
-        image: redis:8-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    outputs:
+      go_ci: ${{ steps.filter.outputs.go_ci }}
+      workflows: ${{ steps.filter.outputs.workflows }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            go_ci:
+              - 'cmd/**'
+              - 'internal/**'
+              - 'tests/**'
+              - '*.go'
+              - 'go.mod'
+              - 'go.sum'
+              - 'Makefile'
+              - '.golangci.yml'
+              - '.pre-commit-config.yaml'
+              - '.github/workflows/ci.yml'
+            workflows:
+              - '.github/workflows/**'
+
+  vet:
+    name: Vet
+    needs: changes
+    if: needs.changes.outputs.go_ci == 'true'
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
@@ -40,11 +61,23 @@ jobs:
       - name: Vet
         run: make vet
 
-      - name: Build
-        run: make build
+  unit-tests:
+    name: Unit Tests
+    needs: changes
+    if: needs.changes.outputs.go_ci == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
 
-      - name: Test with race detector and coverage
-        run: go test -race -count=1 -covermode=atomic -coverprofile=coverage.out ./...
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Test with coverage
+        run: go test -count=1 -covermode=atomic -coverprofile=coverage.out ./...
 
       - name: Generate coverage summary
         run: |
@@ -68,6 +101,31 @@ jobs:
             coverage.txt
             coverage.html
 
+  integration-tests:
+    name: Integration Tests
+    needs: changes
+    if: needs.changes.outputs.go_ci == 'true'
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
       - name: Integration Tests
         run: make test-integration
         env:
@@ -75,6 +133,8 @@ jobs:
 
   lint:
     name: Lint and format
+    needs: changes
+    if: needs.changes.outputs.go_ci == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -96,6 +156,8 @@ jobs:
 
   actionlint:
     name: Workflow lint
+    needs: changes
+    if: needs.changes.outputs.workflows == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -104,22 +166,6 @@ jobs:
 
       - name: Lint GitHub Actions workflows
         uses: raven-actions/actionlint@v2
-
-  vulncheck:
-    name: Vulnerability check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache-dependency-path: go.sum
-
-      - name: Run govulncheck
-        run: make vuln
 
   gitleaks:
     name: Secret scan
