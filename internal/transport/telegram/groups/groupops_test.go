@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
+
+	"imsub/internal/core"
 
 	"github.com/mymmrac/telego"
 	"github.com/mymmrac/telego/telegoapi"
@@ -63,6 +66,7 @@ func TestCreateInviteLinkUsesJoinRequestLink(t *testing.T) {
 	}
 	caller.assertJSONField(t, "createChatInviteLink", "creates_join_request", true)
 	caller.assertJSONField(t, "createChatInviteLink", "name", "imsub-200-viewer")
+	caller.assertExpireDateNear(t, "createChatInviteLink", core.ViewerInviteLinkTTL)
 	if _, ok := caller.request["createChatInviteLink"]["member_limit"]; ok {
 		t.Fatal("createChatInviteLink payload unexpectedly included member_limit")
 	}
@@ -87,6 +91,7 @@ func TestCreateBootstrapInviteLinkUsesSingleUseDirectLink(t *testing.T) {
 	}
 	caller.assertJSONField(t, "createChatInviteLink", "member_limit", float64(1))
 	caller.assertJSONField(t, "createChatInviteLink", "name", "imsub-bootstrap")
+	caller.assertExpireDateNear(t, "createChatInviteLink", core.BootstrapInviteLinkTTL)
 	if _, ok := caller.request["createChatInviteLink"]["creates_join_request"]; ok {
 		t.Fatal("createChatInviteLink payload unexpectedly included creates_join_request=false")
 	}
@@ -126,5 +131,27 @@ func (c *groupOpsRecordingCaller) assertJSONField(t *testing.T, method, field st
 	}
 	if got, ok := payload[field]; !ok || got != want {
 		t.Fatalf("%s payload[%q] = %#v, want %#v", method, field, got, want)
+	}
+}
+
+func (c *groupOpsRecordingCaller) assertExpireDateNear(t *testing.T, method string, ttl time.Duration) {
+	t.Helper()
+
+	payload, ok := c.request[method]
+	if !ok {
+		t.Fatalf("request for method %q not recorded", method)
+	}
+	raw, ok := payload["expire_date"].(float64)
+	if !ok {
+		t.Fatalf("%s payload missing expire_date: %#v", method, payload)
+	}
+	got := time.Unix(int64(raw), 0)
+	want := time.Now().Add(ttl)
+	diff := got.Sub(want)
+	if diff < 0 {
+		diff = -diff
+	}
+	if diff > 5*time.Second {
+		t.Fatalf("%s expire_date = %v, want within 5s of %v", method, got, want)
 	}
 }

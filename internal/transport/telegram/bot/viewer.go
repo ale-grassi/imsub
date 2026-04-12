@@ -5,13 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"html"
-	"strings"
-	"time"
-
 	"imsub/internal/core"
 	"imsub/internal/platform/i18n"
 	"imsub/internal/transport/telegram/client"
 	"imsub/internal/transport/telegram/ui"
+	"strings"
 
 	"github.com/mymmrac/telego"
 	tghandler "github.com/mymmrac/telego/telegohandler"
@@ -55,7 +53,7 @@ func (c *Bot) handleViewerStartForUser(ctx context.Context, telegramUserID int64
 			Language:        lang,
 			PromptMessageID: editMsgID,
 		}
-		state, err := c.createOAuthState(ctx, payload, 10*time.Minute)
+		state, err := c.createOAuthState(ctx, payload, core.OAuthStateTTL)
 		if err != nil {
 			view := buildViewerErrorView(lang)
 			c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
@@ -73,7 +71,7 @@ func (c *Bot) handleViewerStartForUser(ctx context.Context, telegramUserID int64
 			return ""
 		}
 		payload.PromptMessageID = messageID
-		if err := c.store.SaveOAuthState(ctx, state, payload, 10*time.Minute); err != nil {
+		if err := c.store.SaveOAuthState(ctx, state, payload, core.OAuthStateTTL); err != nil {
 			c.log().Warn("saveOAuthState prompt message update failed", "error", err)
 		}
 		return ""

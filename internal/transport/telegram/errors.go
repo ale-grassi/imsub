@@ -25,3 +25,12 @@ func IsBadRequest(err error) bool {
 	}
 	return false
 }
+
+// IsTooManyRequests reports whether err is a Telegram API 429 Too Many Requests response.
+func IsTooManyRequests(err error) bool {
+	var apiErr *telegoapi.Error
+	if errors.As(err, &apiErr) {
+		return apiErr.ErrorCode == http.StatusTooManyRequests
+	}
+	return false
+}

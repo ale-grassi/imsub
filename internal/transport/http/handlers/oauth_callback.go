@@ -26,8 +26,8 @@ var (
 	oauthErrorExpiredLink = oauthErrorPage{
 		Status:  http.StatusBadRequest,
 		Title:   "Twitch link expired",
-		Message: "This Twitch link has expired or was already used.",
-		Hint:    "Return to Telegram and request a new link.",
+		Message: "This Twitch authorization link expired, was already used, or was cleared before Twitch redirected back.",
+		Hint:    "Return to Telegram and request a new link. Authorization links stay valid for 30 minutes and can only be used once.",
 	}
 	oauthErrorUnknownLinkType = oauthErrorPage{
 		Status:  http.StatusBadRequest,

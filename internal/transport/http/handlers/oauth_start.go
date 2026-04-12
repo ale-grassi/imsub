@@ -6,6 +6,7 @@ import (
 
 	"imsub/internal/adapter/twitch"
 	"imsub/internal/core"
+	"imsub/internal/events"
 	"imsub/internal/transport/http/pages"
 )
 
@@ -18,8 +19,21 @@ type oauthErrorPage = pages.OAuthErrorPage
 
 // OAuthStart validates state and renders the Twitch authorization launch page.
 func (c *Controller) OAuthStart(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	state := r.PathValue("state")
+	modeLabel := "unknown"
+	resultLabel := "error"
+	defer func() {
+		if c.events != nil {
+			c.events.Emit(ctx, events.Event{
+				Name:    events.NameOAuthStart,
+				Outcome: resultLabel,
+				Fields:  map[string]string{"mode": modeLabel},
+			})
+		}
+	}()
 	if strings.TrimSpace(state) == "" {
+		resultLabel = "missing_state"
 		renderOAuthError(w, oauthErrorPage{
 			Status:  http.StatusBadRequest,
 			Title:   "Missing Twitch link",
@@ -29,13 +43,14 @@ func (c *Controller) OAuthStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	payload, err := c.store.OAuthState(r.Context(), state)
+	payload, err := c.store.OAuthState(ctx, state)
 	if err != nil {
+		resultLabel = "missing_state"
 		renderOAuthError(w, oauthErrorPage{
 			Status:  http.StatusBadRequest,
-			Title:   "Link expired",
-			Message: "This Twitch link is no longer valid.",
-			Hint:    "Return to Telegram and request a new link.",
+			Title:   "Twitch authorization link expired",
+			Message: "This Twitch authorization link expired before it was opened.",
+			Hint:    "Return to Telegram and request a new link. Authorization links stay valid for 30 minutes.",
 		})
 		return
 	}
@@ -43,10 +58,14 @@ func (c *Controller) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	scope := ""
 	switch payload.Mode {
 	case core.OAuthModeViewer:
+		modeLabel = string(core.OAuthModeViewer)
 		scope = ""
 	case core.OAuthModeCreator:
+		modeLabel = string(core.OAuthModeCreator)
 		scope = strings.Join([]string{core.ScopeChannelReadSubscriptions, core.ScopeModerationRead}, " ")
 	default:
+		modeLabel = string(payload.Mode)
+		resultLabel = "unknown_mode"
 		renderOAuthError(w, oauthErrorPage{
 			Status:  http.StatusBadRequest,
 			Title:   "Unknown link type",
@@ -57,5 +76,6 @@ func (c *Controller) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	oauthURL := twitch.OAuthURL(c.cfg.TwitchClientID, c.cfg.PublicBaseURL+"/auth/callback", state, scope)
+	resultLabel = "ok"
 	c.renderOAuthLaunchPage(w, oauthURL)
 }

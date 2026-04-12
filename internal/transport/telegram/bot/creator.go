@@ -174,7 +174,7 @@ func (c *Bot) creatorReconnectURL(ctx context.Context, telegramUserID int64, lan
 		Language:       lang,
 		Reconnect:      true,
 	}
-	state, err := c.createOAuthState(ctx, payload, 10*time.Minute)
+	state, err := c.createOAuthState(ctx, payload, core.OAuthStateTTL)
 	if err != nil {
 		return "", err
 	}
@@ -189,7 +189,7 @@ func (c *Bot) replyCreatorOAuthPrompt(ctx context.Context, telegramUserID int64,
 		PromptMessageID: editMsgID,
 		Reconnect:       reconnect,
 	}
-	state, err := c.createOAuthState(ctx, payload, 10*time.Minute)
+	state, err := c.createOAuthState(ctx, payload, core.OAuthStateTTL)
 	if err != nil {
 		view := buildCreatorLinkErrorView(lang)
 		c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
@@ -207,7 +207,7 @@ func (c *Bot) replyCreatorOAuthPrompt(ctx context.Context, telegramUserID int64,
 		return ""
 	}
 	payload.PromptMessageID = messageID
-	if err := c.store.SaveOAuthState(ctx, state, payload, 10*time.Minute); err != nil {
+	if err := c.store.SaveOAuthState(ctx, state, payload, core.OAuthStateTTL); err != nil {
 		c.log().Warn("saveOAuthState creator prompt message update failed", "error", err)
 	}
 	return ""

@@ -15,6 +15,7 @@ func TestNilSafety(t *testing.T) {
 	t.Parallel()
 
 	var m *Metrics
+	m.OAuthStart("viewer", "ok")
 	m.OAuthCallback("viewer", "ok")
 	m.EventSubMessage("notification", "channel.subscribe", "ok")
 	m.TwitchEventSubNotification("creator-1", "notification", "channel.subscribe", "notification_subscribe")
@@ -33,7 +34,7 @@ func TestNilSafety(t *testing.T) {
 	m.CreatorStatus("creator-1", "loaded")
 	m.ViewerAccess("linked")
 	m.ViewerJoinTargets("invite_groups", 2)
-	m.ViewerInviteLink("ok")
+	m.ViewerInviteLink("ok", "none")
 	m.TelegramCommand("start", "private")
 	m.TelegramCommandResponse("start", "private", "ok", 150*time.Millisecond)
 	m.TelegramCallback("group", "pick")
@@ -65,6 +66,7 @@ func TestMetricsExposure(t *testing.T) {
 	t.Parallel()
 
 	m := New()
+	m.OAuthStart("viewer", "ok")
 	m.OAuthCallback("viewer", "success")
 	m.EventSubMessage("notification", "channel.subscribe", "ok")
 	m.TwitchEventSubNotification("creator-1", "notification", "channel.subscribe", "notification_subscribe")
@@ -83,7 +85,7 @@ func TestMetricsExposure(t *testing.T) {
 	m.CreatorStatus("creator-1", "loaded")
 	m.ViewerAccess("linked")
 	m.ViewerJoinTargets("invite_groups", 2)
-	m.ViewerInviteLink("ok")
+	m.ViewerInviteLink("ok", "none")
 	m.TelegramCommand("start", "private")
 	m.TelegramCommandResponse("start", "private", "ok", 150*time.Millisecond)
 	m.TelegramCallback("group", "pick")
@@ -113,6 +115,7 @@ func TestMetricsExposure(t *testing.T) {
 	body := rec.Body.String()
 	needles := []string{
 		"imsub_oauth_callbacks_total",
+		"imsub_oauth_starts_total",
 		"imsub_eventsub_messages_total",
 		"imsub_twitch_eventsub_notifications_total",
 		"imsub_telegram_webhook_updates_total",
@@ -191,19 +194,27 @@ func TestEmitProjectsViewerEvents(t *testing.T) {
 	t.Parallel()
 
 	m := New()
+	m.Emit(t.Context(), events.Event{Name: events.NameOAuthStart, Outcome: "ok", Fields: map[string]string{"mode": "viewer"}})
 	m.Emit(t.Context(), events.Event{Name: events.NameViewerJoinTarget, Fields: map[string]string{"kind": "invite_groups"}, Count: 2})
-	m.Emit(t.Context(), events.Event{Name: events.NameViewerInviteLink, Outcome: "ok"})
+	m.Emit(t.Context(), events.Event{Name: events.NameViewerInviteLink, Outcome: "ok", Fields: map[string]string{"reason": "none"}})
+	m.Emit(t.Context(), events.Event{Name: events.NameViewerInviteLink, Outcome: "failed", Fields: map[string]string{"reason": "bad_request"}})
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
 	rec := httptest.NewRecorder()
 	m.Handler().ServeHTTP(rec, req)
 
 	body := rec.Body.String()
+	if !strings.Contains(body, `imsub_oauth_starts_total{mode="viewer",result="ok"} 1`) {
+		t.Fatalf("metrics output missing projected oauth_start event: %s", body)
+	}
 	if !strings.Contains(body, `imsub_viewer_join_targets_total{kind="invite_groups"} 2`) {
 		t.Fatalf("metrics output missing projected viewer_join_target event: %s", body)
 	}
-	if !strings.Contains(body, `imsub_viewer_invite_links_total{result="ok"} 1`) {
+	if !strings.Contains(body, `imsub_viewer_invite_links_total{reason="none",result="ok"} 1`) {
 		t.Fatalf("metrics output missing projected viewer_invite_link event: %s", body)
+	}
+	if !strings.Contains(body, `imsub_viewer_invite_links_total{reason="bad_request",result="failed"} 1`) {
+		t.Fatalf("metrics output missing projected failed viewer_invite_link event: %s", body)
 	}
 }
 

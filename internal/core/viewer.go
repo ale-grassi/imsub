@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -286,7 +287,7 @@ func (b *viewerInviteBuilder) build(ctx context.Context, telegramUserID int64, g
 		inviteLink, err := b.group.CreateInviteLink(ctx, joinGroup.group.ChatID, telegramUserID, joinGroup.creatorName)
 		if err != nil {
 			b.log.Warn("create invite link failed", "creator_name", joinGroup.creatorName, "chat_id", joinGroup.group.ChatID, "error", err)
-			recordViewerInviteLink(ctx, b.obs, "failed")
+			recordViewerInviteLink(ctx, b.obs, "failed", inviteLinkFailureReason(err))
 			continue
 		}
 		links = append(links, JoinLink{
@@ -294,7 +295,7 @@ func (b *viewerInviteBuilder) build(ctx context.Context, telegramUserID int64, g
 			GroupName:   joinGroup.group.GroupName,
 			InviteLink:  inviteLink,
 		})
-		recordViewerInviteLink(ctx, b.obs, "ok")
+		recordViewerInviteLink(ctx, b.obs, "ok", string(InviteLinkErrorReasonNone))
 	}
 	recordViewerJoinTargets(ctx, b.obs, "join_links", len(links))
 
@@ -312,12 +313,21 @@ func recordViewerJoinTargets(ctx context.Context, obs events.EventSink, kind str
 	})
 }
 
-func recordViewerInviteLink(ctx context.Context, obs events.EventSink, result string) {
+func recordViewerInviteLink(ctx context.Context, obs events.EventSink, result, reason string) {
 	if obs == nil {
 		return
 	}
 	obs.Emit(ctx, events.Event{
 		Name:    events.NameViewerInviteLink,
 		Outcome: result,
+		Fields:  map[string]string{"reason": reason},
 	})
+}
+
+func inviteLinkFailureReason(err error) string {
+	var inviteErr *InviteLinkError
+	if errors.As(err, &inviteErr) && inviteErr != nil && inviteErr.Reason != "" {
+		return string(inviteErr.Reason)
+	}
+	return string(InviteLinkErrorReasonUnknown)
 }

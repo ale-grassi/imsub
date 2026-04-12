@@ -37,6 +37,7 @@ const (
 	NameCreatorReconnectNotice      = "creator_reconnect_notification"
 	NameBackgroundJob               = "background_job"
 	NameReconciliationRepair        = "reconciliation_repair"
+	NameOAuthStart                  = "oauth_start"
 	NameOAuthCallback               = "oauth_callback"
 	NameEventSubMessage             = "eventsub_message"
 	NameTelegramWebhook             = "telegram_webhook"

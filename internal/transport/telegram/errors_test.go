@@ -38,3 +38,17 @@ func TestIsBadRequest(t *testing.T) {
 		t.Error("IsBadRequest(errors.New(\"some other error\")) = true, want false")
 	}
 }
+
+func TestIsTooManyRequests(t *testing.T) {
+	t.Parallel()
+
+	if !IsTooManyRequests(&telegoapi.Error{ErrorCode: 429, Description: "Too Many Requests"}) {
+		t.Error("IsTooManyRequests(telegoapi.Error{ErrorCode: 429}) = false, want true")
+	}
+	if IsTooManyRequests(nil) {
+		t.Error("IsTooManyRequests(nil) = true, want false")
+	}
+	if IsTooManyRequests(errors.New("some other error")) {
+		t.Error("IsTooManyRequests(errors.New(\"some other error\")) = true, want false")
+	}
+}

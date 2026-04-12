@@ -324,13 +324,56 @@ func TestBuildJoinTargetsRecordsMetrics(t *testing.T) {
 		{Name: events.NameViewerJoinTarget, Fields: map[string]string{"kind": "invite_groups"}, Count: 1},
 		{Name: events.NameViewerJoinTarget, Fields: map[string]string{"kind": "cache_removes"}, Count: 1},
 		{Name: events.NameViewerJoinTarget, Fields: map[string]string{"kind": "cache_adds"}, Count: 1},
-		{Name: events.NameViewerInviteLink, Outcome: "ok"},
+		{Name: events.NameViewerInviteLink, Outcome: "ok", Fields: map[string]string{"reason": "none"}},
 		{Name: events.NameViewerJoinTarget, Fields: map[string]string{"kind": "join_links"}, Count: 1},
 	}
 	if !slices.EqualFunc(obs.events, wantEvents, func(a, b events.Event) bool {
 		return a.Name == b.Name && a.Outcome == b.Outcome && a.Count == b.Count && viewerMapsEqual(a.Fields, b.Fields)
 	}) {
 		t.Fatalf("events = %+v, want %+v", obs.events, wantEvents)
+	}
+}
+
+func TestBuildJoinTargetsRecordsInviteFailureReason(t *testing.T) {
+	t.Parallel()
+
+	obs := &viewerObserverStub{}
+	svc := NewViewerService(
+		&viewerFakeStore{
+			listActiveCreatorsFn: func(_ context.Context) ([]Creator, error) {
+				return []Creator{{ID: "c1", TwitchLogin: "alpha"}}, nil
+			},
+			listGroupsFn: func(_ context.Context, creatorID string) ([]ManagedGroup, error) {
+				if creatorID != "c1" {
+					return nil, nil
+				}
+				return []ManagedGroup{{ChatID: 101, CreatorID: "c1", GroupName: "A"}}, nil
+			},
+			isSubscriberFn: func(_ context.Context, creatorID, _ string) (bool, error) {
+				return creatorID == "c1", nil
+			},
+		},
+		&fakeGroupOps{
+			isMemberFn: func(_ context.Context, _, _ int64) bool { return false },
+			createInviteFn: func(_ context.Context, _ int64, _ int64, _ string) (string, error) {
+				return "", &InviteLinkError{Reason: InviteLinkErrorReasonBadRequest, Err: errors.New("bad invite")}
+			},
+		},
+		nil,
+		obs,
+	)
+
+	got, err := svc.BuildJoinTargets(t.Context(), 7, "tw-1")
+	if err != nil {
+		t.Fatalf("BuildJoinTargets() error = %v", err)
+	}
+	if len(got.JoinLinks) != 0 {
+		t.Fatalf("JoinLinks = %+v, want no links on invite failure", got.JoinLinks)
+	}
+	if !slices.ContainsFunc(obs.events, func(evt events.Event) bool {
+		return evt.Name == events.NameViewerInviteLink && evt.Outcome == "failed" && evt.Fields["reason"] == "bad_request"
+	}) {
+		t.Fatalf("events = %+v, want failed invite metric with bad_request reason", obs.events)
 	}
 }
 

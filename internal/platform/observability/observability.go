@@ -18,6 +18,7 @@ import (
 const (
 	twitchEventSubResultOK     = "ok"
 	twitchEventSubResultFailed = "failed"
+	viewerInviteReasonNone     = "none"
 )
 
 // Metrics holds all Prometheus collectors used by the application.
@@ -37,6 +38,7 @@ type Metrics struct {
 	creatorTracked       *prometheus.GaugeVec
 	creatorUntracked     *prometheus.GaugeVec
 	creatorReconnectReq  *prometheus.GaugeVec
+	oauthStartsTotal     *prometheus.CounterVec
 	oauthCallbacksTotal  *prometheus.CounterVec
 	eventsubTotal        *prometheus.CounterVec
 	twitchEventSubTotal  *prometheus.CounterVec
@@ -162,6 +164,13 @@ func New() *Metrics {
 				Help: "Whether a creator currently requires reconnect.",
 			},
 			[]string{"creator_id"},
+		),
+		oauthStartsTotal: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "imsub_oauth_starts_total",
+				Help: "OAuth start page requests by mode and result.",
+			},
+			[]string{"mode", "result"},
 		),
 		oauthCallbacksTotal: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
@@ -355,9 +364,9 @@ func New() *Metrics {
 		viewerInviteLinks: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "imsub_viewer_invite_links_total",
-				Help: "Viewer invite-link creation attempts by result.",
+				Help: "Viewer invite-link creation attempts by result and normalized reason.",
 			},
-			[]string{"result"},
+			[]string{"result", "reason"},
 		),
 		telegramCommands: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
@@ -427,6 +436,7 @@ func New() *Metrics {
 		m.creatorTracked,
 		m.creatorUntracked,
 		m.creatorReconnectReq,
+		m.oauthStartsTotal,
 		m.oauthCallbacksTotal,
 		m.eventsubTotal,
 		m.twitchEventSubTotal,
@@ -724,11 +734,14 @@ func (m *Metrics) ViewerJoinTargets(kind string, count int) {
 }
 
 // ViewerInviteLink records viewer invite-link creation attempts.
-func (m *Metrics) ViewerInviteLink(result string) {
+func (m *Metrics) ViewerInviteLink(result, reason string) {
 	if m == nil {
 		return
 	}
-	m.viewerInviteLinks.WithLabelValues(httputil.LabelOrUnknown(result)).Inc()
+	if httputil.LabelOrUnknown(result) == "ok" && strings.TrimSpace(reason) == "" {
+		reason = viewerInviteReasonNone
+	}
+	m.viewerInviteLinks.WithLabelValues(httputil.LabelOrUnknown(result), httputil.LabelOrUnknown(reason)).Inc()
 }
 
 // TelegramCommand records a slash command invocation.
@@ -830,7 +843,7 @@ func (m *Metrics) Emit(_ context.Context, evt events.Event) {
 	case events.NameViewerJoinTarget:
 		m.ViewerJoinTargets(evt.Fields["kind"], evt.Count)
 	case events.NameViewerInviteLink:
-		m.ViewerInviteLink(evt.Outcome)
+		m.ViewerInviteLink(evt.Outcome, evt.Fields["reason"])
 	case events.NameCreatorTokenRefresh:
 		m.CreatorTokenRefresh(evt.Fields["creator_id"], evt.Outcome)
 	case events.NameCreatorBlocklistSync:
@@ -847,6 +860,8 @@ func (m *Metrics) Emit(_ context.Context, evt events.Event) {
 		m.BackgroundJob(evt.Fields["job"], evt.Outcome, evt.Duration)
 	case events.NameReconciliationRepair:
 		m.ReconciliationRepair(evt.Fields["repair"], evt.Outcome, evt.Count)
+	case events.NameOAuthStart:
+		m.OAuthStart(evt.Fields["mode"], evt.Outcome)
 	case events.NameOAuthCallback:
 		m.OAuthCallback(evt.Fields["mode"], evt.Outcome)
 	case events.NameEventSubMessage:
@@ -883,6 +898,14 @@ func (m *Metrics) Handler() http.Handler {
 		return http.NotFoundHandler()
 	}
 	return promhttp.HandlerFor(m.registry, promhttp.HandlerOpts{})
+}
+
+// OAuthStart records an OAuth start page request by mode and result.
+func (m *Metrics) OAuthStart(mode, result string) {
+	if m == nil {
+		return
+	}
+	m.oauthStartsTotal.WithLabelValues(httputil.LabelOrUnknown(mode), httputil.LabelOrUnknown(result)).Inc()
 }
 
 // OAuthCallback records an OAuth callback by mode and result.

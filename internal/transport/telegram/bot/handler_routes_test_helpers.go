@@ -176,6 +176,9 @@ func (h routeTestHarness) assertOAuthPromptSaved(t *testing.T, wantCalls int, wa
 	if last.PromptMessageID != wantPromptMessageID {
 		t.Fatalf("last saved payload prompt message id = %d, want %d", last.PromptMessageID, wantPromptMessageID)
 	}
+	if ttl := h.store.lastSavedStateTTL(); ttl != core.OAuthStateTTL {
+		t.Fatalf("last saved payload ttl = %s, want %s", ttl, core.OAuthStateTTL)
+	}
 }
 
 func (h routeTestHarness) assertEditMessageHasCallback(t *testing.T, body json.RawMessage, want string) {
@@ -473,6 +476,7 @@ type routeTestStore struct {
 	mu                      sync.Mutex
 	saveOAuthStateCalls     int
 	savedOAuthStateCalls    []core.OAuthStatePayload
+	savedOAuthStateTTLs     []time.Duration
 	deleteOAuthStateCalls   int
 	viewerIdentity          core.UserIdentity
 	viewerIdentityOK        bool
@@ -574,6 +578,15 @@ func (s *routeTestStore) lastSavedStatePayload() core.OAuthStatePayload {
 	return s.savedOAuthStateCalls[len(s.savedOAuthStateCalls)-1]
 }
 
+func (s *routeTestStore) lastSavedStateTTL() time.Duration {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.savedOAuthStateTTLs) == 0 {
+		return 0
+	}
+	return s.savedOAuthStateTTLs[len(s.savedOAuthStateTTLs)-1]
+}
+
 func (s *routeTestStore) activeUserTouches() []int64 {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -587,11 +600,12 @@ func (s *routeTestStore) TrackTelegramActiveUser(_ context.Context, telegramUser
 	return nil
 }
 
-func (s *routeTestStore) SaveOAuthState(_ context.Context, _ string, payload core.OAuthStatePayload, _ time.Duration) error {
+func (s *routeTestStore) SaveOAuthState(_ context.Context, _ string, payload core.OAuthStatePayload, ttl time.Duration) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.saveOAuthStateCalls++
 	s.savedOAuthStateCalls = append(s.savedOAuthStateCalls, payload)
+	s.savedOAuthStateTTLs = append(s.savedOAuthStateTTLs, ttl)
 	return nil
 }
 

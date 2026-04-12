@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"imsub/internal/core"
@@ -52,7 +53,7 @@ func New(bot *telego.Bot, lim limiter, logger *slog.Logger, store creatorStore, 
 }
 
 // CreateInviteLink creates a single-use, join-request invite link for
-// groupChatID that expires in 10 minutes.
+// groupChatID that expires after the viewer invite-link TTL.
 func (c *Client) CreateInviteLink(ctx context.Context, groupChatID int64, telegramUserID int64, name string) (string, error) {
 	return c.buildInviteLink(ctx, groupChatID, fmt.Sprintf("imsub-%d-%s", telegramUserID, name), true, 0)
 }
@@ -64,12 +65,18 @@ func (c *Client) CreateBootstrapInviteLink(ctx context.Context, groupChatID int6
 
 func (c *Client) buildInviteLink(ctx context.Context, groupChatID int64, linkName string, createsJoinRequest bool, memberLimit int) (string, error) {
 	if c == nil || c.bot == nil {
-		return "", errBotNotInitialized
+		return "", &core.InviteLinkError{Reason: core.InviteLinkErrorReasonUnknown, Err: errBotNotInitialized}
 	}
-	expire := time.Now().Add(10 * time.Minute).Unix()
+	expire := time.Now().Add(core.ViewerInviteLinkTTL).Unix()
+	if memberLimit > 0 {
+		expire = time.Now().Add(core.BootstrapInviteLinkTTL).Unix()
+	}
 	if c.limiter != nil {
 		if err := c.limiter.Wait(ctx, groupChatID); err != nil {
-			return "", fmt.Errorf("limiter wait: %w", err)
+			return "", &core.InviteLinkError{
+				Reason: core.InviteLinkErrorReasonRateLimited,
+				Err:    fmt.Errorf("limiter wait: %w", err),
+			}
 		}
 	}
 	params := &telego.CreateChatInviteLinkParams{
@@ -83,12 +90,30 @@ func (c *Client) buildInviteLink(ctx context.Context, groupChatID int64, linkNam
 	}
 	result, err := c.bot.CreateChatInviteLink(ctx, params)
 	if err != nil {
-		return "", fmt.Errorf("create chat invite link: %w", err)
+		return "", &core.InviteLinkError{
+			Reason: classifyInviteLinkError(err),
+			Err:    fmt.Errorf("create chat invite link: %w", err),
+		}
 	}
 	if result == nil || result.InviteLink == "" {
-		return "", errEmptyInviteLink
+		return "", &core.InviteLinkError{Reason: core.InviteLinkErrorReasonUnknown, Err: errEmptyInviteLink}
 	}
 	return result.InviteLink, nil
+}
+
+func classifyInviteLinkError(err error) core.InviteLinkErrorReason {
+	switch {
+	case telegram.IsForbidden(err):
+		return core.InviteLinkErrorReasonForbidden
+	case telegram.IsBadRequest(err):
+		return core.InviteLinkErrorReasonBadRequest
+	case telegram.IsTooManyRequests(err):
+		return core.InviteLinkErrorReasonRateLimited
+	case err != nil && strings.Contains(strings.ToLower(err.Error()), "rate limit"):
+		return core.InviteLinkErrorReasonRateLimited
+	default:
+		return core.InviteLinkErrorReasonUnknown
+	}
 }
 
 // IsGroupMember reports whether telegramUserID is a member/admin/creator/restricted in groupChatID.
