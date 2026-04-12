@@ -197,6 +197,16 @@ func PreviewScenarios() []PreviewScenario {
 			},
 		},
 		{
+			ID:    "creator-group-language-picker",
+			Group: "Creator",
+			Title: "Group language picker",
+			Render: func(lang string) PreviewView {
+				group := sampleGroup("VIP Lounge", 1001, core.GroupPolicyObserveWarn)
+				group.Language = "it"
+				return previewFromShared(buildCreatorGroupLanguagePickerView(lang, group))
+			},
+		},
+		{
 			ID:    "creator-group-policy-picker",
 			Group: "Creator",
 			Title: "Group policy picker",
@@ -234,6 +244,14 @@ func PreviewScenarios() []PreviewScenario {
 			Title: "Group policy saved",
 			Render: func(lang string) PreviewView {
 				return previewFromShared(buildTextViewWithArgs(lang, msgCreatorGroupPolicyUpdated, "VIP Lounge", formatCreatorGroupPolicyValue(lang, core.GroupPolicyKick)))
+			},
+		},
+		{
+			ID:    "creator-group-language-updated",
+			Group: "Creator",
+			Title: "Group language saved",
+			Render: func(lang string) PreviewView {
+				return previewFromShared(buildTextViewWithArgs(lang, msgCreatorGroupLanguageUpdated, "VIP Lounge", formatGroupLanguageValue(lang, "it")))
 			},
 		},
 		{

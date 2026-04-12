@@ -1,5 +1,5 @@
 ARG BASE_IMAGE=mcr.microsoft.com/devcontainers/base:ubuntu-22.04
-ARG GO_IMAGE=golang:1.26-bookworm
+ARG GO_IMAGE=golang:1.26.2-bookworm
 ARG NODE_IMAGE=node:24-bookworm-slim
 
 FROM ${GO_IMAGE} AS go-toolchain

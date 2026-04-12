@@ -54,7 +54,7 @@ func TestRegisterGroupNotCreator(t *testing.T) {
 		upsertFn: func(context.Context, core.ManagedGroup) error { return nil },
 	}, obs)
 
-	got, err := uc.RegisterGroup(t.Context(), 7, 100, "VIP", core.GroupPolicyObserve, 0)
+	got, err := uc.RegisterGroup(t.Context(), 7, 100, "VIP", "en", core.GroupPolicyObserve, 0)
 	if err != nil {
 		t.Fatalf("RegisterGroup error = %v", err)
 	}
@@ -84,7 +84,7 @@ func TestRegisterGroupTakenByOther(t *testing.T) {
 		upsertFn: func(context.Context, core.ManagedGroup) error { return nil },
 	}, obs)
 
-	got, err := uc.RegisterGroup(t.Context(), 7, 100, "VIP", core.GroupPolicyObserve, 0)
+	got, err := uc.RegisterGroup(t.Context(), 7, 100, "VIP", "en", core.GroupPolicyObserve, 0)
 	if err != nil {
 		t.Fatalf("RegisterGroup error = %v", err)
 	}
@@ -117,7 +117,7 @@ func TestRegisterGroupAlreadyLinkedNeedsSettingsCheckOnly(t *testing.T) {
 		upsertFn: func(context.Context, core.ManagedGroup) error { return nil },
 	}, obs)
 
-	got, err := uc.RegisterGroup(t.Context(), 7, 100, "VIP", core.GroupPolicyObserve, 0)
+	got, err := uc.RegisterGroup(t.Context(), 7, 100, "VIP", "en", core.GroupPolicyObserve, 0)
 	if err != nil {
 		t.Fatalf("RegisterGroup error = %v", err)
 	}
@@ -155,7 +155,7 @@ func TestRegisterGroupRegistered(t *testing.T) {
 		},
 	}, obs)
 
-	got, err := uc.RegisterGroup(t.Context(), 7, 100, "VIP", core.GroupPolicyObserveWarn, 321)
+	got, err := uc.RegisterGroup(t.Context(), 7, 100, "VIP", "it-IT", core.GroupPolicyObserveWarn, 321)
 	if err != nil {
 		t.Fatalf("RegisterGroup error = %v", err)
 	}
@@ -170,7 +170,7 @@ func TestRegisterGroupRegistered(t *testing.T) {
 	if got.FollowUp != wantFollowUp {
 		t.Fatalf("FollowUp = %+v, want %+v", got.FollowUp, wantFollowUp)
 	}
-	if saved.ChatID != 100 || saved.CreatorID != "c1" || saved.GroupName != "VIP" || saved.Policy != core.GroupPolicyObserveWarn || saved.RegistrationThreadID != 321 {
+	if saved.ChatID != 100 || saved.CreatorID != "c1" || saved.GroupName != "VIP" || saved.Language != "it" || saved.Policy != core.GroupPolicyObserveWarn || saved.RegistrationThreadID != 321 {
 		t.Fatalf("saved = %+v", saved)
 	}
 	want := []events.Event{{Name: events.NameGroupRegistration, Outcome: "registered"}}

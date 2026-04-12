@@ -55,8 +55,17 @@ other = "Manage: %s"
 [btn_change_group_policy]
 other = "Change policy"
 
+[btn_change_group_language]
+other = "Change language"
+
 [btn_confirm_group_policy]
 other = "Apply policy"
+
+[btn_language_english]
+other = "🇬🇧 English"
+
+[btn_language_italian]
+other = "🇮🇹 Italiano"
 
 [btn_register_creator_open]
 other = "Connect Creator Account"
@@ -116,13 +125,16 @@ other = "No groups linked yet."
 other = "🗂️ <b>Manage groups</b>\n\nSelect a group to review its settings, change how unverified members are handled, or unlink it."
 
 [creator_group_settings_html]
-other = "⚙️ <b>Group settings</b>\n\n<b>Group:</b> %s\n<b>Current settings:</b> %s"
+other = "⚙️ <b>Group settings</b>\n\n<b>Group:</b> %s\n<b>Current policy:</b> %s\n<b>Current language:</b> %s"
 
 [creator_group_policy_picker_html]
 other = "🛡️ <b>Change group policy</b>\n\nChoose what should happen when the bot sees an unverified member in this group.\n\n<b>Group:</b> %s\n<b>Current policy:</b> %s"
 
 [creator_group_policy_confirm_html]
 other = "⚠️ <b>Change group policy?</b>\n\n<b>Group:</b> %s\n<b>Current policy:</b> %s\n<b>New policy:</b> %s"
+
+[creator_group_language_picker_html]
+other = "🌐 <b>Change group language</b>\n\nChoose the language for bot messages sent in this group.\n\n<b>Group:</b> %s\n<b>Current language:</b> %s"
 
 [creator_register_info]
 other = "🎙️ <b>Set up your creator account</b>\n\nConnect your <b>Twitch creator account</b> to set up subscribers-only Telegram groups.\n\n⚠️ <b>Creator only</b>\nThese steps are only for creators who want to protect a group.\nIf you want to join a group as a subscriber, use /start instead.\n\n<b>Get started</b>\n1. Tap <b>Connect Creator Account</b>\n2. Log in on Twitch and approve access\n3. In the group you want to protect, run <code>/linkgroup</code>. You must be an admin in that group.\n\n<b>Privacy notice</b>\nImSub stores your Telegram ID, linked Twitch creator account, creator OAuth tokens, and managed-group settings to operate access control. Use /reset to export or delete your bot data.\n\n<i>If you have any problem, copy the link using the button below and paste it into a browser. If the problem persists, paste it into your browser's incognito mode.</i>"
@@ -156,6 +168,9 @@ other = "✅ <b>Group unlinked</b>\n\n<b>Group:</b> %s"
 
 [creator_group_policy_updated_html]
 other = "✅ <b>Group policy saved</b>\n\n<b>Group:</b> %s\n<b>Current policy:</b> %s"
+
+[creator_group_language_updated_html]
+other = "✅ <b>Group language saved</b>\n\n<b>Group:</b> %s\n<b>Current language:</b> %s"
 
 [creator_grace_picker_html]
 other = "⏳ <b>Subscription grace period</b>\n\nChoose how long viewers can keep access to your subscribers-only groups after their Twitch subscription expires.\n\n<b>Current setting:</b> %s\n\n<i>During grace, users cannot get new invite links, but they stay in the group until the selected time expires.</i>"

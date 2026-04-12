@@ -124,6 +124,7 @@ func Run() error {
 	privacyUC := usecase.NewPrivacyUseCase(s, cfg.PrivacyPolicyVersion, cfg.PrivacyReceiptTTL)
 	groupRegistrationUC := usecase.NewGroupRegistrationUseCase(s, eventSink)
 	groupPolicyUpdateUC := usecase.NewGroupPolicyUpdateUseCase(s, eventSink)
+	groupLanguageUpdateUC := usecase.NewGroupLanguageUpdateUseCase(s, eventSink)
 	creatorActivationUC := usecase.NewCreatorActivationUseCase(eventSubSvc, eventSink)
 	subscriptionEndUC := usecase.NewSubscriptionEndUseCase(subscriptionSvc, eventSink)
 	jobRunner := jobs.NewRunner(logger, eventSink)
@@ -166,6 +167,7 @@ func Run() error {
 		GroupRegistration:   groupRegistrationUC,
 		GroupUnregistration: groupUnregistrationUC,
 		GroupPolicyUpdate:   groupPolicyUpdateUC,
+		GroupLanguageUpdate: groupLanguageUpdateUC,
 		GroupBootstrap:      groupBootstrapSvc,
 		CreatorActivation:   creatorActivationUC,
 		SubscriptionEnd:     subscriptionEndUC,

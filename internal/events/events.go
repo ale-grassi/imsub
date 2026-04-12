@@ -13,6 +13,7 @@ const (
 	NameGroupRegistration           = "group_registration"
 	NameGroupUnregistration         = "group_unregistration"
 	NameGroupPolicyUpdate           = "group_policy_update"
+	NameGroupLanguageUpdate         = "group_language_update"
 	NameCreatorActivation           = "creator_activation"
 	NameSubscriptionEnd             = "subscription_end"
 	NameViewerOAuth                 = "viewer_oauth"

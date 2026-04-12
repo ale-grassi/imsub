@@ -21,32 +21,34 @@ import (
 )
 
 const (
-	msgErrCreatorLink            = "err_creator_link"
-	msgCreatorRegisterInfo       = "creator_register_info"
-	msgCreatorRegisteredNoGroup  = "creator_registered_no_group_html"
-	msgCreatorRegistered         = "creator_registered_html"
-	msgCreatorAuthHealthy        = "creator_auth_healthy"
-	msgCreatorAuthReconnect      = "creator_auth_reconnect_required"
-	msgCreatorSubscribersPending = "creator_subscribers_pending"
-	msgCreatorSubscribersReady   = "creator_subscribers_ready"
-	msgCreatorGroupsNone         = "creator_groups_none"
-	msgCreatorReconnectInfo      = "creator_reconnect_info"
-	msgCreatorReconnectMismatch  = "creator_reconnect_mismatch"
-	msgCreatorManageGroupsHTML   = "creator_manage_groups_html"
-	msgCreatorGroupSettingsHTML  = "creator_group_settings_html"
-	msgCreatorGroupPolicyHTML    = "creator_group_policy_picker_html"
-	msgCreatorGroupPolicyConfirm = "creator_group_policy_confirm_html"
-	msgCreatorUnregisterConfirm  = "creator_unregister_confirm_html"
-	msgCreatorGroupUnregistered  = "creator_group_unregistered_html"
-	msgCreatorGroupPolicyUpdated = "creator_group_policy_updated_html"
-	msgCreatorGracePickerHTML    = "creator_grace_picker_html"
-	msgCreatorGraceEnabled       = "creator_grace_enabled"
-	msgCreatorGraceDisabled      = "creator_grace_disabled"
-	msgCreatorGraceUpdated       = "creator_grace_updated"
-	msgCreatorBlocklistEnabled   = "creator_blocklist_enabled"
-	msgCreatorBlocklistDisabled  = "creator_blocklist_disabled"
-	msgCreatorBlocklistOnNotice  = "creator_blocklist_on_notice"
-	msgCreatorBlocklistOffNotice = "creator_blocklist_off_notice"
+	msgErrCreatorLink              = "err_creator_link"
+	msgCreatorRegisterInfo         = "creator_register_info"
+	msgCreatorRegisteredNoGroup    = "creator_registered_no_group_html"
+	msgCreatorRegistered           = "creator_registered_html"
+	msgCreatorAuthHealthy          = "creator_auth_healthy"
+	msgCreatorAuthReconnect        = "creator_auth_reconnect_required"
+	msgCreatorSubscribersPending   = "creator_subscribers_pending"
+	msgCreatorSubscribersReady     = "creator_subscribers_ready"
+	msgCreatorGroupsNone           = "creator_groups_none"
+	msgCreatorReconnectInfo        = "creator_reconnect_info"
+	msgCreatorReconnectMismatch    = "creator_reconnect_mismatch"
+	msgCreatorManageGroupsHTML     = "creator_manage_groups_html"
+	msgCreatorGroupSettingsHTML    = "creator_group_settings_html"
+	msgCreatorGroupPolicyHTML      = "creator_group_policy_picker_html"
+	msgCreatorGroupPolicyConfirm   = "creator_group_policy_confirm_html"
+	msgCreatorGroupLanguageHTML    = "creator_group_language_picker_html"
+	msgCreatorUnregisterConfirm    = "creator_unregister_confirm_html"
+	msgCreatorGroupUnregistered    = "creator_group_unregistered_html"
+	msgCreatorGroupPolicyUpdated   = "creator_group_policy_updated_html"
+	msgCreatorGroupLanguageUpdated = "creator_group_language_updated_html"
+	msgCreatorGracePickerHTML      = "creator_grace_picker_html"
+	msgCreatorGraceEnabled         = "creator_grace_enabled"
+	msgCreatorGraceDisabled        = "creator_grace_disabled"
+	msgCreatorGraceUpdated         = "creator_grace_updated"
+	msgCreatorBlocklistEnabled     = "creator_blocklist_enabled"
+	msgCreatorBlocklistDisabled    = "creator_blocklist_disabled"
+	msgCreatorBlocklistOnNotice    = "creator_blocklist_on_notice"
+	msgCreatorBlocklistOffNotice   = "creator_blocklist_off_notice"
 
 	btnRegisterCreatorOpen = "btn_register_creator_open"
 	btnReconnectCreator    = "btn_reconnect_creator"
@@ -56,8 +58,12 @@ const (
 	btnGracePeriod48h      = "btn_grace_period_48h"
 	btnGracePeriod72h      = "btn_grace_period_72h"
 	btnChangeGroupPolicy   = "btn_change_group_policy"
+	btnChangeGroupLanguage = "btn_change_group_language"
 	btnConfirmGroupPolicy  = "btn_confirm_group_policy"
+	btnLanguageEnglish     = "btn_language_english"
+	btnLanguageItalian     = "btn_language_italian"
 	btnUnregisterGroup     = "btn_unregister_group"
+	labelCurrentLanguage   = "label_current_language"
 )
 
 // onCreatorCommand handles /creator by showing the creator home/status flow.
@@ -86,6 +92,9 @@ func (c *Bot) handleCreatorCallback(ctx context.Context, userID int64, editMsgID
 		if action.target == creatorCallbackTargetPolicy {
 			return callbackNoAckAfterRender(c.replyCreatorGroupPolicyPicker(ctx, userID, editMsgID, lang, action.chatID))
 		}
+		if action.target == creatorCallbackTargetLanguage {
+			return callbackNoAckAfterRender(c.replyCreatorGroupLanguagePicker(ctx, userID, editMsgID, lang, action.chatID))
+		}
 	case callbackVerbPick:
 		if action.target == creatorCallbackTargetGroup {
 			return callbackNoAckAfterRender(c.replyCreatorGroupSettings(ctx, userID, editMsgID, lang, action.chatID, ""))
@@ -100,6 +109,9 @@ func (c *Bot) handleCreatorCallback(ctx context.Context, userID int64, editMsgID
 		if action.target == creatorCallbackTargetPolicy {
 			return callbackNoAckAfterRender(c.replyCreatorGroupSettings(ctx, userID, editMsgID, lang, action.chatID, ""))
 		}
+		if action.target == creatorCallbackTargetLanguage {
+			return callbackNoAckAfterRender(c.replyCreatorGroupSettings(ctx, userID, editMsgID, lang, action.chatID, ""))
+		}
 	case callbackVerbMenu:
 		return callbackNoAckAfterRender(c.handleCreatorStart(ctx, userID, editMsgID, lang))
 	case callbackVerbExecute:
@@ -112,6 +124,9 @@ func (c *Bot) handleCreatorCallback(ctx context.Context, userID int64, editMsgID
 		}
 		if action.target == creatorCallbackTargetPolicy {
 			return callbackNoAckAfterRender(c.executeCreatorGroupPolicyUpdate(ctx, userID, editMsgID, lang, action.chatID, action.policy))
+		}
+		if action.target == creatorCallbackTargetLanguage {
+			return callbackNoAckAfterRender(c.executeCreatorGroupLanguageUpdate(ctx, userID, editMsgID, lang, action.chatID, action.language))
 		}
 		if action.target == creatorCallbackTargetBlocklist {
 			return callbackNoAckAfterRender(c.toggleCreatorBlocklist(ctx, userID, editMsgID, lang))
@@ -502,6 +517,20 @@ func (c *Bot) replyCreatorGroupPolicyConfirm(ctx context.Context, telegramUserID
 	return ""
 }
 
+func (c *Bot) replyCreatorGroupLanguagePicker(ctx context.Context, telegramUserID int64, editMsgID int, lang string, groupChatID int64) string {
+	res, ok := c.loadCreatorStatusResult(ctx, telegramUserID, lang, editMsgID)
+	if !ok {
+		return ""
+	}
+	group, found := findCreatorManagedGroup(res.Groups, groupChatID)
+	if !found {
+		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, "")
+	}
+	view := buildCreatorGroupLanguagePickerView(lang, group)
+	c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
+	return ""
+}
+
 func (c *Bot) replyCreatorGroupUnregisterConfirm(ctx context.Context, telegramUserID int64, editMsgID int, lang string, groupChatID int64) string {
 	res, ok := c.loadCreatorStatusResult(ctx, telegramUserID, lang, editMsgID)
 	if !ok {
@@ -590,6 +619,39 @@ func (c *Bot) executeCreatorGroupPolicyUpdate(ctx context.Context, telegramUserI
 		return c.replyCreatorGroupSettings(ctx, telegramUserID, editMsgID, lang, groupChatID, notice)
 	default:
 		c.log().Warn("unsupported group policy update outcome", "chat_id", groupChatID, "outcome", res.Outcome)
+		return ""
+	}
+}
+
+func (c *Bot) executeCreatorGroupLanguageUpdate(ctx context.Context, telegramUserID int64, editMsgID int, lang string, groupChatID int64, language string) string {
+	if c.groupLanguageUpdate == nil {
+		c.log().Warn("group language update use case unavailable")
+		return ""
+	}
+
+	res, err := c.groupLanguageUpdate.UpdateGroupLanguage(ctx, telegramUserID, groupChatID, language)
+	if err != nil {
+		c.log().Warn("UpdateGroupLanguage from creator menu failed", "chat_id", groupChatID, "owner_telegram_id", telegramUserID, "language", language, "error", err)
+		view := buildCreatorStatusErrorView(lang)
+		c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
+		return view.text
+	}
+
+	switch res.Outcome {
+	case usecase.UpdateGroupLanguageOutcomeNotManaged:
+		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, "")
+	case usecase.UpdateGroupLanguageOutcomeNotOwner:
+		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, "")
+	case usecase.UpdateGroupLanguageOutcomeUnchanged, usecase.UpdateGroupLanguageOutcomeUpdated:
+		groupName := singleManagedGroupLabel(res.Group)
+		notice := fmt.Sprintf(
+			i18n.Translate(lang, msgCreatorGroupLanguageUpdated),
+			html.EscapeString(groupName),
+			html.EscapeString(formatGroupLanguageValue(lang, res.Group.Language)),
+		)
+		return c.replyCreatorGroupSettings(ctx, telegramUserID, editMsgID, lang, groupChatID, notice)
+	default:
+		c.log().Warn("unsupported group language update outcome", "chat_id", groupChatID, "outcome", res.Outcome)
 		return ""
 	}
 }
@@ -850,6 +912,7 @@ func buildCreatorGroupSettingsView(lang string, group core.ManagedGroup, backCal
 		i18n.Translate(lang, msgCreatorGroupSettingsHTML),
 		html.EscapeString(groupLabel),
 		html.EscapeString(formatCreatorGroupPolicyValue(lang, group.Policy)),
+		html.EscapeString(formatGroupLanguageValue(lang, group.Language)),
 	)
 	if strings.TrimSpace(notice) != "" {
 		text = notice + "\n\n" + text
@@ -859,8 +922,27 @@ func buildCreatorGroupSettingsView(lang string, group core.ManagedGroup, backCal
 		opts: client.MessageOptions{
 			Markup: tu.InlineKeyboard(
 				tu.InlineKeyboardRow(ui.IconCallbackButton(i18n.Translate(lang, btnChangeGroupPolicy), creatorGroupPolicyOpenCallback(group.ChatID), "5258318620722733379")),
+				tu.InlineKeyboardRow(ui.IconCallbackButton(i18n.Translate(lang, btnChangeGroupLanguage), creatorGroupLanguageOpenCallback(group.ChatID), "5879585266426973039")),
 				tu.InlineKeyboardRow(ui.UnregisterButton(i18n.Translate(lang, btnUnregisterGroup), creatorGroupConfirmCallback(group.ChatID))),
 				tu.InlineKeyboardRow(ui.BackButton(i18n.Translate(lang, btnBack), backCallback)),
+			),
+		},
+	}
+}
+
+func buildCreatorGroupLanguagePickerView(lang string, group core.ManagedGroup) sharedView {
+	groupLabel := singleManagedGroupLabel(group)
+	return sharedView{
+		text: fmt.Sprintf(
+			i18n.Translate(lang, msgCreatorGroupLanguageHTML),
+			html.EscapeString(groupLabel),
+			html.EscapeString(formatGroupLanguageValue(lang, group.Language)),
+		),
+		opts: client.MessageOptions{
+			Markup: tu.InlineKeyboard(
+				tu.InlineKeyboardRow(ui.CallbackButton(i18n.Translate(lang, btnLanguageEnglish), creatorGroupLanguageExecuteCallback(group.ChatID, "en"))),
+				tu.InlineKeyboardRow(ui.CallbackButton(i18n.Translate(lang, btnLanguageItalian), creatorGroupLanguageExecuteCallback(group.ChatID, "it"))),
+				tu.InlineKeyboardRow(ui.BackButton(i18n.Translate(lang, btnBack), creatorGroupPickCallback(group.ChatID))),
 			),
 		},
 	}
@@ -933,6 +1015,15 @@ func formatCreatorGroupPolicyValue(lang string, policy core.GroupPolicy) string 
 		return i18n.Translate(lang, btnGroupPolicyGrace)
 	default:
 		return i18n.Translate(lang, btnGroupPolicyObserve)
+	}
+}
+
+func formatGroupLanguageValue(lang, groupLang string) string {
+	switch groupLang {
+	case "it":
+		return i18n.Translate(lang, btnLanguageItalian)
+	default:
+		return i18n.Translate(lang, btnLanguageEnglish)
 	}
 }
 

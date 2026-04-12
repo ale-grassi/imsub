@@ -89,6 +89,7 @@ type Dependencies struct {
 	GroupRegistration   *usecase.GroupRegistrationUseCase
 	GroupUnregistration *usecase.GroupUnregistrationUseCase
 	GroupPolicyUpdate   *usecase.GroupPolicyUpdateUseCase
+	GroupLanguageUpdate *usecase.GroupLanguageUpdateUseCase
 	GroupBootstrap      *core.GroupBootstrapService
 	CreatorActivation   *usecase.CreatorActivationUseCase
 	SubscriptionEnd     *usecase.SubscriptionEndUseCase
@@ -141,6 +142,7 @@ type Bot struct {
 	groupRegistration   *usecase.GroupRegistrationUseCase
 	groupUnregistration *usecase.GroupUnregistrationUseCase
 	groupPolicyUpdate   *usecase.GroupPolicyUpdateUseCase
+	groupLanguageUpdate *usecase.GroupLanguageUpdateUseCase
 	groupBootstrap      *core.GroupBootstrapService
 	creatorActivation   *usecase.CreatorActivationUseCase
 	subscriptionEnd     *usecase.SubscriptionEndUseCase
@@ -174,6 +176,7 @@ func New(deps Dependencies) *Bot {
 		groupRegistration:   deps.GroupRegistration,
 		groupUnregistration: deps.GroupUnregistration,
 		groupPolicyUpdate:   deps.GroupPolicyUpdate,
+		groupLanguageUpdate: deps.GroupLanguageUpdate,
 		groupBootstrap:      deps.GroupBootstrap,
 		creatorActivation:   deps.CreatorActivation,
 		subscriptionEnd:     deps.SubscriptionEnd,

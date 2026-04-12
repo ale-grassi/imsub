@@ -185,15 +185,37 @@ func TestBuildCreatorGroupSettingsView(t *testing.T) {
 		t.Fatalf("i18n.Ensure failed: %v", err)
 	}
 
-	view := buildCreatorGroupSettingsView("en", core.ManagedGroup{ChatID: 1, GroupName: "VIP", Policy: core.GroupPolicyObserveWarn}, creatorMenuCallback(), "notice")
+	view := buildCreatorGroupSettingsView("en", core.ManagedGroup{ChatID: 1, GroupName: "VIP", Language: "it", Policy: core.GroupPolicyObserveWarn}, creatorMenuCallback(), "notice")
 	if view.text == "" || view.opts.Markup == nil {
 		t.Fatalf("buildCreatorGroupSettingsView() = %+v, want non-empty text and markup", view)
 	}
-	if !strings.Contains(view.text, "notice") || !strings.Contains(view.text, "Allow, but warn") {
-		t.Fatalf("buildCreatorGroupSettingsView() text = %q, want notice and current policy", view.text)
+	if !strings.Contains(view.text, "notice") || !strings.Contains(view.text, "Allow, but warn") || !strings.Contains(view.text, "Italiano") {
+		t.Fatalf("buildCreatorGroupSettingsView() text = %q, want notice and current policy/language", view.text)
 	}
 	if got := view.opts.Markup.InlineKeyboard[0][0].IconCustomEmojiID; got != "5258318620722733379" {
 		t.Fatalf("buildCreatorGroupSettingsView() change policy icon = %q, want %q", got, "5258318620722733379")
+	}
+	if got := view.opts.Markup.InlineKeyboard[1][0].CallbackData; got != creatorGroupLanguageOpenCallback(1) {
+		t.Fatalf("buildCreatorGroupSettingsView() language callback = %q, want %q", got, creatorGroupLanguageOpenCallback(1))
+	}
+}
+
+func TestBuildCreatorGroupLanguagePickerView(t *testing.T) {
+	t.Parallel()
+
+	if err := i18n.Ensure(); err != nil {
+		t.Fatalf("i18n.Ensure failed: %v", err)
+	}
+
+	view := buildCreatorGroupLanguagePickerView("en", core.ManagedGroup{ChatID: 1, GroupName: "VIP", Language: "it"})
+	if view.text == "" || view.opts.Markup == nil {
+		t.Fatalf("buildCreatorGroupLanguagePickerView() = %+v, want non-empty text and markup", view)
+	}
+	if !strings.Contains(view.text, "Current language") || !strings.Contains(view.text, "Italiano") {
+		t.Fatalf("buildCreatorGroupLanguagePickerView() text = %q, want current language", view.text)
+	}
+	if got := view.opts.Markup.InlineKeyboard[0][0].CallbackData; got != creatorGroupLanguageExecuteCallback(1, "en") {
+		t.Fatalf("buildCreatorGroupLanguagePickerView() callback = %q, want %q", got, creatorGroupLanguageExecuteCallback(1, "en"))
 	}
 }
 

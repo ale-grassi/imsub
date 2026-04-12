@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"imsub/internal/core"
+	"imsub/internal/platform/i18n"
 )
 
 func parseGroupTime(raw string) time.Time {
@@ -25,6 +26,7 @@ func (s *Store) parseManagedGroup(vals map[string]string, chatID int64) core.Man
 		ChatID:       chatID,
 		CreatorID:    vals["creator_id"],
 		GroupName:    vals["group_name"],
+		Language:     i18n.NormalizeLanguage(vals["language"]),
 		Policy:       core.GroupPolicy(vals["policy"]),
 		RegisteredAt: parseGroupTime(vals["registered_at"]),
 		UpdatedAt:    parseGroupTime(vals["updated_at"]),
@@ -156,6 +158,7 @@ func (s *Store) UpsertManagedGroup(ctx context.Context, group core.ManagedGroup)
 	if group.Policy == "" {
 		group.Policy = core.GroupPolicyObserve
 	}
+	group.Language = i18n.NormalizeLanguage(group.Language)
 	now := time.Now().UTC()
 	if group.RegisteredAt.IsZero() {
 		group.RegisteredAt = now
@@ -171,6 +174,7 @@ func (s *Store) UpsertManagedGroup(ctx context.Context, group core.ManagedGroup)
 		"chat_id":       strconv.FormatInt(group.ChatID, 10),
 		"creator_id":    group.CreatorID,
 		"group_name":    group.GroupName,
+		"language":      group.Language,
 		"policy":        string(group.Policy),
 		"registered_at": group.RegisteredAt.UTC().Format(time.RFC3339),
 		"updated_at":    group.UpdatedAt.UTC().Format(time.RFC3339),

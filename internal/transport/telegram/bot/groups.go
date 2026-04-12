@@ -123,6 +123,7 @@ func (c *Bot) onRegisterGroup(ctx *tghandler.Context, msg telego.Message) error 
 }
 
 func (c *Bot) handleGroupCallback(ctx context.Context, userID, chatID int64, chatTitle string, messageThreadID, editMsgID int, lang string, action callbackAction) callbackFeedback {
+	lang = c.groupChatLanguage(ctx, chatID, lang)
 	if chatID == 0 || action.chatID == 0 || action.chatID != chatID {
 		c.log().Warn("group callback chat mismatch", "telegram_user_id", userID, "callback_chat_id", action.chatID, "message_chat_id", chatID)
 		return noCallbackFeedback()
@@ -157,7 +158,7 @@ func (c *Bot) handleGroupCallback(ctx context.Context, userID, chatID int64, cha
 			c.reply(ctx, chatID, editMsgID, view.text, &view.opts)
 			return noCallbackFeedback()
 		}
-		regRes, err := c.groupRegistration.RegisterGroup(ctx, userID, chatID, chatTitle, action.policy, action.threadID)
+		regRes, err := c.groupRegistration.RegisterGroup(ctx, userID, chatID, chatTitle, lang, action.policy, action.threadID)
 		if err != nil {
 			c.log().Warn("RegisterGroup from callback failed", "chat_id", chatID, "owner_telegram_id", userID, "policy", action.policy, "error", err)
 			return noCallbackFeedback()
@@ -241,7 +242,7 @@ func (c *Bot) onUnregisterCommand(ctx *tghandler.Context, msg telego.Message) er
 	if msg.From == nil {
 		return nil
 	}
-	lang := i18n.NormalizeLanguage(msg.From.LanguageCode)
+	lang := c.groupMessageLanguage(ctx, msg, i18n.NormalizeLanguage(msg.From.LanguageCode))
 	threadID := groupMessageThreadID(msg)
 	view := buildGroupReplyView(lang, msgGroupUnregisterNotOwner, msg.MessageID)
 	view.opts.MessageThreadID = threadID
@@ -435,6 +436,28 @@ func (c *Bot) onGroupMessage(ctx *tghandler.Context, msg telego.Message) error {
 	}
 	c.observeGroupMember(ctx, group, msg.From.ID, "message", telego.MemberStatusMember, telegramUserDisplayName(*msg.From))
 	return nil
+}
+
+func (c *Bot) groupMessageLanguage(ctx context.Context, msg telego.Message, fallback string) string {
+	if msg.Chat.Type == telego.ChatTypePrivate {
+		return i18n.NormalizeLanguage(fallback)
+	}
+	return c.groupChatLanguage(ctx, msg.Chat.ID, fallback)
+}
+
+func (c *Bot) groupChatLanguage(ctx context.Context, chatID int64, fallback string) string {
+	if group, ok, err := c.store.ManagedGroupByChatID(ctx, chatID); err == nil && ok {
+		if group.Language != "" {
+			return i18n.NormalizeLanguage(group.Language)
+		}
+		if creator, creatorOK, creatorErr := c.store.Creator(ctx, group.CreatorID); creatorErr == nil && creatorOK {
+			if identity, found, identityErr := c.store.UserIdentity(ctx, creator.OwnerTelegramID); identityErr == nil && identity.Language != "" && found {
+				return i18n.NormalizeLanguage(identity.Language)
+			}
+		}
+		return i18n.DefaultLanguage
+	}
+	return i18n.NormalizeLanguage(fallback)
 }
 
 func telegramUserDisplayName(user telego.User) string {
@@ -756,18 +779,7 @@ func (c *Bot) observeGroupMember(ctx context.Context, group core.ManagedGroup, t
 }
 
 func (c *Bot) sendGroupUntrackedJoinWarning(ctx context.Context, group core.ManagedGroup, telegramUserID int64, memberLabel string) {
-	lang := "en"
-	creator, ok, err := c.store.Creator(ctx, group.CreatorID)
-	if err != nil {
-		c.log().Warn("load creator for untracked join warning failed", "chat_id", group.ChatID, "creator_id", group.CreatorID, "error", err)
-	} else if ok {
-		if identity, found, identityErr := c.store.UserIdentity(ctx, creator.OwnerTelegramID); identityErr != nil {
-			c.log().Warn("load owner identity for untracked join warning failed", "chat_id", group.ChatID, "creator_id", group.CreatorID, "owner_telegram_id", creator.OwnerTelegramID, "error", identityErr)
-		} else if found && identity.Language != "" {
-			lang = i18n.NormalizeLanguage(identity.Language)
-		}
-	}
-
+	lang := c.groupChatLanguage(ctx, group.ChatID, group.Language)
 	view := buildGroupUntrackedJoinWarningView(lang, telegramUserID, memberLabel)
 	view.opts.MessageThreadID = group.RegistrationThreadID
 	if c.sendMsg(ctx, group.ChatID, view.text, &view.opts) == 0 {

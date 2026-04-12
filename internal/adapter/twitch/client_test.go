@@ -213,13 +213,13 @@ func TestListSubscriberPageSuccess(t *testing.T) {
 func TestAppAuthTokenCachesUntilExpiry(t *testing.T) {
 	t.Parallel()
 
-	var tokenCalls int32
+	var tokenCalls atomic.Int32
 	client := NewClient(testConfig(), &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Host != "id.twitch.tv" || req.URL.Path != "/oauth2/token" {
 				t.Fatalf("unexpected URL %q", req.URL.String())
 			}
-			atomic.AddInt32(&tokenCalls, 1)
+			tokenCalls.Add(1)
 			return response(http.StatusOK, `{"access_token":"app-1","expires_in":3600}`), nil
 		}),
 	})
@@ -236,8 +236,8 @@ func TestAppAuthTokenCachesUntilExpiry(t *testing.T) {
 	if got1 != "app-1" || got2 != "app-1" {
 		t.Fatalf("appAuthToken() tokens = %q, %q, want app-1 both times", got1, got2)
 	}
-	if atomic.LoadInt32(&tokenCalls) != 1 {
-		t.Fatalf("token endpoint calls = %d, want 1", tokenCalls)
+	if tokenCalls.Load() != 1 {
+		t.Fatalf("token endpoint calls = %d, want 1", tokenCalls.Load())
 	}
 }
 
@@ -246,10 +246,10 @@ func TestAppAuthTokenRefreshesWhenNearExpiry(t *testing.T) {
 
 	base := time.Date(2026, 3, 8, 12, 0, 0, 0, time.UTC)
 	now := base
-	var tokenCalls int32
+	var tokenCalls atomic.Int32
 	client := NewClient(testConfig(), &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			call := atomic.AddInt32(&tokenCalls, 1)
+			call := tokenCalls.Add(1)
 			switch call {
 			case 1:
 				return response(http.StatusOK, `{"access_token":"app-1","expires_in":3600}`), nil
@@ -277,22 +277,22 @@ func TestAppAuthTokenRefreshesWhenNearExpiry(t *testing.T) {
 	if got1 != "app-1" || got2 != "app-2" {
 		t.Fatalf("appAuthToken() tokens = %q, %q, want app-1 then app-2", got1, got2)
 	}
-	if atomic.LoadInt32(&tokenCalls) != 2 {
-		t.Fatalf("token endpoint calls = %d, want 2", tokenCalls)
+	if tokenCalls.Load() != 2 {
+		t.Fatalf("token endpoint calls = %d, want 2", tokenCalls.Load())
 	}
 }
 
 func TestAppAuthTokenConcurrentRefreshCollapsesCalls(t *testing.T) {
 	t.Parallel()
 
-	var tokenCalls int32
+	var tokenCalls atomic.Int32
 	release := make(chan struct{})
 	client := NewClient(testConfig(), &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Host != "id.twitch.tv" {
 				t.Fatalf("unexpected URL %q", req.URL.String())
 			}
-			atomic.AddInt32(&tokenCalls, 1)
+			tokenCalls.Add(1)
 			<-release
 			return response(http.StatusOK, `{"access_token":"app-1","expires_in":3600}`), nil
 		}),
@@ -326,8 +326,8 @@ func TestAppAuthTokenConcurrentRefreshCollapsesCalls(t *testing.T) {
 			t.Fatalf("appAuthToken() concurrent token = %q, want app-1", token)
 		}
 	}
-	if atomic.LoadInt32(&tokenCalls) != 1 {
-		t.Fatalf("token endpoint calls = %d, want 1", atomic.LoadInt32(&tokenCalls))
+	if tokenCalls.Load() != 1 {
+		t.Fatalf("token endpoint calls = %d, want 1", tokenCalls.Load())
 	}
 }
 

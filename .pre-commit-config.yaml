@@ -51,7 +51,7 @@ repos:
         always_run: true
       - id: fly-config-validate
         name: flyctl config validate
-        entry: flyctl config validate --strict -c fly.toml
+        entry: make fly-config-validate
         language: system
         pass_filenames: false
         always_run: true

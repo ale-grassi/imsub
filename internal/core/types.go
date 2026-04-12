@@ -94,6 +94,7 @@ type ManagedGroup struct {
 	ChatID               int64
 	CreatorID            string
 	GroupName            string
+	Language             string
 	Policy               GroupPolicy
 	RegistrationThreadID int
 	RegisteredAt         time.Time

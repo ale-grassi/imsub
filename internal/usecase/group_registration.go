@@ -7,6 +7,7 @@ import (
 
 	"imsub/internal/core"
 	"imsub/internal/events"
+	"imsub/internal/platform/i18n"
 )
 
 // RegisterGroupOutcome identifies the store-backed registration decision.
@@ -66,7 +67,7 @@ func NewGroupRegistrationUseCase(store groupRegistrationStore, sink events.Event
 }
 
 // RegisterGroup decides and applies the store-backed part of /registergroup.
-func (u *GroupRegistrationUseCase) RegisterGroup(ctx context.Context, ownerTelegramID, groupChatID int64, groupName string, policy core.GroupPolicy, registrationThreadID int) (RegisterGroupResult, error) {
+func (u *GroupRegistrationUseCase) RegisterGroup(ctx context.Context, ownerTelegramID, groupChatID int64, groupName, language string, policy core.GroupPolicy, registrationThreadID int) (RegisterGroupResult, error) {
 	creator, ok, err := u.store.OwnedCreatorForUser(ctx, ownerTelegramID)
 	if err != nil {
 		u.recordOutcome(ctx, "failed")
@@ -118,6 +119,7 @@ func (u *GroupRegistrationUseCase) RegisterGroup(ctx context.Context, ownerTeleg
 		ChatID:               groupChatID,
 		CreatorID:            creator.ID,
 		GroupName:            groupName,
+		Language:             i18n.NormalizeLanguage(language),
 		Policy:               policy,
 		RegistrationThreadID: registrationThreadID,
 		RegisteredAt:         u.now(),

@@ -113,6 +113,7 @@ func newRouteTestHarnessWithCleaner(t *testing.T, cleaner usecaseGroupUnregistra
 		GroupRegistration:   usecase.NewGroupRegistrationUseCase(store, nil),
 		GroupUnregistration: usecase.NewGroupUnregistrationUseCase(store, cleaner, nil),
 		GroupPolicyUpdate:   usecase.NewGroupPolicyUpdateUseCase(store, nil),
+		GroupLanguageUpdate: usecase.NewGroupLanguageUpdateUseCase(store, nil),
 		Privacy:             usecase.NewPrivacyUseCase(store, "v1", 24*time.Hour),
 		Events:              eventSink,
 	})

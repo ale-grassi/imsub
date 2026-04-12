@@ -4,14 +4,16 @@ GO ?= go
 GOLANGCI_LINT ?= golangci-lint
 GOVULNCHECK ?= govulncheck
 GITLEAKS ?= gitleaks
-export GOCACHE ?= /tmp/gocache
-export GOLANGCI_LINT_CACHE ?= /tmp/golangci-lint
+export GOPATH := /tmp/gopath
+export GOMODCACHE := /tmp/gomodcache
+export GOCACHE := /tmp/gocache
+export GOLANGCI_LINT_CACHE := /tmp/golangci-lint
 TUNNEL_URL_FILE := tmp/ngrok-url
 TUNNEL_PID_FILE := tmp/ngrok.pid
 TUNNEL_LOG_FILE := tmp/ngrok.log
 NGROK_API_URL := http://127.0.0.1:4040/api/tunnels
 
-.PHONY: help run run-tunnel tunnel attach-tunnel stop-tunnel seed fmt fmt-check vet test test-integration build check ci-check lint style-check cover cover-open vuln secrets-scan msg-gallery msg-gallery-md msg-gallery-tg prod-logs prod-redis-proxy
+.PHONY: help run run-tunnel tunnel attach-tunnel stop-tunnel seed fmt fmt-check vet test test-integration build check ci-check lint style-check cover cover-open vuln fly-config-validate secrets-scan msg-gallery msg-gallery-md msg-gallery-tg prod-logs prod-redis-proxy
 
 help:
 	@echo "Targets:"
@@ -31,6 +33,7 @@ help:
 	@echo "  make cover    - generate coverage.out + coverage.html"
 	@echo "  make cover-open - open interactive coverage HTML view"
 	@echo "  make vuln     - run govulncheck against all packages"
+	@echo "  make fly-config-validate - validate fly.toml with flyctl"
 	@echo "  make secrets-scan - scan repository for leaked secrets (gitleaks)"
 	@echo "  make msg-gallery - generate Telegram message gallery HTML"
 	@echo "  make msg-gallery-md - generate Telegram message gallery Markdown"
@@ -235,6 +238,9 @@ vuln:
 	else \
 		$(GO) run golang.org/x/vuln/cmd/govulncheck@latest ./...; \
 	fi
+
+fly-config-validate:
+	flyctl config validate --strict -c fly.toml
 
 secrets-scan:
 	$(GITLEAKS) detect --no-banner --redact --source=.
