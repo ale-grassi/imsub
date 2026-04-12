@@ -61,6 +61,9 @@ const (
 	msgGroupUnregisterPrompt      = "group_unregister_prompt_html"
 	msgGroupUnregisterNotOwner    = "group_unregister_not_owner"
 	msgCleanupResetWarningDM      = "cleanup_reset_warning_dm_html"
+	msgCbGroupRegistered          = "cb_group_registered"
+	msgCbGroupAlreadyLinked       = "cb_group_already_linked"
+	msgCbGroupTakenByOther        = "cb_group_taken_by_other"
 
 	// Buttons.
 	btnBack                   = "btn_back"

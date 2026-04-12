@@ -35,6 +35,8 @@ func TestNilSafety(t *testing.T) {
 	m.ViewerInviteLink("ok")
 	m.TelegramCommand("start", "private")
 	m.TelegramCommandResponse("start", "private", "ok", 150*time.Millisecond)
+	m.TelegramCallback("group", "pick")
+	m.TelegramCallbackResponse("group", "pick", "registered", 200*time.Millisecond)
 	m.TelegramAPIError("answer_callback_query", "message_too_long")
 	m.TelegramKickAction("group_policy", "ok")
 	m.TelegramMTProtoBootstrap("ok")
@@ -82,6 +84,8 @@ func TestMetricsExposure(t *testing.T) {
 	m.ViewerInviteLink("ok")
 	m.TelegramCommand("start", "private")
 	m.TelegramCommandResponse("start", "private", "ok", 150*time.Millisecond)
+	m.TelegramCallback("group", "pick")
+	m.TelegramCallbackResponse("group", "pick", "registered", 200*time.Millisecond)
 	m.TelegramAPIError("answer_callback_query", "message_too_long")
 	m.TelegramKickAction("group_policy", "ok")
 	m.TelegramMTProtoBootstrap("ok")
@@ -129,6 +133,8 @@ func TestMetricsExposure(t *testing.T) {
 		"imsub_viewer_invite_links_total",
 		"imsub_telegram_commands_total",
 		"imsub_telegram_command_response_duration_seconds",
+		"imsub_telegram_callbacks_total",
+		"imsub_telegram_callback_response_duration_seconds",
 		"imsub_telegram_api_errors_total",
 		"imsub_telegram_kick_actions_total",
 		"imsub_telegram_mtproto_bootstrap_total",
@@ -213,6 +219,16 @@ func TestEmitProjectsTelegramEvents(t *testing.T) {
 		Duration: 150 * time.Millisecond,
 	})
 	m.Emit(t.Context(), events.Event{
+		Name:   events.NameTelegramCallback,
+		Fields: map[string]string{"domain": "group", "verb": "pick"},
+	})
+	m.Emit(t.Context(), events.Event{
+		Name:     events.NameTelegramCallbackResponse,
+		Outcome:  "registered",
+		Fields:   map[string]string{"domain": "group", "verb": "pick"},
+		Duration: 200 * time.Millisecond,
+	})
+	m.Emit(t.Context(), events.Event{
 		Name:   events.NameTelegramAPIError,
 		Fields: map[string]string{"method": "answer_callback_query", "reason": "message_too_long"},
 	})
@@ -240,6 +256,12 @@ func TestEmitProjectsTelegramEvents(t *testing.T) {
 	}
 	if !strings.Contains(body, `imsub_telegram_command_response_duration_seconds_count{chat_type="private",command="start",result="ok"} 1`) {
 		t.Fatalf("metrics output missing projected telegram_command_response event: %s", body)
+	}
+	if !strings.Contains(body, `imsub_telegram_callbacks_total{domain="group",verb="pick"} 1`) {
+		t.Fatalf("metrics output missing projected telegram_callback event: %s", body)
+	}
+	if !strings.Contains(body, `imsub_telegram_callback_response_duration_seconds_count{domain="group",result="registered",verb="pick"} 1`) {
+		t.Fatalf("metrics output missing projected telegram_callback_response event: %s", body)
 	}
 	if !strings.Contains(body, `imsub_telegram_api_errors_total{method="answer_callback_query",reason="message_too_long"} 1`) {
 		t.Fatalf("metrics output missing projected telegram_api_error event: %s", body)

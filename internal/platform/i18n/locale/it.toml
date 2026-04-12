@@ -98,7 +98,16 @@ other = "Privacy policy"
 other = "Abbonati su Twitch"
 
 [cb_refreshed]
-other = "Stato aggiornato ✅"
+other = "✅ Stato aggiornato"
+
+[cb_group_registered]
+other = "✅ Gruppo collegato"
+
+[cb_group_already_linked]
+other = "ℹ️ Gruppo gia' collegato"
+
+[cb_group_taken_by_other]
+other = "ℹ️ Questo gruppo e' collegato a un altro creator"
 
 [cmd_help]
 other = "Usa /start per collegare l'account viewer, /creator per configurare l'account creator, /linkgroup nel gruppo Telegram e /reset per eliminare i dati collegati."

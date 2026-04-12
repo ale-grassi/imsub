@@ -62,6 +62,8 @@ type Metrics struct {
 	viewerInviteLinks    *prometheus.CounterVec
 	telegramCommands     *prometheus.CounterVec
 	telegramCommandTime  *prometheus.HistogramVec
+	telegramCallbacks    *prometheus.CounterVec
+	telegramCallbackTime *prometheus.HistogramVec
 	telegramAPIErrors    *prometheus.CounterVec
 	telegramKickActions  *prometheus.CounterVec
 	telegramMTProtoBoot  *prometheus.CounterVec
@@ -359,6 +361,21 @@ func New() *Metrics {
 			},
 			[]string{"command", "chat_type", "result"},
 		),
+		telegramCallbacks: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "imsub_telegram_callbacks_total",
+				Help: "Telegram callback query usage by domain and verb.",
+			},
+			[]string{"domain", "verb"},
+		),
+		telegramCallbackTime: prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "imsub_telegram_callback_response_duration_seconds",
+				Help:    "Time from receiving a Telegram callback query to the first completed callback response path.",
+				Buckets: []float64{0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 20, 30},
+			},
+			[]string{"domain", "verb", "result"},
+		),
 		telegramAPIErrors: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "imsub_telegram_api_errors_total",
@@ -427,6 +444,8 @@ func New() *Metrics {
 		m.viewerInviteLinks,
 		m.telegramCommands,
 		m.telegramCommandTime,
+		m.telegramCallbacks,
+		m.telegramCallbackTime,
 		m.telegramAPIErrors,
 		m.telegramKickActions,
 		m.telegramMTProtoBoot,
@@ -721,6 +740,29 @@ func (m *Metrics) TelegramCommandResponse(command, chatType, result string, d ti
 	).Observe(d.Seconds())
 }
 
+// TelegramCallback records a callback query invocation.
+func (m *Metrics) TelegramCallback(domain, verb string) {
+	if m == nil {
+		return
+	}
+	m.telegramCallbacks.WithLabelValues(
+		httputil.LabelOrUnknown(domain),
+		httputil.LabelOrUnknown(verb),
+	).Inc()
+}
+
+// TelegramCallbackResponse records callback handling latency.
+func (m *Metrics) TelegramCallbackResponse(domain, verb, result string, d time.Duration) {
+	if m == nil {
+		return
+	}
+	m.telegramCallbackTime.WithLabelValues(
+		httputil.LabelOrUnknown(domain),
+		httputil.LabelOrUnknown(verb),
+		httputil.LabelOrUnknown(result),
+	).Observe(d.Seconds())
+}
+
 // TelegramAPIError records a Telegram API failure by method and normalized reason.
 func (m *Metrics) TelegramAPIError(method, reason string) {
 	if m == nil {
@@ -807,6 +849,10 @@ func (m *Metrics) Emit(_ context.Context, evt events.Event) {
 		m.TelegramCommand(evt.Fields["command"], evt.Fields["chat_type"])
 	case events.NameTelegramCommandResponse:
 		m.TelegramCommandResponse(evt.Fields["command"], evt.Fields["chat_type"], evt.Outcome, evt.Duration)
+	case events.NameTelegramCallback:
+		m.TelegramCallback(evt.Fields["domain"], evt.Fields["verb"])
+	case events.NameTelegramCallbackResponse:
+		m.TelegramCallbackResponse(evt.Fields["domain"], evt.Fields["verb"], evt.Outcome, evt.Duration)
 	case events.NameTelegramAPIError:
 		m.TelegramAPIError(evt.Fields["method"], evt.Fields["reason"])
 	case events.NameTelegramKickAction:

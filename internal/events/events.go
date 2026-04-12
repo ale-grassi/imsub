@@ -24,6 +24,8 @@ const (
 	NameCreatorStatus               = "creator_status"
 	NameTelegramCommand             = "telegram_command"
 	NameTelegramCommandResponse     = "telegram_command_response"
+	NameTelegramCallback            = "telegram_callback"
+	NameTelegramCallbackResponse    = "telegram_callback_response"
 	NameTelegramAPIError            = "telegram_api_error"
 	NameTelegramKickAction          = "telegram_kick_action"
 	NameTelegramMTProtoBootstrap    = "telegram_mtproto_bootstrap"

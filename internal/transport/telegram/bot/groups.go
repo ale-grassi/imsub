@@ -54,12 +54,17 @@ func (c *Bot) onRegisterGroup(ctx *tghandler.Context, msg telego.Message) error 
 	if msg.Chat.Type == telego.ChatTypePrivate {
 		_, ok, err := c.creatorStatus.LoadOwnedCreator(ctx, msg.From.ID)
 		if err != nil {
+			setTelegramCommandResponseResult(ctx, "error")
+			c.observeTelegramCommandResponse(ctx, "error")
 			c.log().Warn("OnRegisterGroup getOwnedCreator failed", "error", err)
 			return nil
 		}
 		if !ok {
+			setTelegramCommandResponseResult(ctx, "not_creator")
+			c.observeTelegramCommandResponse(ctx, "not_creator")
 			return nil
 		}
+		setTelegramCommandResponseResult(ctx, "private_chat")
 		view := buildGroupReplyView(lang, msgGroupNotGroup, msg.MessageID)
 		view.opts.MessageThreadID = threadID
 		c.sendMsg(ctx, msg.Chat.ID, view.text, &view.opts)
@@ -81,14 +86,19 @@ func (c *Bot) onRegisterGroup(ctx *tghandler.Context, msg telego.Message) error 
 
 	_, ok, err := c.creatorStatus.LoadOwnedCreator(ctx, msg.From.ID)
 	if err != nil {
+		setTelegramCommandResponseResult(ctx, "error")
+		c.observeTelegramCommandResponse(ctx, "error")
 		c.log().Warn("OnRegisterGroup getOwnedCreator failed", "error", err)
 		return nil
 	}
 
 	if !isAdmin && !ok {
+		setTelegramCommandResponseResult(ctx, "ignored")
+		c.observeTelegramCommandResponse(ctx, "ignored")
 		return nil
 	}
 	if !isAdmin {
+		setTelegramCommandResponseResult(ctx, "not_admin")
 		view := buildGroupReplyView(lang, msgGroupNotAdmin, msg.MessageID)
 		view.opts.MessageThreadID = threadID
 		c.sendMsg(ctx, msg.Chat.ID, view.text, &view.opts)
@@ -97,18 +107,24 @@ func (c *Bot) onRegisterGroup(ctx *tghandler.Context, msg telego.Message) error 
 	if !ok || c.groupRegistration == nil {
 		_, managed, managedErr := c.store.ManagedGroupByChatID(ctx, msg.Chat.ID)
 		if managedErr != nil {
+			setTelegramCommandResponseResult(ctx, "error")
+			c.observeTelegramCommandResponse(ctx, "error")
 			c.log().Warn("ManagedGroupByChatID failed before not-creator reply", "chat_id", msg.Chat.ID, "error", managedErr)
 			return nil
 		}
 		if managed {
+			setTelegramCommandResponseResult(ctx, "managed_noop")
+			c.observeTelegramCommandResponse(ctx, "managed_noop")
 			return nil
 		}
+		setTelegramCommandResponseResult(ctx, "not_creator")
 		view := buildGroupReplyView(lang, msgGroupNotCreator, msg.MessageID)
 		view.opts.MessageThreadID = threadID
 		c.sendMsg(ctx, msg.Chat.ID, view.text, &view.opts)
 		return nil
 	}
 	if eval := c.evaluateBotGroupCapabilities(ctx, msg.Chat.ID); len(eval.issues(lang)) > 0 {
+		setTelegramCommandResponseResult(ctx, "capability_warning")
 		view := buildGroupSettingWarningsView(lang, msg.MessageID, eval.issues(lang))
 		view.opts.MessageThreadID = threadID
 		c.sendMsg(ctx, msg.Chat.ID, view.text, &view.opts)
@@ -116,52 +132,80 @@ func (c *Bot) onRegisterGroup(ctx *tghandler.Context, msg telego.Message) error 
 	}
 
 	estimatedMembers := c.estimateExistingNonAdminMembers(ctx, msg.Chat.ID)
+	setTelegramCommandResponseResult(ctx, "prompted_policy")
 	view := buildGroupRegistrationPolicyPromptView(lang, msg.MessageID, msg.Chat.ID, threadID, estimatedMembers)
 	view.opts.MessageThreadID = threadID
-	c.sendMsg(ctx, msg.Chat.ID, view.text, &view.opts)
+	if messageID := c.sendMsg(ctx, msg.Chat.ID, view.text, &view.opts); messageID != 0 {
+		c.log().Info("group registration policy prompt rendered", "chat_id", msg.Chat.ID, "owner_telegram_id", msg.From.ID, "thread_id", threadID, "estimated_non_admin_members", estimatedMembers)
+	}
 	return nil
 }
 
 func (c *Bot) handleGroupCallback(ctx context.Context, userID, chatID int64, chatTitle string, messageThreadID, editMsgID int, lang string, action callbackAction) callbackFeedback {
 	lang = c.groupChatLanguage(ctx, chatID, lang)
 	if chatID == 0 || action.chatID == 0 || action.chatID != chatID {
+		setTelegramCallbackResponseResult(ctx, "chat_mismatch")
 		c.log().Warn("group callback chat mismatch", "telegram_user_id", userID, "callback_chat_id", action.chatID, "message_chat_id", chatID)
 		return noCallbackFeedback()
 	}
 	if !c.userCanRegisterGroup(ctx, userID, chatID) {
+		setTelegramCallbackResponseResult(ctx, "not_admin")
 		return callbackAlert(i18n.Translate(lang, msgGroupNotAdmin))
 	}
 	_, ok, err := c.creatorStatus.LoadOwnedCreator(ctx, userID)
 	if err != nil {
+		setTelegramCallbackResponseResult(ctx, "error")
 		c.log().Warn("group callback getOwnedCreator failed", "chat_id", chatID, "owner_telegram_id", userID, "error", err)
 		return noCallbackFeedback()
 	}
 	if !ok {
 		_, managed, managedErr := c.store.ManagedGroupByChatID(ctx, chatID)
 		if managedErr != nil {
+			setTelegramCallbackResponseResult(ctx, "error")
 			c.log().Warn("ManagedGroupByChatID failed before group not-creator callback", "chat_id", chatID, "owner_telegram_id", userID, "error", managedErr)
 			return noCallbackFeedback()
 		}
 		if managed {
+			setTelegramCallbackResponseResult(ctx, "managed_noop")
 			return noCallbackFeedback()
 		}
+		setTelegramCallbackResponseResult(ctx, "not_creator")
 		return callbackAlert(i18n.Translate(lang, msgGroupNotCreator))
 	}
 	switch action.verb {
 	case callbackVerbPick:
 		if action.policy == "" || c.groupRegistration == nil {
+			setTelegramCallbackResponseResult(ctx, "unsupported")
 			c.log().Warn("unsupported group registration callback action", "telegram_user_id", userID, "verb", action.verb, "policy", action.policy, "chat_id", action.chatID)
 			return noCallbackFeedback()
 		}
+		c.log().Info("group registration callback received", "chat_id", chatID, "owner_telegram_id", userID, "policy", action.policy, "thread_id", action.threadID)
 		if eval := c.evaluateBotGroupCapabilities(ctx, chatID); len(eval.issues(lang)) > 0 {
+			setTelegramCallbackResponseResult(ctx, "capability_warning")
 			view := buildGroupSettingWarningsView(lang, editMsgID, eval.issues(lang))
 			c.reply(ctx, chatID, editMsgID, view.text, &view.opts)
 			return noCallbackFeedback()
 		}
 		regRes, err := c.groupRegistration.RegisterGroup(ctx, userID, chatID, chatTitle, lang, action.policy, action.threadID)
 		if err != nil {
+			setTelegramCallbackResponseResult(ctx, "error")
 			c.log().Warn("RegisterGroup from callback failed", "chat_id", chatID, "owner_telegram_id", userID, "policy", action.policy, "error", err)
 			return noCallbackFeedback()
+		}
+		c.log().Info("group registration callback completed", "chat_id", chatID, "owner_telegram_id", userID, "policy", action.policy, "outcome", regRes.Outcome)
+		switch regRes.Outcome {
+		case usecase.RegisterGroupOutcomeRegistered:
+			setTelegramCallbackResponseResult(ctx, "registered")
+		case usecase.RegisterGroupOutcomeAlreadyLinked:
+			setTelegramCallbackResponseResult(ctx, "already_linked")
+			return callbackAck(i18n.Translate(lang, msgCbGroupAlreadyLinked))
+		case usecase.RegisterGroupOutcomeTakenByOther:
+			setTelegramCallbackResponseResult(ctx, "taken_by_other")
+			return callbackAlert(i18n.Translate(lang, msgCbGroupTakenByOther))
+		case usecase.RegisterGroupOutcomeNotCreator:
+			setTelegramCallbackResponseResult(ctx, "not_creator")
+		default:
+			setTelegramCallbackResponseResult(ctx, "unsupported")
 		}
 		view, ok := buildGroupRegistrationView(lang, editMsgID, regRes)
 		if !ok {
@@ -190,24 +234,30 @@ func (c *Bot) handleGroupCallback(ctx context.Context, userID, chatID int64, cha
 				From: &telego.User{ID: userID, LanguageCode: lang},
 			}, lang, regRes, view, editMsgID, messageThreadID)
 		}
-		return noCallbackFeedback()
+		return callbackAck(i18n.Translate(lang, msgCbGroupRegistered))
 	case callbackVerbExecute:
 		if action.resetAction == "" || c.groupUnregistration == nil {
+			setTelegramCallbackResponseResult(ctx, "unsupported")
 			c.log().Warn("unsupported group unregister callback action", "telegram_user_id", userID, "verb", action.verb, "action", action.resetAction, "chat_id", action.chatID)
 			return noCallbackFeedback()
 		}
 		res, err := c.groupUnregistration.UnregisterGroup(ctx, userID, chatID, action.resetAction)
 		if err != nil {
+			setTelegramCallbackResponseResult(ctx, "error")
 			c.log().Warn("UnregisterGroup from group callback failed", "chat_id", chatID, "owner_telegram_id", userID, "action", action.resetAction, "error", err)
 			return noCallbackFeedback()
 		}
 		switch res.Outcome {
 		case usecase.UnregisterGroupOutcomeNotManaged:
+			setTelegramCallbackResponseResult(ctx, "managed_noop")
 			return noCallbackFeedback()
 		case usecase.UnregisterGroupOutcomeNotOwner:
+			setTelegramCallbackResponseResult(ctx, "not_owner")
 			return callbackAlert(i18n.Translate(lang, msgGroupUnregisterNotOwner))
 		case usecase.UnregisterGroupOutcomeUnregistered, usecase.UnregisterGroupOutcomeUnregisteredCleanupLag:
+			setTelegramCallbackResponseResult(ctx, "unregistered")
 		default:
+			setTelegramCallbackResponseResult(ctx, "unsupported")
 			c.log().Warn("unsupported group unregistration outcome from callback", "chat_id", chatID, "outcome", res.Outcome)
 			return noCallbackFeedback()
 		}
@@ -215,9 +265,11 @@ func (c *Bot) handleGroupCallback(ctx context.Context, userID, chatID int64, cha
 		c.reply(ctx, chatID, editMsgID, view.text, &view.opts)
 		return noCallbackFeedback()
 	case callbackVerbRefresh, callbackVerbRegister, callbackVerbReconnect, callbackVerbOpen, callbackVerbBack, callbackVerbMenu, callbackVerbCancel, callbackVerbExport:
+		setTelegramCallbackResponseResult(ctx, "unsupported")
 		c.log().Warn("known but unsupported group callback verb", "telegram_user_id", userID, "verb", action.verb, "chat_id", action.chatID)
 		return noCallbackFeedback()
 	default:
+		setTelegramCallbackResponseResult(ctx, "unsupported")
 		c.log().Warn("unknown group callback action", "telegram_user_id", userID, "verb", action.verb, "chat_id", action.chatID)
 		return noCallbackFeedback()
 	}

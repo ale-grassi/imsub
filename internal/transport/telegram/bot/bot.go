@@ -31,6 +31,7 @@ const (
 )
 
 type telegramCommandResponseKey struct{}
+type telegramCallbackResponseKey struct{}
 type callbackFeedback struct {
 	ackText   string
 	showAlert bool
@@ -40,7 +41,16 @@ type telegramCommandResponseState struct {
 	command  string
 	chatType string
 	started  time.Time
+	result   string
 	once     sync.Once
+}
+
+type telegramCallbackResponseState struct {
+	domain  string
+	verb    string
+	started time.Time
+	result  string
+	once    sync.Once
 }
 
 func withTelegramCommandResponse(ctx context.Context, command, chatType string, started time.Time) context.Context {
@@ -51,6 +61,17 @@ func withTelegramCommandResponse(ctx context.Context, command, chatType string, 
 		command:  strings.TrimSpace(command),
 		chatType: normalizeTelegramChatType(chatType),
 		started:  started.UTC(),
+	})
+}
+
+func withTelegramCallbackResponse(ctx context.Context, domain, verb string, started time.Time) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, telegramCallbackResponseKey{}, &telegramCallbackResponseState{
+		domain:  strings.TrimSpace(domain),
+		verb:    strings.TrimSpace(verb),
+		started: started.UTC(),
 	})
 }
 
@@ -82,7 +103,11 @@ func (c *Bot) sendMsg(ctx context.Context, chatID int64, text string, opts *clie
 	messageID := c.telegramClient.Send(ctx, chatID, text, opts)
 	if messageID != 0 {
 		c.observeTelegramCommandResponse(ctx, "ok")
+		c.observeTelegramCallbackResponse(ctx, "ok")
+		return messageID
 	}
+	c.observeTelegramCommandResponse(ctx, "send_failed")
+	c.observeTelegramCallbackResponse(ctx, "send_failed")
 	return messageID
 }
 
@@ -93,7 +118,11 @@ func (c *Bot) reply(ctx context.Context, chatID int64, messageID int, text strin
 	replyID := c.telegramClient.Reply(ctx, chatID, messageID, text, opts)
 	if replyID != 0 {
 		c.observeTelegramCommandResponse(ctx, "ok")
+		c.observeTelegramCallbackResponse(ctx, "ok")
+		return
 	}
+	c.observeTelegramCommandResponse(ctx, "send_failed")
+	c.observeTelegramCallbackResponse(ctx, "send_failed")
 }
 
 func (c *Bot) deleteMessage(ctx context.Context, chatID int64, messageID int) {
@@ -171,12 +200,87 @@ func (c *Bot) observeTelegramCommandResponse(ctx context.Context, result string)
 		return
 	}
 	state.once.Do(func() {
+		result = strings.TrimSpace(result)
+		if (result == "" || result == "ok") && state.result != "" {
+			result = state.result
+		}
+		if result == "" {
+			result = "ok"
+		}
 		c.events.Emit(ctx, events.Event{
 			Name:    events.NameTelegramCommandResponse,
-			Outcome: strings.TrimSpace(result),
+			Outcome: result,
 			Fields: map[string]string{
 				"command":   state.command,
 				"chat_type": state.chatType,
+			},
+			Duration: time.Since(state.started),
+		})
+	})
+}
+
+func setTelegramCommandResponseResult(ctx context.Context, result string) {
+	if ctx == nil {
+		return
+	}
+	state, ok := ctx.Value(telegramCommandResponseKey{}).(*telegramCommandResponseState)
+	if !ok || state == nil {
+		return
+	}
+	if trimmed := strings.TrimSpace(result); trimmed != "" {
+		state.result = trimmed
+	}
+}
+
+func (c *Bot) recordTelegramCallback(ctx context.Context, telegramUserID int64, action callbackAction) {
+	c.trackTelegramActiveUser(ctx, telegramUserID)
+	if c == nil || c.events == nil {
+		return
+	}
+	c.events.Emit(ctx, events.Event{
+		Name: events.NameTelegramCallback,
+		Fields: map[string]string{
+			"domain": strings.TrimSpace(string(action.domain)),
+			"verb":   strings.TrimSpace(string(action.verb)),
+		},
+	})
+}
+
+func setTelegramCallbackResponseResult(ctx context.Context, result string) {
+	if ctx == nil {
+		return
+	}
+	state, ok := ctx.Value(telegramCallbackResponseKey{}).(*telegramCallbackResponseState)
+	if !ok || state == nil {
+		return
+	}
+	if trimmed := strings.TrimSpace(result); trimmed != "" {
+		state.result = trimmed
+	}
+}
+
+func (c *Bot) observeTelegramCallbackResponse(ctx context.Context, result string) {
+	if c == nil || c.events == nil || ctx == nil {
+		return
+	}
+	state, ok := ctx.Value(telegramCallbackResponseKey{}).(*telegramCallbackResponseState)
+	if !ok || state == nil || state.started.IsZero() {
+		return
+	}
+	state.once.Do(func() {
+		result = strings.TrimSpace(result)
+		if (result == "" || result == "ok") && state.result != "" {
+			result = state.result
+		}
+		if result == "" {
+			result = "ok"
+		}
+		c.events.Emit(ctx, events.Event{
+			Name:    events.NameTelegramCallbackResponse,
+			Outcome: result,
+			Fields: map[string]string{
+				"domain": state.domain,
+				"verb":   state.verb,
 			},
 			Duration: time.Since(state.started),
 		})
@@ -339,6 +443,8 @@ func (c *Bot) onCallbackQuery(ctx context.Context, q telego.CallbackQuery) {
 	}
 
 	exec.action = action
+	ctx = withTelegramCallbackResponse(ctx, string(action.domain), string(action.verb), time.Now())
+	c.recordTelegramCallback(ctx, q.From.ID, action)
 	feedback := c.dispatchCallbackAction(ctx, exec)
 	if feedback.ackText == "" && action.verb == callbackVerbRefresh {
 		feedback = callbackAck(i18n.Translate(exec.lang, msgCbRefreshed))
@@ -346,9 +452,11 @@ func (c *Bot) onCallbackQuery(ctx context.Context, q telego.CallbackQuery) {
 	if feedback.ackText != "" {
 		c.log().Info("sending callback acknowledgement", "telegram_user_id", q.From.ID, "callback_data", q.Data, "domain", action.domain, "verb", action.verb, "ack_len", utf8.RuneCountInString(feedback.ackText), "show_alert", feedback.showAlert)
 		c.answerCallbackOpts(ctx, q.ID, feedback.ackText, feedback.showAlert)
+		c.observeTelegramCallbackResponse(ctx, "ok")
 		return
 	}
 	c.answerCallback(ctx, q.ID, "")
+	c.observeTelegramCallbackResponse(ctx, "ok")
 }
 
 type callbackExecution struct {

@@ -109,16 +109,16 @@ func newRouteTestHarnessWithCleaner(t *testing.T, cleaner usecaseGroupUnregistra
 		TelegramHandler:     bh,
 		TelegramClient:      tgClient,
 		TelegramGroups:      tgGroups,
-		CreatorStatus:       usecase.NewCreatorStatusUseCase(core.NewCreatorService(store, routeTestEventSubChecker{}, nil), nil),
-		GroupRegistration:   usecase.NewGroupRegistrationUseCase(store, nil),
-		GroupUnregistration: usecase.NewGroupUnregistrationUseCase(store, cleaner, nil),
-		GroupPolicyUpdate:   usecase.NewGroupPolicyUpdateUseCase(store, nil),
-		GroupLanguageUpdate: usecase.NewGroupLanguageUpdateUseCase(store, nil),
+		CreatorStatus:       usecase.NewCreatorStatusUseCase(core.NewCreatorService(store, routeTestEventSubChecker{}, nil), eventSink),
+		GroupRegistration:   usecase.NewGroupRegistrationUseCase(store, eventSink),
+		GroupUnregistration: usecase.NewGroupUnregistrationUseCase(store, cleaner, eventSink),
+		GroupPolicyUpdate:   usecase.NewGroupPolicyUpdateUseCase(store, eventSink),
+		GroupLanguageUpdate: usecase.NewGroupLanguageUpdateUseCase(store, eventSink),
 		Privacy:             usecase.NewPrivacyUseCase(store, "v1", 24*time.Hour),
 		Events:              eventSink,
 	})
-	controller.SetViewerAccessUseCase(usecase.NewViewerAccessUseCase(core.NewViewerService(store, controller.ViewerGroupOps(), nil, nil), nil))
-	controller.SetResetUseCase(usecase.NewResetUseCase(core.NewResetService(store, controller.KickFromGroup, nil), nil))
+	controller.SetViewerAccessUseCase(usecase.NewViewerAccessUseCase(core.NewViewerService(store, controller.ViewerGroupOps(), nil, nil), eventSink))
+	controller.SetResetUseCase(usecase.NewResetUseCase(core.NewResetService(store, controller.KickFromGroup, nil), eventSink))
 	controller.RegisterTelegramHandlers()
 
 	return routeTestHarness{
@@ -226,6 +226,30 @@ func (h routeTestHarness) assertSendMessageHasCallback(t *testing.T, body json.R
 		}
 	}
 	t.Fatalf("sendMessage callback data = %+v, want %q", got.ReplyMarkup.InlineKeyboard, want)
+}
+
+func (h routeTestHarness) assertEmittedEvent(t *testing.T, wantName, wantOutcome string, wantFields map[string]string) {
+	t.Helper()
+
+	for _, evt := range h.events.snapshot() {
+		if evt.Name != wantName {
+			continue
+		}
+		if wantOutcome != "" && evt.Outcome != wantOutcome {
+			continue
+		}
+		match := true
+		for k, v := range wantFields {
+			if evt.Fields[k] != v {
+				match = false
+				break
+			}
+		}
+		if match {
+			return
+		}
+	}
+	t.Fatalf("did not find event name=%q outcome=%q fields=%v in %+v", wantName, wantOutcome, wantFields, h.events.snapshot())
 }
 
 func parseEditMessageRequest(t *testing.T, body json.RawMessage) editMessageRequest {

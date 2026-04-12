@@ -98,7 +98,16 @@ other = "Privacy policy"
 other = "Subscribe on Twitch"
 
 [cb_refreshed]
-other = "Status refreshed ✅"
+other = "✅ Status refreshed"
+
+[cb_group_registered]
+other = "✅ Group linked"
+
+[cb_group_already_linked]
+other = "ℹ️ Group already linked"
+
+[cb_group_taken_by_other]
+other = "ℹ️ This group is linked to another creator"
 
 [cmd_help]
 other = "Use /start to connect your viewer account, /creator to set up a creator account, /linkgroup in your Telegram group, and /reset to delete linked data."

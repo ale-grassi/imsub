@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"imsub/internal/core"
+	"imsub/internal/events"
 
 	"github.com/mymmrac/telego"
 )
@@ -1019,6 +1020,8 @@ func TestRegisterTelegramHandlersRegisterGroupAlwaysPromptsForPolicy(t *testing.
 	h.assertEditMessageHasCallback(t, body, groupRegisterPolicyCallback(-1005, 0, core.GroupPolicyObserveWarn))
 	h.assertEditMessageHasCallback(t, body, groupRegisterPolicyCallback(-1005, 0, core.GroupPolicyKick))
 	h.assertEditMessageHasCallback(t, body, groupRegisterPolicyCallback(-1005, 0, core.GroupPolicyGraceWeek))
+	h.assertEmittedEvent(t, events.NameTelegramCommand, "", map[string]string{"command": "linkgroup", "chat_type": "group"})
+	h.assertEmittedEvent(t, events.NameTelegramCommandResponse, "prompted_policy", map[string]string{"command": "linkgroup", "chat_type": "group"})
 	if h.store.hasManagedGroup(-1005) {
 		t.Fatal("group should not be registered before choosing a policy")
 	}
@@ -1114,6 +1117,12 @@ func TestRegisterTelegramHandlersRegisterGroupPolicyCallbackRegistersGroup(t *te
 	if body := h.caller.lastEditMessageBody(); len(body) == 0 {
 		t.Fatal("expected registration callback to edit the policy message")
 	}
+	if ackBody := h.caller.lastAnswerCallbackBody(); len(ackBody) == 0 {
+		t.Fatal("expected registration callback to acknowledge the callback query")
+	}
+	h.assertEmittedEvent(t, events.NameTelegramCallback, "", map[string]string{"domain": "group", "verb": "pick"})
+	h.assertEmittedEvent(t, events.NameTelegramCallbackResponse, "registered", map[string]string{"domain": "group", "verb": "pick"})
+	h.assertEmittedEvent(t, events.NameGroupRegistration, "registered", nil)
 }
 
 func TestRegisterTelegramHandlersUnregisterGroupCommand(t *testing.T) {
