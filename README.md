@@ -346,7 +346,7 @@ The backup-load flow uses `RESTORE REPLACE` for each `imsub:*` key, so it keeps 
 pre-commit run --all-files
 ```
 
-In the devcontainer, `pre-commit` is installed in the image and the git hook is registered automatically by the post-create step. The hooks are intentionally close to CI: `make fmt-check`, `make vet`, `make build`, `make lint`, `make test`, `make test-integration` against the devcontainer Redis, `make vuln`, `actionlint`, `make fly-config-validate`, and `make secrets-scan`.
+In the devcontainer, `pre-commit` is installed in the image and the git hook is registered automatically by the post-create step. The pre-commit gate runs `make ci-check`, and `ci-check` is the canonical local equivalent of CI, including `actionlint`, Fly config validation, and the repository security checks.
 
 ---
 

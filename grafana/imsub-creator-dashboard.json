@@ -427,19 +427,19 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum by (result) (rate(imsub_creator_token_refresh_total{creator_id=\"$creator_id\"}[$__rate_interval]))",
+          "expr": "sum by (result) (increase(imsub_creator_token_refresh_total{creator_id=\"$creator_id\"}[$__rate_interval]))",
           "legendFormat": "{{result}}",
           "refId": "A"
         },
         {
           "editorMode": "code",
-          "expr": "sum by (result) (rate(imsub_creator_blocklist_sync_total{creator_id=\"$creator_id\"}[$__rate_interval]))",
+          "expr": "sum by (result) (increase(imsub_creator_blocklist_sync_total{creator_id=\"$creator_id\"}[$__rate_interval]))",
           "legendFormat": "blocklist_sync {{result}}",
           "refId": "B"
         },
         {
           "editorMode": "code",
-          "expr": "sum by (result) (rate(imsub_creator_blocklist_enforcement_total{creator_id=\"$creator_id\"}[$__rate_interval]))",
+          "expr": "sum by (result) (increase(imsub_creator_blocklist_enforcement_total{creator_id=\"$creator_id\"}[$__rate_interval]))",
           "legendFormat": "blocklist_enforcement {{result}}",
           "refId": "C"
         }
@@ -480,19 +480,19 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum by (from, to) (rate(imsub_creator_auth_state_transitions_total{creator_id=\"$creator_id\"}[$__rate_interval]))",
+          "expr": "sum by (from, to) (increase(imsub_creator_auth_state_transitions_total{creator_id=\"$creator_id\"}[$__rate_interval]))",
           "legendFormat": "{{from}} -> {{to}}",
           "refId": "A"
         },
         {
           "editorMode": "code",
-          "expr": "sum by (result) (rate(imsub_creator_reconnect_notifications_total{creator_id=\"$creator_id\"}[$__rate_interval]))",
+          "expr": "sum by (result) (increase(imsub_creator_reconnect_notifications_total{creator_id=\"$creator_id\"}[$__rate_interval]))",
           "legendFormat": "reconnect_notice {{result}}",
           "refId": "B"
         },
         {
           "editorMode": "code",
-          "expr": "sum by (result) (rate(imsub_creator_activation_total{creator_id=\"$creator_id\"}[$__rate_interval]))",
+          "expr": "sum by (result) (increase(imsub_creator_activation_total{creator_id=\"$creator_id\"}[$__rate_interval]))",
           "legendFormat": "activation {{result}}",
           "refId": "C"
         }
@@ -746,7 +746,7 @@
             "lineWidth": 2,
             "showPoints": "never"
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -775,13 +775,13 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum by (subscription_type) (rate(imsub_twitch_eventsub_notifications_total{creator_id=\"$creator_id\",result=\"ok\"}[$__rate_interval]))",
+          "expr": "sum by (subscription_type) (increase(imsub_twitch_eventsub_notifications_total{creator_id=\"$creator_id\",result=\"ok\"}[$__rate_interval]))",
           "legendFormat": "{{subscription_type}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Notification Success Rate",
+      "title": "Notification Success Count",
       "type": "timeseries",
       "description": "Successful Twitch EventSub notification handling for the selected creator."
     },
@@ -802,7 +802,7 @@
             "lineWidth": 2,
             "showPoints": "never"
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -831,13 +831,13 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum by (subscription_type) (rate(imsub_twitch_eventsub_notifications_total{creator_id=\"$creator_id\",result=\"failed\"}[$__rate_interval]))",
+          "expr": "sum by (subscription_type) (increase(imsub_twitch_eventsub_notifications_total{creator_id=\"$creator_id\",result=\"failed\"}[$__rate_interval]))",
           "legendFormat": "{{subscription_type}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Notification Failure Rate",
+      "title": "Notification Failure Count",
       "type": "timeseries",
       "description": "Failed Twitch EventSub notification handling for the selected creator."
     },
@@ -887,13 +887,13 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum by (result) (rate(imsub_creator_oauth_total{creator_id=\"$creator_id\"}[$__rate_interval]))",
+          "expr": "sum by (result) (increase(imsub_creator_oauth_total{creator_id=\"$creator_id\"}[$__rate_interval]))",
           "legendFormat": "oauth {{result}}",
           "refId": "A"
         },
         {
           "editorMode": "code",
-          "expr": "sum by (result) (rate(imsub_creator_status_total{creator_id=\"$creator_id\"}[$__rate_interval]))",
+          "expr": "sum by (result) (increase(imsub_creator_status_total{creator_id=\"$creator_id\"}[$__rate_interval]))",
           "legendFormat": "status {{result}}",
           "refId": "B"
         }
@@ -991,6 +991,6 @@
   "timezone": "",
   "title": "ImSub Creator Dashboard",
   "uid": "imsub-creator",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

@@ -17,12 +17,18 @@ func renderOAuthError(w http.ResponseWriter, page oauthErrorPage) {
 
 type oauthErrorPage = pages.OAuthErrorPage
 
+const (
+	oauthStartResultMissingState = "missing_state"
+	oauthStartResultUnknownMode  = "unknown_mode"
+	oauthStartResultOK           = "ok"
+)
+
 // OAuthStart validates state and renders the Twitch authorization launch page.
 func (c *Controller) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	state := r.PathValue("state")
-	modeLabel := "unknown"
-	resultLabel := "error"
+	modeLabel := eventStatusUnknown
+	resultLabel := eventStatusError
 	defer func() {
 		if c.events != nil {
 			c.events.Emit(ctx, events.Event{
@@ -33,7 +39,7 @@ func (c *Controller) OAuthStart(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 	if strings.TrimSpace(state) == "" {
-		resultLabel = "missing_state"
+		resultLabel = oauthStartResultMissingState
 		renderOAuthError(w, oauthErrorPage{
 			Status:  http.StatusBadRequest,
 			Title:   "Missing Twitch link",
@@ -45,7 +51,7 @@ func (c *Controller) OAuthStart(w http.ResponseWriter, r *http.Request) {
 
 	payload, err := c.store.OAuthState(ctx, state)
 	if err != nil {
-		resultLabel = "missing_state"
+		resultLabel = oauthStartResultMissingState
 		renderOAuthError(w, oauthErrorPage{
 			Status:  http.StatusBadRequest,
 			Title:   "Twitch authorization link expired",
@@ -65,7 +71,7 @@ func (c *Controller) OAuthStart(w http.ResponseWriter, r *http.Request) {
 		scope = strings.Join([]string{core.ScopeChannelReadSubscriptions, core.ScopeModerationRead}, " ")
 	default:
 		modeLabel = string(payload.Mode)
-		resultLabel = "unknown_mode"
+		resultLabel = oauthStartResultUnknownMode
 		renderOAuthError(w, oauthErrorPage{
 			Status:  http.StatusBadRequest,
 			Title:   "Unknown link type",
@@ -76,6 +82,6 @@ func (c *Controller) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	oauthURL := twitch.OAuthURL(c.cfg.TwitchClientID, c.cfg.PublicBaseURL+"/auth/callback", state, scope)
-	resultLabel = "ok"
+	resultLabel = oauthStartResultOK
 	c.renderOAuthLaunchPage(w, oauthURL)
 }

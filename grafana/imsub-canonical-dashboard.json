@@ -442,7 +442,7 @@
               "mode": "normal"
             }
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -471,13 +471,13 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(imsub_telegram_commands_total[$__rate_interval])) by (command)",
+          "expr": "sum(increase(imsub_telegram_commands_total[$__rate_interval])) by (command)",
           "legendFormat": "{{command}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Command Usage Rate",
+      "title": "Command Usage Count",
       "type": "timeseries"
     },
     {
@@ -559,7 +559,7 @@
               "mode": "normal"
             }
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -588,13 +588,13 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(imsub_viewer_access_total[$__rate_interval])) by (result)",
+          "expr": "sum(increase(imsub_viewer_access_total[$__rate_interval])) by (result)",
           "legendFormat": "{{result}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Viewer Access Checks",
+      "title": "Viewer Access Count",
       "type": "timeseries"
     },
     {
@@ -1124,7 +1124,7 @@
             "lineWidth": 2,
             "showPoints": "never"
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -1153,13 +1153,13 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(imsub_oauth_callbacks_total[$__rate_interval])) by (mode, result)",
+          "expr": "sum(increase(imsub_oauth_callbacks_total[$__rate_interval])) by (mode, result)",
           "legendFormat": "{{mode}} / {{result}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "OAuth Callback Rate",
+      "title": "OAuth Callback Count",
       "type": "timeseries"
     },
     {
@@ -1180,7 +1180,7 @@
             "lineWidth": 2,
             "showPoints": "never"
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -1209,13 +1209,13 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(imsub_eventsub_messages_total[$__rate_interval])) by (result)",
+          "expr": "sum(increase(imsub_eventsub_messages_total[$__rate_interval])) by (result)",
           "legendFormat": "{{result}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "EventSub Message Rate",
+      "title": "EventSub Message Count",
       "type": "timeseries"
     },
     {
@@ -1236,7 +1236,7 @@
             "lineWidth": 2,
             "showPoints": "never"
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -1265,13 +1265,13 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(imsub_telegram_webhook_updates_total[$__rate_interval])) by (kind)",
+          "expr": "sum(increase(imsub_telegram_webhook_updates_total[$__rate_interval])) by (kind)",
           "legendFormat": "{{kind}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Telegram Webhook Rate",
+      "title": "Telegram Webhook Count",
       "type": "timeseries"
     },
     {
@@ -1296,7 +1296,7 @@
               "mode": "normal"
             }
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -1325,7 +1325,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(imsub_background_jobs_total{job=\"reconcile_subscribers\"}[$__rate_interval])) by (result)",
+          "expr": "sum(increase(imsub_background_jobs_total{job=\"reconcile_subscribers\"}[$__rate_interval])) by (result)",
           "legendFormat": "{{result}}",
           "range": true,
           "refId": "A"
@@ -1352,7 +1352,7 @@
             "lineWidth": 2,
             "showPoints": "never"
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -1381,13 +1381,13 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(imsub_background_jobs_total{result!=\"ok\"}[$__rate_interval])) by (job, result)",
+          "expr": "sum(increase(imsub_background_jobs_total{result!=\"ok\"}[$__rate_interval])) by (job, result)",
           "legendFormat": "{{job}} / {{result}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Job Non-Success Rate",
+      "title": "Job Non-Success Count",
       "type": "timeseries"
     },
     {
@@ -1469,7 +1469,7 @@
               "mode": "normal"
             }
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -1498,7 +1498,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(increase(imsub_reset_executions_total[$__range])) by (scope, result)",
+          "expr": "sum(increase(imsub_reset_executions_total[$__rate_interval])) by (scope, result)",
           "legendFormat": "{{scope}} / {{result}}",
           "range": true,
           "refId": "A"
@@ -1529,7 +1529,7 @@
               "mode": "normal"
             }
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -1558,13 +1558,13 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(imsub_telegram_api_errors_total[$__rate_interval])) by (method, reason)",
+          "expr": "sum(increase(imsub_telegram_api_errors_total[$__rate_interval])) by (method, reason)",
           "legendFormat": "{{method}} / {{reason}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Telegram API Errors Rate",
+      "title": "Telegram API Error Count",
       "type": "timeseries"
     },
     {
@@ -1585,7 +1585,7 @@
             "lineWidth": 1,
             "showPoints": "never"
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -1614,7 +1614,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(increase(imsub_reconciliation_repairs_total[$__range])) by (kind)",
+          "expr": "sum(increase(imsub_reconciliation_repairs_total[$__rate_interval])) by (kind)",
           "legendFormat": "{{kind}}",
           "range": true,
           "refId": "A"
@@ -1654,7 +1654,7 @@
             "lineWidth": 2,
             "showPoints": "never"
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -1683,13 +1683,13 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(imsub_oauth_starts_total[$__rate_interval])) by (mode, result)",
+          "expr": "sum(increase(imsub_oauth_starts_total[$__rate_interval])) by (mode, result)",
           "legendFormat": "{{mode}} / {{result}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "OAuth Start Rate",
+      "title": "OAuth Start Count",
       "type": "timeseries"
     },
     {
@@ -1710,7 +1710,7 @@
             "lineWidth": 2,
             "showPoints": "never"
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -1739,7 +1739,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(imsub_oauth_callbacks_total{result=\"state_missing\"}[$__rate_interval])) by (mode)",
+          "expr": "sum(increase(imsub_oauth_callbacks_total{result=\"state_missing\"}[$__rate_interval])) by (mode)",
           "legendFormat": "{{mode}}",
           "range": true,
           "refId": "A"
@@ -1766,7 +1766,7 @@
             "lineWidth": 2,
             "showPoints": "never"
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -1795,13 +1795,13 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(imsub_viewer_invite_links_total{result=\"failed\"}[$__rate_interval])) by (reason)",
+          "expr": "sum(increase(imsub_viewer_invite_links_total{result=\"failed\"}[$__rate_interval])) by (reason)",
           "legendFormat": "{{reason}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Invite Link Failure Rate",
+      "title": "Invite Link Failure Count",
       "type": "timeseries"
     },
     {
@@ -2054,7 +2054,7 @@
             "lineWidth": 2,
             "showPoints": "never"
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -2083,13 +2083,13 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum by (subscription_type) (rate(imsub_twitch_eventsub_notifications_total{result=\"ok\"}[$__rate_interval]))",
+          "expr": "sum by (subscription_type) (increase(imsub_twitch_eventsub_notifications_total{result=\"ok\"}[$__rate_interval]))",
           "legendFormat": "{{subscription_type}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Notification Success Rate",
+      "title": "Notification Success Count",
       "type": "timeseries",
       "description": "Global successful Twitch EventSub notification handling by subscription type."
     },
@@ -2110,7 +2110,7 @@
             "lineWidth": 2,
             "showPoints": "never"
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -2139,13 +2139,13 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum by (subscription_type) (rate(imsub_twitch_eventsub_notifications_total{result=\"failed\"}[$__rate_interval]))",
+          "expr": "sum by (subscription_type) (increase(imsub_twitch_eventsub_notifications_total{result=\"failed\"}[$__rate_interval]))",
           "legendFormat": "{{subscription_type}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Notification Failure Rate",
+      "title": "Notification Failure Count",
       "type": "timeseries",
       "description": "Global failed Twitch EventSub notification handling by subscription type."
     },
@@ -2238,7 +2238,7 @@
             "lineWidth": 2,
             "showPoints": "never"
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -2267,7 +2267,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(imsub_group_registrations_total[$__rate_interval])) by (outcome)",
+          "expr": "sum(increase(imsub_group_registrations_total[$__rate_interval])) by (outcome)",
           "legendFormat": "register / {{outcome}}",
           "range": true,
           "refId": "A"
@@ -2305,7 +2305,7 @@
               "mode": "normal"
             }
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -2334,13 +2334,13 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(imsub_telegram_mtproto_bootstrap_total[$__rate_interval])) by (outcome)",
+          "expr": "sum(increase(imsub_telegram_mtproto_bootstrap_total[$__rate_interval])) by (outcome)",
           "legendFormat": "{{outcome}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "MTProto Bootstrap Rate",
+      "title": "MTProto Bootstrap Count",
       "type": "timeseries"
     },
     {
@@ -2479,7 +2479,7 @@
               "mode": "normal"
             }
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -2508,7 +2508,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(imsub_telegram_kick_actions_total[$__rate_interval])) by (reason, result)",
+          "expr": "sum(increase(imsub_telegram_kick_actions_total[$__rate_interval])) by (reason, result)",
           "legendFormat": "{{reason}} / {{result}}",
           "range": true,
           "refId": "A"
@@ -2649,7 +2649,7 @@
             "lineWidth": 2,
             "showPoints": "never"
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -2678,7 +2678,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(imsub_telegram_kick_actions_total{result!=\"ok\"}[$__rate_interval])) by (reason, result)",
+          "expr": "sum(increase(imsub_telegram_kick_actions_total{result!=\"ok\"}[$__rate_interval])) by (reason, result)",
           "legendFormat": "{{reason}} / {{result}}",
           "range": true,
           "refId": "A"
@@ -4083,7 +4083,7 @@
             "lineWidth": 2,
             "showPoints": "never"
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -4112,13 +4112,13 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(imsub_redis_backup_runs_total[$__rate_interval])) by (result)",
+          "expr": "sum(increase(imsub_redis_backup_runs_total[$__rate_interval])) by (result)",
           "legendFormat": "{{result}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Backup Run Rate",
+      "title": "Backup Run Count",
       "type": "timeseries"
     },
     {
@@ -4245,131 +4245,6 @@
         "x": 0,
         "y": 184
       },
-      "id": 800,
-      "panels": [],
-      "title": "Logs",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "victoriametrics-logs-datasource",
-        "uid": "${logs_datasource}"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 18,
-        "x": 0,
-        "y": 185
-      },
-      "id": 801,
-      "options": {
-        "dedupStrategy": "none",
-        "enableLogDetails": true,
-        "prettifyLogMessage": false,
-        "showCommonLabels": false,
-        "showLabels": false,
-        "showTime": true,
-        "sortOrder": "Descending",
-        "wrapLogMessage": false
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-logs-datasource",
-            "uid": "${logs_datasource}"
-          },
-          "editorMode": "code",
-          "expr": "fly.app.name: $app",
-          "metrics": [
-            {
-              "id": "1",
-              "settings": {
-                "limit": "1000"
-              },
-              "type": "logs"
-            }
-          ],
-          "query": "fly.app.name:\"$app\"",
-          "queryType": "instant",
-          "refId": "A"
-        }
-      ],
-      "title": "Recent Logs",
-      "type": "logs"
-    },
-    {
-      "datasource": {
-        "type": "victoriametrics-logs-datasource",
-        "uid": "${logs_datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisPlacement": "auto",
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "lineWidth": 1,
-            "pointSize": 5,
-            "showPoints": "auto"
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 18,
-        "y": 185
-      },
-      "id": 802,
-      "interval": "1m",
-      "maxDataPoints": 200,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-logs-datasource",
-            "uid": "${logs_datasource}"
-          },
-          "editorMode": "code",
-          "expr": "fly.app.name: $app | stats count() as logs",
-          "metrics": [
-            {
-              "id": "1",
-              "type": "count"
-            }
-          ],
-          "query": "fly.app.name:\"$app\"",
-          "queryType": "statsRange",
-          "refId": "A"
-        }
-      ],
-      "title": "Log Volume",
-      "type": "timeseries"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 193
-      },
       "id": 809,
       "panels": [],
       "title": "Telegram Callbacks",
@@ -4397,7 +4272,7 @@
               "mode": "normal"
             }
           },
-          "unit": "ops"
+          "unit": "short"
         },
         "overrides": []
       },
@@ -4405,7 +4280,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 194
+        "y": 185
       },
       "id": 810,
       "options": {
@@ -4426,13 +4301,13 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(rate(imsub_telegram_callbacks_total[$__rate_interval])) by (domain, verb)",
+          "expr": "sum(increase(imsub_telegram_callbacks_total[$__rate_interval])) by (domain, verb)",
           "legendFormat": "{{domain}} / {{verb}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Callback Usage Rate",
+      "title": "Callback Usage Count",
       "type": "timeseries"
     },
     {
@@ -4455,7 +4330,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 194
+        "y": 185
       },
       "id": 811,
       "options": {
@@ -4535,7 +4410,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 202
+        "y": 193
       },
       "id": 812,
       "options": {
@@ -4563,6 +4438,131 @@
         }
       ],
       "title": "Callback Response p95",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 211
+      },
+      "id": 800,
+      "panels": [],
+      "title": "Logs",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "${logs_datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 18,
+        "x": 0,
+        "y": 212
+      },
+      "id": 801,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": false
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "${logs_datasource}"
+          },
+          "editorMode": "code",
+          "expr": "fly.app.name: $app",
+          "metrics": [
+            {
+              "id": "1",
+              "settings": {
+                "limit": "1000"
+              },
+              "type": "logs"
+            }
+          ],
+          "query": "fly.app.name:\"$app\"",
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "Recent Logs",
+      "type": "logs"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "${logs_datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "lineWidth": 1,
+            "pointSize": 5,
+            "showPoints": "auto"
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 212
+      },
+      "id": 802,
+      "interval": "1m",
+      "maxDataPoints": 200,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "${logs_datasource}"
+          },
+          "editorMode": "code",
+          "expr": "fly.app.name: $app | stats count() as logs",
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ],
+          "query": "fly.app.name:\"$app\"",
+          "queryType": "statsRange",
+          "refId": "A"
+        }
+      ],
+      "title": "Log Volume",
       "type": "timeseries"
     }
   ],
@@ -4680,6 +4680,6 @@
   "timezone": "",
   "title": "ImSub Canonical",
   "uid": "imsub-canonical",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

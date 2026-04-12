@@ -13,7 +13,7 @@ TUNNEL_PID_FILE := tmp/ngrok.pid
 TUNNEL_LOG_FILE := tmp/ngrok.log
 NGROK_API_URL := http://127.0.0.1:4040/api/tunnels
 
-.PHONY: help run run-tunnel tunnel attach-tunnel stop-tunnel seed fmt fmt-check vet test test-integration build check ci-check lint style-check cover cover-open vuln fly-config-validate secrets-scan msg-gallery msg-gallery-md msg-gallery-tg prod-logs prod-redis-proxy
+.PHONY: help run run-tunnel tunnel attach-tunnel stop-tunnel seed fmt fmt-check vet test test-integration build check ci-check lint actionlint style-check cover cover-open vuln fly-config-validate secrets-scan msg-gallery msg-gallery-md msg-gallery-tg prod-logs prod-redis-proxy
 
 help:
 	@echo "Targets:"
@@ -222,6 +222,9 @@ build:
 lint:
 	$(GOLANGCI_LINT) run
 
+actionlint:
+	actionlint
+
 style-check: fmt-check lint
 
 cover:
@@ -256,7 +259,7 @@ msg-gallery-tg:
 
 check: fmt test build
 
-ci-check: fmt-check vet build test test-integration lint vuln secrets-scan
+ci-check: fmt-check vet build test test-integration lint vuln secrets-scan actionlint fly-config-validate
 
 prod-logs:
 	@if [ "$(CONFIRM)" != "prod-logs" ]; then \
