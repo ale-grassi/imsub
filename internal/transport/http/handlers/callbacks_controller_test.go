@@ -64,6 +64,26 @@ func (f *callbacksFakeObserver) Emit(_ context.Context, evt events.Event) {
 	f.events = append(f.events, evt)
 }
 
+func assertEventSubEvent(t *testing.T, obs *callbacksFakeObserver, outcome, messageType, subscriptionType, creatorID string) {
+	t.Helper()
+	if len(obs.events) != 1 {
+		t.Fatalf("eventsub event count = %d, want 1: %+v", len(obs.events), obs.events)
+	}
+	evt := obs.events[0]
+	if evt.Name != events.NameEventSubMessage || evt.Outcome != outcome {
+		t.Fatalf("eventsub event = %+v, want outcome %q", evt, outcome)
+	}
+	if evt.Fields["message_type"] != messageType {
+		t.Fatalf("eventsub message_type = %q, want %q", evt.Fields["message_type"], messageType)
+	}
+	if evt.Fields["subscription_type"] != subscriptionType {
+		t.Fatalf("eventsub subscription_type = %q, want %q", evt.Fields["subscription_type"], subscriptionType)
+	}
+	if evt.Fields["creator_id"] != creatorID {
+		t.Fatalf("eventsub creator_id = %q, want %q", evt.Fields["creator_id"], creatorID)
+	}
+}
+
 func newController(store controllerStore, sink events.EventSink, viewer viewerOAuthHandler, creator creatorOAuthHandler, subEnd subEndHandler) *Controller {
 	return New(Dependencies{
 		Config: config.Config{
@@ -159,9 +179,7 @@ func TestEventSubWebhookChallenge(t *testing.T) {
 	if rec.Body.String() != "abc123" {
 		t.Errorf("EventSubWebhook(challenge).Body = %q, want %q", rec.Body.String(), "abc123")
 	}
-	if len(obs.events) != 1 || obs.events[0].Name != events.NameEventSubMessage || obs.events[0].Outcome != "challenge_ok" {
-		t.Errorf("eventsub events = %+v, want challenge_ok", obs.events)
-	}
+	assertEventSubEvent(t, obs, "challenge_ok", "webhook_callback_verification", "channel.subscribe", "c1")
 }
 
 func TestEventSubWebhookDuplicate(t *testing.T) {
@@ -195,9 +213,7 @@ func TestEventSubWebhookDuplicate(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), "duplicate ignored") {
 		t.Errorf("EventSubWebhook(duplicate).Body = %q, want body containing %q", rec.Body.String(), "duplicate ignored")
 	}
-	if len(obs.events) != 1 || obs.events[0].Name != events.NameEventSubMessage || obs.events[0].Outcome != "duplicate" {
-		t.Errorf("eventsub events = %+v, want duplicate", obs.events)
-	}
+	assertEventSubEvent(t, obs, "duplicate", "notification", "channel.subscribe", "c1")
 }
 
 func TestEventSubWebhookStoreFailure(t *testing.T) {
@@ -225,9 +241,7 @@ func TestEventSubWebhookStoreFailure(t *testing.T) {
 	if rec.Code != http.StatusBadGateway {
 		t.Errorf("EventSubWebhook(store failure).StatusCode = %d, want %d", rec.Code, http.StatusBadGateway)
 	}
-	if len(obs.events) != 1 || obs.events[0].Name != events.NameEventSubMessage || obs.events[0].Outcome != "redis_error" {
-		t.Errorf("eventsub events = %+v, want redis_error", obs.events)
-	}
+	assertEventSubEvent(t, obs, "redis_error", "notification", "channel.subscribe", "c1")
 }
 
 func TestEventSubWebhookSubscribeFailureDoesNotMarkProcessed(t *testing.T) {
@@ -272,9 +286,7 @@ func TestEventSubWebhookSubscribeFailureDoesNotMarkProcessed(t *testing.T) {
 	if markCalls != 0 {
 		t.Fatalf("MarkEventProcessed call count = %d, want 0", markCalls)
 	}
-	if len(obs.events) != 1 || obs.events[0].Outcome != "notification_subscribe_store_failed" {
-		t.Errorf("eventsub events = %+v, want notification_subscribe_store_failed", obs.events)
-	}
+	assertEventSubEvent(t, obs, "notification_subscribe_store_failed", "notification", "channel.subscribe", "c1")
 }
 
 func TestEventSubWebhookSubscribeInvokesStartHandler(t *testing.T) {
@@ -314,9 +326,7 @@ func TestEventSubWebhookSubscribeInvokesStartHandler(t *testing.T) {
 	if startCalls != 1 {
 		t.Fatalf("SubscriptionStart call count = %d, want 1", startCalls)
 	}
-	if len(obs.events) != 1 || obs.events[0].Outcome != "notification_subscribe" {
-		t.Fatalf("eventsub events = %+v, want notification_subscribe", obs.events)
-	}
+	assertEventSubEvent(t, obs, "notification_subscribe", "notification", "channel.subscribe", "c1")
 }
 
 func TestEventSubWebhookSubscribeStartFailureStillAcknowledged(t *testing.T) {
@@ -353,9 +363,7 @@ func TestEventSubWebhookSubscribeStartFailureStillAcknowledged(t *testing.T) {
 	if markCalls != 1 {
 		t.Fatalf("MarkEventProcessed call count = %d, want 1", markCalls)
 	}
-	if len(obs.events) != 1 || obs.events[0].Outcome != "notification_subscribe" {
-		t.Fatalf("eventsub events = %+v, want notification_subscribe", obs.events)
-	}
+	assertEventSubEvent(t, obs, "notification_subscribe", "notification", "channel.subscribe", "c1")
 }
 
 func TestEventSubWebhookBanPassesPermanentFlag(t *testing.T) {
@@ -405,9 +413,84 @@ func TestEventSubWebhookBanPassesPermanentFlag(t *testing.T) {
 	if markCalls != 1 {
 		t.Fatalf("MarkEventProcessed call count = %d, want 1", markCalls)
 	}
-	if len(obs.events) != 1 || obs.events[0].Outcome != "notification_ban" {
-		t.Fatalf("eventsub events = %+v, want notification_ban", obs.events)
+	assertEventSubEvent(t, obs, "notification_ban", "notification", "channel.ban", "c1")
+}
+
+func TestEventSubWebhookSubscriptionEndFailure(t *testing.T) {
+	t.Parallel()
+
+	obs := &callbacksFakeObserver{}
+	markCalls := 0
+	c := New(Dependencies{
+		Config: config.Config{
+			TwitchEventSubSecret: "secret",
+		},
+		Store: &callbacksFakeStore{
+			eventProcessedFn: func(_ context.Context, _ string) (bool, error) { return false, nil },
+			markEventFn: func(context.Context, string, time.Duration) (bool, error) {
+				markCalls++
+				return false, nil
+			},
+		},
+		Events: obs,
+		SubscriptionEnd: func(context.Context, string, string, string, string) error {
+			return errors.New("remove failed")
+		},
+	})
+
+	body := []byte(`{"subscription":{"type":"channel.subscription.end","condition":{"broadcaster_user_id":"c1"}},"event":{"broadcaster_user_login":"alpha","user_id":"u1","user_login":"viewer1"}}`)
+	req := signedEventSubRequest(t, "secret", "msg-sub-end-fail", time.Now().UTC().Format(time.RFC3339), "notification", body)
+	rec := httptest.NewRecorder()
+
+	c.EventSubWebhook(rec, req)
+
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("EventSubWebhook(subscription end failure).StatusCode = %d, want %d", rec.Code, http.StatusBadGateway)
 	}
+	if markCalls != 0 {
+		t.Fatalf("MarkEventProcessed call count = %d, want 0", markCalls)
+	}
+	assertEventSubEvent(t, obs, "notification_subscription_end_failed", "notification", "channel.subscription.end", "c1")
+}
+
+func TestEventSubWebhookUnbanFailure(t *testing.T) {
+	t.Parallel()
+
+	obs := &callbacksFakeObserver{}
+	markCalls := 0
+	c := New(Dependencies{
+		Config: config.Config{
+			TwitchEventSubSecret: "secret",
+		},
+		Store: &callbacksFakeStore{
+			eventProcessedFn: func(_ context.Context, _ string) (bool, error) { return false, nil },
+			markEventFn: func(context.Context, string, time.Duration) (bool, error) {
+				markCalls++
+				return false, nil
+			},
+		},
+		Events: obs,
+		BlocklistUnban: func(_ context.Context, creatorID, twitchUserID string, _ bool) error {
+			if creatorID != "c1" || twitchUserID != "u1" {
+				t.Fatalf("BlocklistUnban(%q, %q) got unexpected args", creatorID, twitchUserID)
+			}
+			return errors.New("unban failed")
+		},
+	})
+
+	body := []byte(`{"subscription":{"type":"channel.unban","condition":{"broadcaster_user_id":"c1"}},"event":{"user_id":"u1","user_login":"viewer1"}}`)
+	req := signedEventSubRequest(t, "secret", "msg-unban-fail", time.Now().UTC().Format(time.RFC3339), "notification", body)
+	rec := httptest.NewRecorder()
+
+	c.EventSubWebhook(rec, req)
+
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("EventSubWebhook(unban failure).StatusCode = %d, want %d", rec.Code, http.StatusBadGateway)
+	}
+	if markCalls != 0 {
+		t.Fatalf("MarkEventProcessed call count = %d, want 0", markCalls)
+	}
+	assertEventSubEvent(t, obs, "notification_unban_failed", "notification", "channel.unban", "c1")
 }
 
 func signedEventSubRequest(t *testing.T, secret, messageID, ts, messageType string, body []byte) *http.Request {

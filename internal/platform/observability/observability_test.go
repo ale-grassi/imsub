@@ -17,6 +17,7 @@ func TestNilSafety(t *testing.T) {
 	var m *Metrics
 	m.OAuthCallback("viewer", "ok")
 	m.EventSubMessage("notification", "channel.subscribe", "ok")
+	m.TwitchEventSubNotification("creator-1", "notification", "channel.subscribe", "notification_subscribe")
 	m.TelegramWebhookResult("ok")
 	m.BackgroundJob("audit", "ok", time.Millisecond)
 	m.RedisBackup("ok", time.Millisecond, 3, 128)
@@ -66,6 +67,7 @@ func TestMetricsExposure(t *testing.T) {
 	m := New()
 	m.OAuthCallback("viewer", "success")
 	m.EventSubMessage("notification", "channel.subscribe", "ok")
+	m.TwitchEventSubNotification("creator-1", "notification", "channel.subscribe", "notification_subscribe")
 	m.TelegramWebhookResult("ok")
 	m.BackgroundJob("integrity_audit", "ok", 120*time.Millisecond)
 	m.RedisBackup("ok", 140*time.Millisecond, 7, 1024)
@@ -112,6 +114,7 @@ func TestMetricsExposure(t *testing.T) {
 	needles := []string{
 		"imsub_oauth_callbacks_total",
 		"imsub_eventsub_messages_total",
+		"imsub_twitch_eventsub_notifications_total",
 		"imsub_telegram_webhook_updates_total",
 		"imsub_background_jobs_total",
 		"imsub_redis_backup_runs_total",
@@ -281,6 +284,33 @@ func TestEmitProjectsEventSubEvents(t *testing.T) {
 	t.Parallel()
 
 	m := New()
+	m.Emit(t.Context(), events.Event{
+		Name:    events.NameEventSubMessage,
+		Outcome: "notification_subscribe",
+		Fields: map[string]string{
+			"creator_id":        "c1",
+			"message_type":      "notification",
+			"subscription_type": "channel.subscribe",
+		},
+	})
+	m.Emit(t.Context(), events.Event{
+		Name:    events.NameEventSubMessage,
+		Outcome: "notification_subscription_end_failed",
+		Fields: map[string]string{
+			"creator_id":        "c1",
+			"message_type":      "notification",
+			"subscription_type": "channel.subscription.end",
+		},
+	})
+	m.Emit(t.Context(), events.Event{
+		Name:    events.NameEventSubMessage,
+		Outcome: "duplicate",
+		Fields: map[string]string{
+			"creator_id":        "c1",
+			"message_type":      "notification",
+			"subscription_type": "channel.subscribe",
+		},
+	})
 	m.Emit(t.Context(), events.Event{Name: events.NameCreatorTokenRefresh, Outcome: "ok", Fields: map[string]string{"creator_id": "c1"}})
 	m.Emit(t.Context(), events.Event{Name: events.NameCreatorBlocklistSync, Outcome: "ok", Count: 4, Fields: map[string]string{"creator_id": "c1"}})
 	m.Emit(t.Context(), events.Event{Name: events.NameCreatorBlocklistEnforcement, Outcome: "ok", Count: 2, Fields: map[string]string{"creator_id": "c1"}})
@@ -299,6 +329,11 @@ func TestEmitProjectsEventSubEvents(t *testing.T) {
 
 	body := rec.Body.String()
 	needles := []string{
+		`imsub_eventsub_messages_total{message_type="notification",result="notification_subscribe",subscription_type="channel.subscribe"} 1`,
+		`imsub_eventsub_messages_total{message_type="notification",result="notification_subscription_end_failed",subscription_type="channel.subscription.end"} 1`,
+		`imsub_eventsub_messages_total{message_type="notification",result="duplicate",subscription_type="channel.subscribe"} 1`,
+		`imsub_twitch_eventsub_notifications_total{creator_id="c1",result="ok",subscription_type="channel.subscribe"} 1`,
+		`imsub_twitch_eventsub_notifications_total{creator_id="c1",result="failed",subscription_type="channel.subscription.end"} 1`,
 		`imsub_creator_token_refresh_total{creator_id="c1",result="ok"} 1`,
 		`imsub_creator_blocklist_sync_total{creator_id="c1",result="ok"} 4`,
 		`imsub_creator_blocklist_enforcement_total{creator_id="c1",result="ok"} 2`,

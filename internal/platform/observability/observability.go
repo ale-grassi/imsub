@@ -15,6 +15,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+const (
+	twitchEventSubResultOK     = "ok"
+	twitchEventSubResultFailed = "failed"
+)
+
 // Metrics holds all Prometheus collectors used by the application.
 type Metrics struct {
 	registry             *prometheus.Registry
@@ -34,6 +39,7 @@ type Metrics struct {
 	creatorReconnectReq  *prometheus.GaugeVec
 	oauthCallbacksTotal  *prometheus.CounterVec
 	eventsubTotal        *prometheus.CounterVec
+	twitchEventSubTotal  *prometheus.CounterVec
 	telegramWebhook      *prometheus.CounterVec
 	backgroundJobsTotal  *prometheus.CounterVec
 	backgroundJobTime    *prometheus.HistogramVec
@@ -170,6 +176,13 @@ func New() *Metrics {
 				Help: "EventSub webhook messages by type and result.",
 			},
 			[]string{"message_type", "subscription_type", "result"},
+		),
+		twitchEventSubTotal: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "imsub_twitch_eventsub_notifications_total",
+				Help: "Creator-scoped Twitch EventSub notification processing results.",
+			},
+			[]string{"creator_id", "subscription_type", "result"},
 		),
 		telegramWebhook: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
@@ -416,6 +429,7 @@ func New() *Metrics {
 		m.creatorReconnectReq,
 		m.oauthCallbacksTotal,
 		m.eventsubTotal,
+		m.twitchEventSubTotal,
 		m.telegramWebhook,
 		m.backgroundJobsTotal,
 		m.backgroundJobTime,
@@ -837,6 +851,7 @@ func (m *Metrics) Emit(_ context.Context, evt events.Event) {
 		m.OAuthCallback(evt.Fields["mode"], evt.Outcome)
 	case events.NameEventSubMessage:
 		m.EventSubMessage(evt.Fields["message_type"], evt.Fields["subscription_type"], evt.Outcome)
+		m.TwitchEventSubNotification(evt.Fields["creator_id"], evt.Fields["message_type"], evt.Fields["subscription_type"], evt.Outcome)
 	case events.NameTelegramWebhook:
 		m.TelegramWebhookResult(evt.Outcome)
 	case events.NameCreatorOAuth:
@@ -884,6 +899,59 @@ func (m *Metrics) EventSubMessage(messageType, subscriptionType, result string) 
 		return
 	}
 	m.eventsubTotal.WithLabelValues(httputil.LabelOrUnknown(messageType), httputil.LabelOrUnknown(subscriptionType), httputil.LabelOrUnknown(result)).Inc()
+}
+
+// TwitchEventSubNotification records creator-scoped Twitch EventSub notification outcomes.
+func (m *Metrics) TwitchEventSubNotification(creatorID, messageType, subscriptionType, outcome string) {
+	if m == nil {
+		return
+	}
+	if httputil.LabelOrUnknown(messageType) != "notification" {
+		return
+	}
+	result, ok := normalizeTwitchEventSubResult(subscriptionType, outcome)
+	if !ok {
+		return
+	}
+	m.twitchEventSubTotal.WithLabelValues(
+		httputil.LabelOrUnknown(creatorID),
+		httputil.LabelOrUnknown(subscriptionType),
+		result,
+	).Inc()
+}
+
+func normalizeTwitchEventSubResult(subscriptionType, outcome string) (string, bool) {
+	switch subscriptionType {
+	case "channel.subscribe":
+		switch outcome {
+		case "notification_subscribe":
+			return twitchEventSubResultOK, true
+		case "notification_subscribe_store_failed":
+			return twitchEventSubResultFailed, true
+		}
+	case "channel.subscription.end":
+		switch outcome {
+		case "notification_subscription_end":
+			return twitchEventSubResultOK, true
+		case "notification_subscription_end_failed":
+			return twitchEventSubResultFailed, true
+		}
+	case "channel.ban":
+		switch outcome {
+		case "notification_ban":
+			return twitchEventSubResultOK, true
+		case "notification_ban_failed":
+			return twitchEventSubResultFailed, true
+		}
+	case "channel.unban":
+		switch outcome {
+		case "notification_unban":
+			return twitchEventSubResultOK, true
+		case "notification_unban_failed":
+			return twitchEventSubResultFailed, true
+		}
+	}
+	return "", false
 }
 
 // TelegramWebhookResult records a Telegram webhook handling result.

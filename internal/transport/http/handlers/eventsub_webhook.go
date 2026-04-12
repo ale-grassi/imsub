@@ -43,6 +43,7 @@ func (c *Controller) EventSubWebhook(w http.ResponseWriter, r *http.Request) {
 	logger.Debug("eventsub webhook received", "method", r.Method, "path", r.URL.Path)
 	messageType := strings.TrimSpace(r.Header.Get("Twitch-Eventsub-Message-Type"))
 	subscriptionType := eventStatusUnknown
+	creatorID := eventStatusUnknown
 	result := eventStatusError
 	defer func() {
 		if c.events != nil {
@@ -52,6 +53,7 @@ func (c *Controller) EventSubWebhook(w http.ResponseWriter, r *http.Request) {
 				Fields: map[string]string{
 					"message_type":      messageType,
 					"subscription_type": subscriptionType,
+					"creator_id":        creatorID,
 				},
 			})
 		}
@@ -83,6 +85,7 @@ func (c *Controller) EventSubWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	subscriptionType = env.Subscription.Type
+	creatorID = env.Subscription.Condition.BroadcasterUserID
 	logger.Debug("eventsub webhook parsed",
 		"message_type", messageType,
 		"sub_type", env.Subscription.Type,
