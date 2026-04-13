@@ -238,6 +238,9 @@ other = "I couldn't load your account status right now. Tap Refresh in a moment 
 [err_viewer_generic]
 other = "‼️⚠️ Something went wrong. Use the buttons below to try again."
 
+[viewer_god_html]
+other = "👑 <b>Global access enabled</b>\n\nYou can join every managed group without linking Twitch.\n\n<b>Active creators</b>\n%s"
+
 [err_reset]
 other = "‼️⚠️ Something went wrong while updating your reset request. Use the buttons below to try again."
 

@@ -238,6 +238,9 @@ other = "Non sono riuscito a caricare lo stato del tuo account. Tocca Aggiorna t
 [err_viewer_generic]
 other = "‼️⚠️ Qualcosa e' andato storto. Usa i pulsanti qui sotto per riprovare."
 
+[viewer_god_html]
+other = "👑 <b>Accesso globale attivo</b>\n\nPuoi entrare in tutti i gruppi gestiti senza collegare Twitch.\n\n<b>Creator attivi</b>\n%s"
+
 [err_reset]
 other = "‼️⚠️ Qualcosa e' andato storto durante l'aggiornamento della richiesta di reset. Usa i pulsanti qui sotto per riprovare."
 

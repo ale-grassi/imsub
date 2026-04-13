@@ -39,6 +39,17 @@ func buildViewerErrorView(lang string) sharedView {
 	return buildMainMenuTextView(lang, msgViewerError)
 }
 
+func buildViewerGodView(lang string, targets core.JoinTargets) sharedView {
+	joinRows := renderJoinButtons(targets, lang)
+	return sharedView{
+		text: fmt.Sprintf(i18n.Translate(lang, "viewer_god_html"), renderCreatorNames(targets.ActiveCreatorNames)),
+		opts: client.MessageOptions{
+			Markup:         ui.WithMainMenu(lang, viewerMainMenuCallbacks(), joinRows...),
+			DisablePreview: true,
+		},
+	}
+}
+
 func buildInfoView(lang string) sharedView {
 	return sharedView{
 		text: i18n.Translate(lang, msgCmdInfoHTML),
@@ -144,4 +155,19 @@ func graceRemainingHours(dueAt, now time.Time) int {
 		return 0
 	}
 	return int(math.Ceil(remaining.Hours()))
+}
+
+func renderCreatorNames(names []string) string {
+	lines := make([]string, 0, len(names))
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		lines = append(lines, "• "+html.EscapeString(name))
+	}
+	if len(lines) == 0 {
+		return "• -"
+	}
+	return strings.Join(lines, "\n")
 }

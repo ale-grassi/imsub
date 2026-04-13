@@ -28,6 +28,7 @@ type gracePolicyStore interface {
 	ListManagedGroups(ctx context.Context) ([]core.ManagedGroup, error)
 	ListUntrackedGroupMembers(ctx context.Context, chatID int64) ([]core.UntrackedGroupMember, error)
 	RemoveUntrackedGroupMember(ctx context.Context, chatID, telegramUserID int64) error
+	AddTrackedGroupMember(ctx context.Context, chatID, telegramUserID int64, source string, at time.Time) error
 }
 
 type groupKicker interface {
@@ -117,6 +118,7 @@ type eventSubTask struct {
 type gracePolicyTask struct {
 	store      gracePolicyStore
 	kicker     groupKicker
+	god        *core.GodAccessChecker
 	logger     *slog.Logger
 	now        func() time.Time
 	graceAfter time.Duration
@@ -126,6 +128,7 @@ type memberCleanupTask struct {
 	store            memberCleanupStore
 	kicker           groupKicker
 	notifier         memberCleanupNotifier
+	god              *core.GodAccessChecker
 	logger           *slog.Logger
 	lockTTL          time.Duration
 	maxTargetsPerRun int
@@ -135,6 +138,7 @@ type subscriptionGraceTask struct {
 	store    subscriptionGraceStore
 	kicker   groupKicker
 	notifier subscriptionGraceNotifier
+	god      *core.GodAccessChecker
 	logger   *slog.Logger
 	lockTTL  time.Duration
 	maxJobs  int64
@@ -160,13 +164,14 @@ func NewEventSubTask(r eventSubReconciler) Task {
 
 // NewGracePolicyTask builds the periodic enforcement task for grace-period
 // unverified-member policies.
-func NewGracePolicyTask(store gracePolicyStore, kicker groupKicker, logger *slog.Logger) Task {
+func NewGracePolicyTask(store gracePolicyStore, kicker groupKicker, god *core.GodAccessChecker, logger *slog.Logger) Task {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return gracePolicyTask{
 		store:      store,
 		kicker:     kicker,
+		god:        god,
 		logger:     logger,
 		now:        func() time.Time { return time.Now().UTC() },
 		graceAfter: 7 * 24 * time.Hour,
@@ -174,7 +179,7 @@ func NewGracePolicyTask(store gracePolicyStore, kicker groupKicker, logger *slog
 }
 
 // NewMemberCleanupTask builds the periodic task that drains background tracked-member cleanup jobs.
-func NewMemberCleanupTask(store memberCleanupStore, kicker groupKicker, notifier memberCleanupNotifier, logger *slog.Logger) Task {
+func NewMemberCleanupTask(store memberCleanupStore, kicker groupKicker, notifier memberCleanupNotifier, god *core.GodAccessChecker, logger *slog.Logger) Task {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -182,6 +187,7 @@ func NewMemberCleanupTask(store memberCleanupStore, kicker groupKicker, notifier
 		store:            store,
 		kicker:           kicker,
 		notifier:         notifier,
+		god:              god,
 		logger:           logger,
 		lockTTL:          15 * time.Minute,
 		maxTargetsPerRun: 50,
@@ -190,7 +196,7 @@ func NewMemberCleanupTask(store memberCleanupStore, kicker groupKicker, notifier
 
 // NewSubscriptionGraceTask builds the periodic sweep that enforces delayed
 // subscription-end removals.
-func NewSubscriptionGraceTask(store subscriptionGraceStore, kicker groupKicker, notifier subscriptionGraceNotifier, logger *slog.Logger) Task {
+func NewSubscriptionGraceTask(store subscriptionGraceStore, kicker groupKicker, notifier subscriptionGraceNotifier, god *core.GodAccessChecker, logger *slog.Logger) Task {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -198,6 +204,7 @@ func NewSubscriptionGraceTask(store subscriptionGraceStore, kicker groupKicker, 
 		store:    store,
 		kicker:   kicker,
 		notifier: notifier,
+		god:      god,
 		logger:   logger,
 		lockTTL:  10 * time.Minute,
 		maxJobs:  100,
@@ -287,6 +294,18 @@ func (t gracePolicyTask) Run(ctx context.Context) error {
 			continue
 		}
 		for _, member := range untracked {
+			if t.god != nil && t.god.IsGodTelegramUser(member.TelegramUserID) {
+				if err := t.store.AddTrackedGroupMember(ctx, group.ChatID, member.TelegramUserID, "god_list_grace_policy", t.now()); err != nil {
+					partialErrs = append(partialErrs, fmt.Errorf("track god member %d from %d: %w", member.TelegramUserID, group.ChatID, err))
+					t.logger.Warn("grace policy track god member failed", "chat_id", group.ChatID, "telegram_user_id", member.TelegramUserID, "error", err)
+					continue
+				}
+				if err := t.store.RemoveUntrackedGroupMember(ctx, group.ChatID, member.TelegramUserID); err != nil {
+					partialErrs = append(partialErrs, fmt.Errorf("remove god untracked group member %d from %d: %w", member.TelegramUserID, group.ChatID, err))
+					t.logger.Warn("grace policy remove god untracked member failed", "chat_id", group.ChatID, "telegram_user_id", member.TelegramUserID, "error", err)
+				}
+				continue
+			}
 			if member.FirstSeenAt.IsZero() || member.FirstSeenAt.After(deadline) {
 				continue
 			}
@@ -413,6 +432,10 @@ func (t memberCleanupTask) processJob(ctx context.Context, job core.MemberCleanu
 			remaining = append(remaining, job.Targets[idx:]...)
 			break
 		}
+		if t.god != nil && t.god.IsGodTelegramUser(target.TelegramUserID) {
+			job.TotalTargets--
+			continue
+		}
 		reason := core.KickReasonGroupUnregistration
 		if job.Kind == core.MemberCleanupKindCreatorReset {
 			reason = core.KickReasonCreatorReset
@@ -507,6 +530,12 @@ func (t subscriptionGraceTask) processJob(ctx context.Context, job core.PendingS
 	if subscriber {
 		if err := t.store.DeleteSubscriptionEndGrace(ctx, job.CreatorID, job.TwitchUserID); err != nil {
 			return fmt.Errorf("delete subscription-end grace for resubscribed viewer: %w", err)
+		}
+		return nil
+	}
+	if t.god != nil && t.god.IsGodTelegramUser(job.TelegramUserID) {
+		if err := t.store.DeleteSubscriptionEndGrace(ctx, job.CreatorID, job.TwitchUserID); err != nil {
+			return fmt.Errorf("delete subscription-end grace for god-listed viewer: %w", err)
 		}
 		return nil
 	}

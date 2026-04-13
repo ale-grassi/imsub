@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -151,6 +152,32 @@ func TestLoadDefaultsAndNormalization(t *testing.T) {
 	}
 	if cfg.BackupInterval != 6*time.Hour {
 		t.Errorf("Load().BackupInterval = %s, want %s", cfg.BackupInterval, 6*time.Hour)
+	}
+}
+
+func TestLoadParsesGodTelegramUserIDs(t *testing.T) {
+	setRequiredEnv(t)
+	t.Setenv("IMSUB_GOD_TELEGRAM_USER_IDS", "7, 42,7, 99")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v, want nil", err)
+	}
+	if !slices.Equal(cfg.GodTelegramUserIDs, []int64{7, 42, 99}) {
+		t.Fatalf("Load().GodTelegramUserIDs = %v, want [7 42 99]", cfg.GodTelegramUserIDs)
+	}
+}
+
+func TestLoadRejectsInvalidGodTelegramUserIDs(t *testing.T) {
+	setRequiredEnv(t)
+	t.Setenv("IMSUB_GOD_TELEGRAM_USER_IDS", "7, nope")
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("Load() error = nil, want parse failure")
+	}
+	if !strings.Contains(err.Error(), "IMSUB_GOD_TELEGRAM_USER_IDS") {
+		t.Fatalf("Load() error = %q, want IMSUB_GOD_TELEGRAM_USER_IDS mention", err.Error())
 	}
 }
 

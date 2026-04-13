@@ -50,14 +50,16 @@ type UnregisterGroupResult struct {
 type GroupUnregistrationUseCase struct {
 	store   groupUnregistrationStore
 	cleaner groupUnregistrationCleaner
+	god     *core.GodAccessChecker
 	events  events.EventSink
 }
 
 // NewGroupUnregistrationUseCase builds a group-unregistration use case.
-func NewGroupUnregistrationUseCase(store groupUnregistrationStore, cleaner groupUnregistrationCleaner, sink events.EventSink) *GroupUnregistrationUseCase {
+func NewGroupUnregistrationUseCase(store groupUnregistrationStore, cleaner groupUnregistrationCleaner, god *core.GodAccessChecker, sink events.EventSink) *GroupUnregistrationUseCase {
 	return &GroupUnregistrationUseCase{
 		store:   store,
 		cleaner: cleaner,
+		god:     god,
 		events:  events.EnsureSink(sink),
 	}
 }
@@ -105,6 +107,10 @@ func (u *GroupUnregistrationUseCase) UnregisterGroup(ctx context.Context, ownerT
 		if targetedMembershipCount > 0 {
 			targets := make([]core.MemberCleanupTarget, 0, targetedMembershipCount)
 			for _, telegramUserID := range memberIDs {
+				if u.god != nil && u.god.IsGodTelegramUser(telegramUserID) {
+					targetedMembershipCount--
+					continue
+				}
 				targets = append(targets, core.MemberCleanupTarget{
 					ChatID:         groupChatID,
 					TelegramUserID: telegramUserID,
@@ -120,7 +126,7 @@ func (u *GroupUnregistrationUseCase) UnregisterGroup(ctx context.Context, ownerT
 				GroupName:       group.GroupName,
 				Targets:         targets,
 			}
-			shouldQueueCleanup = true
+			shouldQueueCleanup = len(targets) > 0
 		}
 	}
 

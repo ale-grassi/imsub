@@ -86,6 +86,7 @@ type Dependencies struct {
 	TelegramGroups      *telegramgroups.Client
 	CreatorStatus       *usecase.CreatorStatusUseCase
 	CreatorBlocklist    *core.CreatorBlocklistService
+	GodAccess           *core.GodAccessChecker
 	ViewerOAuth         *usecase.ViewerOAuthUseCase
 	CreatorOAuth        *usecase.CreatorOAuthUseCase
 	ViewerAccess        *usecase.ViewerAccessUseCase
@@ -139,6 +140,7 @@ type Bot struct {
 
 	creatorStatus       *usecase.CreatorStatusUseCase
 	creatorBlocklist    *core.CreatorBlocklistService
+	godAccess           *core.GodAccessChecker
 	viewerOAuth         *usecase.ViewerOAuthUseCase
 	creatorOAuth        *usecase.CreatorOAuthUseCase
 	viewerAccess        *usecase.ViewerAccessUseCase
@@ -173,6 +175,7 @@ func New(deps Dependencies) *Bot {
 		telegramGroups:      deps.TelegramGroups,
 		creatorStatus:       deps.CreatorStatus,
 		creatorBlocklist:    deps.CreatorBlocklist,
+		godAccess:           deps.GodAccess,
 		viewerOAuth:         deps.ViewerOAuth,
 		creatorOAuth:        deps.CreatorOAuth,
 		viewerAccess:        deps.ViewerAccess,

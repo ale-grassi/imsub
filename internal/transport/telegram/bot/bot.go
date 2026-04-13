@@ -643,6 +643,9 @@ func (c *Bot) HandleSubscriptionStart(ctx context.Context, broadcasterID, broadc
 		c.log().Debug("skip subscription start dm for unlinked twitch user", "broadcaster_id", broadcasterID, "twitch_user_id", twitchUserID)
 		return nil
 	}
+	if c.godAccess != nil && c.godAccess.IsGodTelegramUser(telegramUserID) {
+		return nil
+	}
 	access, err := c.viewerAccess.LoadAccessForCreator(ctx, broadcasterID, telegramUserID)
 	if err != nil {
 		return fmt.Errorf("load viewer access for creator: %w", err)

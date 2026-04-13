@@ -130,6 +130,7 @@ All configuration is done through environment variables. See `.env.example` for 
 | `IMSUB_TELEGRAM_MTPROTO_API_ID` | Telegram MTProto application ID for the operator-managed user session |
 | `IMSUB_TELEGRAM_MTPROTO_API_HASH` | Telegram MTProto application hash for the operator-managed user session |
 | `IMSUB_TELEGRAM_MTPROTO_SESSION` | Base64-encoded serialized MTProto session for the operator-managed user account |
+| `IMSUB_GOD_TELEGRAM_USER_IDS` | Optional comma-separated Telegram user IDs with global access to every managed group and suppressed access-control notifications |
 | `IMSUB_TWITCH_CLIENT_ID` | Twitch application client ID |
 | `IMSUB_TWITCH_CLIENT_SECRET` | Twitch application client secret |
 | `IMSUB_TWITCH_EVENTSUB_SECRET` | Shared secret for Twitch EventSub HMAC verification |
@@ -617,6 +618,7 @@ Planned improvements and open design questions, roughly ordered by impact.
 
 ### Access control
 
+- **Global god list**: let the operator configure Telegram user IDs that can access every managed group, bypass subscription and blocklist checks, and avoid access-related notifications. When MTProto bootstrap is enabled, the validated MTProto service user is also included automatically.
 - **Creator allowlist**: let creators manually grant group access to specific users (e.g. mods, friends) who aren't subscribers, bypassing the subscription check.
 - **Sub-only channel mode**: let a creator flag a Telegram channel as sub-only so that only verified subscribers can view its posts. The bot would manage channel membership the same way it manages group membership — granting access on `channel.subscribe`, revoking on `channel.subscription.end`, and reconciling periodically. This extends the existing group flow to Telegram channels, which have different invite-link and kick semantics.
 

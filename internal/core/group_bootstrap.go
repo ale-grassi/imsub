@@ -36,6 +36,7 @@ type GroupBootstrapService struct {
 	store       groupBootstrapStore
 	groupOps    groupBootstrapGroupOps
 	mtproto     groupBootstrapMTProto
+	god         *GodAccessChecker
 	events      events.EventSink
 	logger      *slog.Logger
 	now         func() time.Time
@@ -44,7 +45,7 @@ type GroupBootstrapService struct {
 }
 
 // NewGroupBootstrapService creates the bootstrap-sync service.
-func NewGroupBootstrapService(store groupBootstrapStore, groupOps groupBootstrapGroupOps, mt groupBootstrapMTProto, sink events.EventSink, logger *slog.Logger) *GroupBootstrapService {
+func NewGroupBootstrapService(store groupBootstrapStore, groupOps groupBootstrapGroupOps, mt groupBootstrapMTProto, god *GodAccessChecker, sink events.EventSink, logger *slog.Logger) *GroupBootstrapService {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -52,6 +53,7 @@ func NewGroupBootstrapService(store groupBootstrapStore, groupOps groupBootstrap
 		store:    store,
 		groupOps: groupOps,
 		mtproto:  mt,
+		god:      god,
 		events:   events.EnsureSink(sink),
 		logger:   logger,
 		now: func() time.Time {
@@ -167,6 +169,9 @@ func (s *GroupBootstrapService) bootstrapAttempt(ctx context.Context, group Mana
 }
 
 func (s *GroupBootstrapService) isEligibleTrackedMember(ctx context.Context, creatorID string, telegramUserID int64) (bool, error) {
+	if s.god != nil && s.god.IsGodTelegramUser(telegramUserID) {
+		return true, nil
+	}
 	identity, found, err := s.store.UserIdentity(ctx, telegramUserID)
 	if err != nil {
 		return false, fmt.Errorf("load user identity: %w", err)

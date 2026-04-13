@@ -127,7 +127,7 @@ func TestGroupBootstrapTracksEligibleAndObservesUnknownMembers(t *testing.T) {
 		}},
 	}
 	eventsSink := &bootstrapEventSink{}
-	svc := NewGroupBootstrapService(store, groupOps, mt, eventsSink, nil)
+	svc := NewGroupBootstrapService(store, groupOps, mt, nil, eventsSink, nil)
 
 	if err := svc.BootstrapGroup(t.Context(), ManagedGroup{ChatID: 100, CreatorID: "creator-1", Policy: GroupPolicyObserve}); err != nil {
 		t.Fatalf("BootstrapGroup() error = %v, want nil", err)
@@ -159,7 +159,7 @@ func TestGroupBootstrapKickPolicyRemovesUnknownMembers(t *testing.T) {
 		selfID: 999,
 		dumps:  [][]mtproto.Member{{{TelegramUserID: 20, Role: mtproto.MemberRoleMember}}},
 	}
-	svc := NewGroupBootstrapService(store, groupOps, mt, nil, nil)
+	svc := NewGroupBootstrapService(store, groupOps, mt, nil, nil, nil)
 
 	if err := svc.BootstrapGroup(t.Context(), ManagedGroup{ChatID: 100, CreatorID: "creator-1", Policy: GroupPolicyKick}); err != nil {
 		t.Fatalf("BootstrapGroup() error = %v, want nil", err)
@@ -192,7 +192,7 @@ func TestGroupBootstrapBlockedSubscriberStaysUntracked(t *testing.T) {
 		selfID: 999,
 		dumps:  [][]mtproto.Member{{{TelegramUserID: 10, Role: mtproto.MemberRoleMember}}},
 	}
-	svc := NewGroupBootstrapService(store, groupOps, mt, nil, nil)
+	svc := NewGroupBootstrapService(store, groupOps, mt, nil, nil, nil)
 
 	if err := svc.BootstrapGroup(t.Context(), ManagedGroup{ChatID: 100, CreatorID: "creator-1", Policy: GroupPolicyObserve}); err != nil {
 		t.Fatalf("BootstrapGroup() error = %v, want nil", err)
@@ -222,7 +222,7 @@ func TestGroupBootstrapRetriesAndThenFailsSilently(t *testing.T) {
 		},
 	}
 	eventsSink := &bootstrapEventSink{}
-	svc := NewGroupBootstrapService(store, groupOps, mt, eventsSink, nil)
+	svc := NewGroupBootstrapService(store, groupOps, mt, nil, eventsSink, nil)
 	svc.retryDelays = []time.Duration{0, 0}
 
 	err := svc.BootstrapGroup(t.Context(), ManagedGroup{ChatID: 100, CreatorID: "creator-1", Policy: GroupPolicyObserve})
@@ -261,7 +261,7 @@ func TestGroupBootstrapLeaveFailureTriggersCleanupKick(t *testing.T) {
 			mtproto.StageError{Stage: "leave_failed", Err: errors.New("boom")},
 		},
 	}
-	svc := NewGroupBootstrapService(store, groupOps, mt, nil, nil)
+	svc := NewGroupBootstrapService(store, groupOps, mt, nil, nil, nil)
 
 	_, err := svc.bootstrapAttempt(t.Context(), ManagedGroup{ChatID: 100, CreatorID: "creator-1", Policy: GroupPolicyObserve})
 	if err == nil {

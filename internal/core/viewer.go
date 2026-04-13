@@ -47,10 +47,11 @@ type ViewerService struct {
 	resolver *viewerEligibilityResolver
 	cache    *viewerMembershipCache
 	invites  *viewerInviteBuilder
+	god      *GodAccessChecker
 }
 
 // NewViewerService creates a viewer service with optional logger fallback.
-func NewViewerService(store viewerStore, group GroupOps, logger *slog.Logger, obs events.EventSink) *ViewerService {
+func NewViewerService(store viewerStore, group GroupOps, god *GodAccessChecker, logger *slog.Logger, obs events.EventSink) *ViewerService {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -59,6 +60,7 @@ func NewViewerService(store viewerStore, group GroupOps, logger *slog.Logger, ob
 		resolver: newViewerEligibilityResolver(store, group, logger, obs),
 		cache:    newViewerMembershipCache(store, logger, obs),
 		invites:  newViewerInviteBuilder(group, logger, obs),
+		god:      god,
 	}
 }
 
@@ -73,6 +75,9 @@ func (v *ViewerService) LoadIdentity(ctx context.Context, telegramUserID int64) 
 
 // BuildJoinTargets resolves active subscriptions and invite links for a viewer.
 func (v *ViewerService) BuildJoinTargets(ctx context.Context, telegramUserID int64, twitchUserID string) (JoinTargets, error) {
+	if v.god != nil && v.god.IsGodTelegramUser(telegramUserID) {
+		return v.buildGodJoinTargets(ctx, telegramUserID, "")
+	}
 	plan, err := v.resolver.resolve(ctx, telegramUserID, twitchUserID)
 	if err != nil {
 		return JoinTargets{}, err
@@ -89,6 +94,9 @@ func (v *ViewerService) BuildJoinTargets(ctx context.Context, telegramUserID int
 
 // BuildJoinTargetsForCreator resolves invite links for a single creator only.
 func (v *ViewerService) BuildJoinTargetsForCreator(ctx context.Context, creatorID string, telegramUserID int64, twitchUserID string) (JoinTargets, error) {
+	if v.god != nil && v.god.IsGodTelegramUser(telegramUserID) {
+		return v.buildGodJoinTargets(ctx, telegramUserID, creatorID)
+	}
 	plan, err := v.resolver.resolveForCreator(ctx, creatorID, telegramUserID, twitchUserID)
 	if err != nil {
 		return JoinTargets{}, err
@@ -105,7 +113,61 @@ func (v *ViewerService) BuildJoinTargetsForCreator(ctx context.Context, creatorI
 
 // resolveJoinPlan exposes the resolver seam for focused package tests.
 func (v *ViewerService) resolveJoinPlan(ctx context.Context, telegramUserID int64, twitchUserID string) (resolvedJoinPlan, error) {
+	if v.god != nil && v.god.IsGodTelegramUser(telegramUserID) {
+		return v.resolveGodJoinPlan(ctx, telegramUserID, "")
+	}
 	return v.resolver.resolve(ctx, telegramUserID, twitchUserID)
+}
+
+func (v *ViewerService) buildGodJoinTargets(ctx context.Context, telegramUserID int64, creatorID string) (JoinTargets, error) {
+	plan, err := v.resolveGodJoinPlan(ctx, telegramUserID, creatorID)
+	if err != nil {
+		return JoinTargets{}, err
+	}
+	v.cache.sync(ctx, telegramUserID, plan)
+	joinLinks := v.invites.build(ctx, telegramUserID, plan.inviteGroups)
+	return JoinTargets{
+		ActiveCreatorNames: plan.activeCreatorNames,
+		JoinLinks:          joinLinks,
+	}, nil
+}
+
+func (v *ViewerService) resolveGodJoinPlan(ctx context.Context, telegramUserID int64, creatorID string) (resolvedJoinPlan, error) {
+	active, err := v.resolver.store.ListActiveCreatorGroups(ctx)
+	if err != nil {
+		v.resolver.log.Warn("build god join targets list active creator groups failed", "error", err)
+		return resolvedJoinPlan{}, fmt.Errorf("list active creator groups: %w", err)
+	}
+	out := resolvedJoinPlan{
+		activeCreatorNames: make([]string, 0, len(active)),
+		inviteGroups:       make([]resolvedJoinGroup, 0, len(active)),
+	}
+	for _, item := range active {
+		if creatorID != "" && item.Creator.ID != creatorID {
+			continue
+		}
+		creatorName := item.Creator.TwitchDisplayName
+		if creatorName == "" {
+			creatorName = item.Creator.TwitchLogin
+		}
+		if creatorName == "" {
+			continue
+		}
+		out.activeCreatorNames = append(out.activeCreatorNames, creatorName)
+		for _, group := range item.Groups {
+			if v.resolver.membership.IsGroupMember(ctx, group.ChatID, telegramUserID) {
+				continue
+			}
+			out.inviteGroups = append(out.inviteGroups, resolvedJoinGroup{
+				creatorName: creatorName,
+				group:       group,
+			})
+		}
+	}
+	slices.Sort(out.activeCreatorNames)
+	recordViewerJoinTargets(ctx, v.resolver.obs, "active_creators", len(out.activeCreatorNames))
+	recordViewerJoinTargets(ctx, v.resolver.obs, "invite_groups", len(out.inviteGroups))
+	return out, nil
 }
 
 type resolvedJoinGroup struct {

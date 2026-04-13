@@ -795,6 +795,17 @@ func (c *Bot) estimateExistingNonAdminMembers(ctx context.Context, chatID int64)
 }
 
 func (c *Bot) observeGroupMember(ctx context.Context, group core.ManagedGroup, telegramUserID int64, source, status, memberLabel string) {
+	if c.godAccess != nil && c.godAccess.IsGodTelegramUser(telegramUserID) {
+		now := time.Now().UTC()
+		if err := c.store.AddTrackedGroupMember(ctx, group.ChatID, telegramUserID, "god_list", now); err != nil {
+			c.log().Warn("AddTrackedGroupMember god access failed", "chat_id", group.ChatID, "telegram_user_id", telegramUserID, "error", err)
+			return
+		}
+		if err := c.store.RemoveUntrackedGroupMember(ctx, group.ChatID, telegramUserID); err != nil {
+			c.log().Warn("RemoveUntrackedGroupMember god access failed", "chat_id", group.ChatID, "telegram_user_id", telegramUserID, "error", err)
+		}
+		return
+	}
 	tracked, err := c.store.IsTrackedGroupMember(ctx, group.ChatID, telegramUserID)
 	if err != nil {
 		c.log().Warn("IsTrackedGroupMember failed", "chat_id", group.ChatID, "telegram_user_id", telegramUserID, "error", err)

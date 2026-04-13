@@ -111,14 +111,14 @@ func newRouteTestHarnessWithCleaner(t *testing.T, cleaner usecaseGroupUnregistra
 		TelegramGroups:      tgGroups,
 		CreatorStatus:       usecase.NewCreatorStatusUseCase(core.NewCreatorService(store, routeTestEventSubChecker{}, nil), eventSink),
 		GroupRegistration:   usecase.NewGroupRegistrationUseCase(store, eventSink),
-		GroupUnregistration: usecase.NewGroupUnregistrationUseCase(store, cleaner, eventSink),
+		GroupUnregistration: usecase.NewGroupUnregistrationUseCase(store, cleaner, nil, eventSink),
 		GroupPolicyUpdate:   usecase.NewGroupPolicyUpdateUseCase(store, eventSink),
 		GroupLanguageUpdate: usecase.NewGroupLanguageUpdateUseCase(store, eventSink),
 		Privacy:             usecase.NewPrivacyUseCase(store, "v1", 24*time.Hour),
 		Events:              eventSink,
 	})
-	controller.SetViewerAccessUseCase(usecase.NewViewerAccessUseCase(core.NewViewerService(store, controller.ViewerGroupOps(), nil, nil), eventSink))
-	controller.SetResetUseCase(usecase.NewResetUseCase(core.NewResetService(store, controller.KickFromGroup, nil), eventSink))
+	controller.SetViewerAccessUseCase(usecase.NewViewerAccessUseCase(core.NewViewerService(store, controller.ViewerGroupOps(), nil, nil, nil), nil, eventSink))
+	controller.SetResetUseCase(usecase.NewResetUseCase(core.NewResetService(store, controller.KickFromGroup, nil, nil), eventSink))
 	controller.RegisterTelegramHandlers()
 
 	return routeTestHarness{

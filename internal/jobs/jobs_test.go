@@ -19,6 +19,7 @@ type fakeStore struct {
 	listManagedGroups  func(ctx context.Context) ([]core.ManagedGroup, error)
 	listUntracked      func(ctx context.Context, chatID int64) ([]core.UntrackedGroupMember, error)
 	removeUntracked    func(ctx context.Context, chatID, telegramUserID int64) error
+	addTracked         func(ctx context.Context, chatID, telegramUserID int64, source string, at time.Time) error
 	countActiveUsers   func(ctx context.Context, since time.Time) (int, error)
 	countViewers       func(ctx context.Context) (int, error)
 	countCreators      func(ctx context.Context) (int, error)
@@ -80,6 +81,13 @@ func (f *fakeStore) ListUntrackedGroupMembers(ctx context.Context, chatID int64)
 func (f *fakeStore) RemoveUntrackedGroupMember(ctx context.Context, chatID, telegramUserID int64) error {
 	if f.removeUntracked != nil {
 		return f.removeUntracked(ctx, chatID, telegramUserID)
+	}
+	return nil
+}
+
+func (f *fakeStore) AddTrackedGroupMember(ctx context.Context, chatID, telegramUserID int64, source string, at time.Time) error {
+	if f.addTracked != nil {
+		return f.addTracked(ctx, chatID, telegramUserID, source, at)
 	}
 	return nil
 }
@@ -429,7 +437,7 @@ func TestGracePolicyTaskKicksExpiredUnverifiedMembers(t *testing.T) {
 		},
 	}
 
-	taskIface := NewGracePolicyTask(store, kicker, nil)
+	taskIface := NewGracePolicyTask(store, kicker, nil, nil)
 	task, ok := taskIface.(gracePolicyTask)
 	if !ok {
 		t.Fatalf("NewGracePolicyTask() type = %T, want gracePolicyTask", taskIface)
@@ -470,7 +478,7 @@ func TestGracePolicyTaskContinuesAfterMemberError(t *testing.T) {
 		},
 	}
 
-	taskIface := NewGracePolicyTask(store, kicker, nil)
+	taskIface := NewGracePolicyTask(store, kicker, nil, nil)
 	task, ok := taskIface.(gracePolicyTask)
 	if !ok {
 		t.Fatalf("NewGracePolicyTask() type = %T, want gracePolicyTask", taskIface)
@@ -581,7 +589,7 @@ func TestSubscriptionGraceTaskEnforcesDueJobs(t *testing.T) {
 	}
 	kicker := &fakeGroupKicker{}
 	notifier := &fakeSubscriptionGraceNotifier{}
-	task := NewSubscriptionGraceTask(store, kicker, notifier, nil)
+	task := NewSubscriptionGraceTask(store, kicker, notifier, nil, nil)
 
 	if err := task.Run(t.Context()); err != nil {
 		t.Fatalf("Run() error = %v", err)

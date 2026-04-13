@@ -108,7 +108,7 @@ func TestSubLinkedGroupIDsForUser(t *testing.T) {
 			7: {222, 111, 222},
 		},
 	}
-	svc := NewResetService(st, func(context.Context, int64, int64, KickReason) error { return nil }, nil)
+	svc := NewResetService(st, func(context.Context, int64, int64, KickReason) error { return nil }, nil, nil)
 
 	got, err := svc.SubLinkedGroupIDsForUser(t.Context(), 7)
 	if err != nil {
@@ -137,7 +137,7 @@ func TestSubLinkedGroupIDsForUserIncludesCanonicalFallback(t *testing.T) {
 			"c2": {"tw-7": false},
 		},
 	}
-	svc := NewResetService(st, func(context.Context, int64, int64, KickReason) error { return nil }, nil)
+	svc := NewResetService(st, func(context.Context, int64, int64, KickReason) error { return nil }, nil, nil)
 
 	got, err := svc.SubLinkedGroupIDsForUser(t.Context(), 7)
 	if err != nil {
@@ -167,7 +167,7 @@ func TestSubLinkedGroupIDsForUserUnionsTrackedAndCanonicalGroups(t *testing.T) {
 			"c1": {"tw-7": true},
 		},
 	}
-	svc := NewResetService(st, func(context.Context, int64, int64, KickReason) error { return nil }, nil)
+	svc := NewResetService(st, func(context.Context, int64, int64, KickReason) error { return nil }, nil, nil)
 
 	got, err := svc.SubLinkedGroupIDsForUser(t.Context(), 7)
 	if err != nil {
@@ -197,6 +197,7 @@ func TestResetViewerDataAndRevokeGroupAccess(t *testing.T) {
 			}
 			return nil
 		},
+		nil,
 		slog.New(slog.DiscardHandler),
 	)
 
@@ -226,7 +227,7 @@ func TestDeleteCreatorDataPassthrough(t *testing.T) {
 		deleteCreatorCount: 1,
 		deleteCreatorNames: []string{"creator-a"},
 	}
-	svc := NewResetService(st, func(context.Context, int64, int64, KickReason) error { return nil }, nil)
+	svc := NewResetService(st, func(context.Context, int64, int64, KickReason) error { return nil }, nil, nil)
 
 	count, names, err := svc.DeleteCreatorData(t.Context(), 42)
 	if err != nil {
@@ -249,6 +250,7 @@ func TestExecuteBothReset(t *testing.T) {
 			deleteCreatorNames: []string{"c1", "c2"},
 		},
 		func(context.Context, int64, int64, KickReason) error { return nil },
+		nil,
 		nil,
 	)
 
@@ -298,7 +300,7 @@ func TestExecuteBothReset(t *testing.T) {
 func TestExecuteViewerResetNoIdentity(t *testing.T) {
 	t.Parallel()
 
-	svc := NewResetService(&resetFakeStore{}, func(context.Context, int64, int64, KickReason) error { return nil }, nil)
+	svc := NewResetService(&resetFakeStore{}, func(context.Context, int64, int64, KickReason) error { return nil }, nil, nil)
 	got, err := svc.ExecuteViewerReset(t.Context(), 1)
 	if err != nil {
 		t.Fatalf("ExecuteViewerReset(%d) returned error %v, want nil", 1, err)
@@ -321,7 +323,7 @@ func TestExecuteCreatorResetKeepMembersSkipsKicks(t *testing.T) {
 		},
 		deleteCreatorCount: 1,
 		deleteCreatorNames: []string{"creator-a"},
-	}, rec.kick, nil)
+	}, rec.kick, nil, nil)
 
 	got, err := svc.ExecuteCreatorReset(t.Context(), 7, CreatorResetKeepMembers)
 	if err != nil {
@@ -352,7 +354,7 @@ func TestExecuteCreatorResetKickTrackedMembers(t *testing.T) {
 		},
 		deleteCreatorCount: 1,
 		deleteCreatorNames: []string{"creator-a"},
-	}, rec.kick, nil)
+	}, rec.kick, nil, nil)
 
 	got, err := svc.ExecuteCreatorReset(t.Context(), 7, CreatorResetKickTrackedMembers)
 	if err != nil {
@@ -383,7 +385,7 @@ func TestExecuteCreatorResetKickTrackedMembersContinuesOnFailures(t *testing.T) 
 		},
 		deleteCreatorCount: 1,
 		deleteCreatorNames: []string{"creator-a"},
-	}, rec.kick, nil)
+	}, rec.kick, nil, nil)
 
 	got, err := svc.ExecuteCreatorReset(t.Context(), 7, CreatorResetKickTrackedMembers)
 	if err != nil {
@@ -418,7 +420,7 @@ func TestDeleteCreatorDataCallsEventSubCleaner(t *testing.T) {
 		deleteCreatorCount: 1,
 		deleteCreatorNames: []string{"creator-a"},
 	}
-	svc := NewResetService(st, func(context.Context, int64, int64, KickReason) error { return nil }, nil)
+	svc := NewResetService(st, func(context.Context, int64, int64, KickReason) error { return nil }, nil, nil)
 	svc.SetEventSubCleaner(cleaner)
 
 	count, names, err := svc.DeleteCreatorData(t.Context(), 42)
@@ -444,7 +446,7 @@ func TestDeleteCreatorDataContinuesOnCleanerError(t *testing.T) {
 		deleteCreatorCount: 1,
 		deleteCreatorNames: []string{"creator-a"},
 	}
-	svc := NewResetService(st, func(context.Context, int64, int64, KickReason) error { return nil }, slog.New(slog.DiscardHandler))
+	svc := NewResetService(st, func(context.Context, int64, int64, KickReason) error { return nil }, nil, slog.New(slog.DiscardHandler))
 	svc.SetEventSubCleaner(cleaner)
 
 	count, _, err := svc.DeleteCreatorData(t.Context(), 42)
@@ -466,6 +468,7 @@ func TestLoadScopesPropagatesError(t *testing.T) {
 			},
 		},
 		func(context.Context, int64, int64, KickReason) error { return nil },
+		nil,
 		nil,
 	)
 	_, err := svc.LoadScopes(t.Context(), 1)

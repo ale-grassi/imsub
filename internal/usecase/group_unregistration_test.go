@@ -60,7 +60,7 @@ func TestUnregisterGroupNotManaged(t *testing.T) {
 		groupByChatFn:  func(context.Context, int64) (core.ManagedGroup, bool, error) { return core.ManagedGroup{}, false, nil },
 		listTrackedFn:  func(context.Context, int64) ([]int64, error) { return nil, nil },
 		deleteFn:       func(context.Context, int64) error { return nil },
-	}, nil, obs)
+	}, nil, nil, obs)
 
 	got, err := uc.UnregisterGroup(t.Context(), 7, 100, core.CreatorResetKeepMembers)
 	if err != nil {
@@ -88,7 +88,7 @@ func TestUnregisterGroupNotOwner(t *testing.T) {
 		},
 		listTrackedFn: func(context.Context, int64) ([]int64, error) { return nil, nil },
 		deleteFn:      func(context.Context, int64) error { return nil },
-	}, nil, obs)
+	}, nil, nil, obs)
 
 	got, err := uc.UnregisterGroup(t.Context(), 7, 100, core.CreatorResetKeepMembers)
 	if err != nil {
@@ -126,7 +126,7 @@ func TestUnregisterGroupSuccess(t *testing.T) {
 			cleaned = true
 			return nil
 		},
-	}, obs)
+	}, nil, obs)
 
 	got, err := uc.UnregisterGroup(t.Context(), 7, 100, core.CreatorResetKeepMembers)
 	if err != nil {
@@ -156,7 +156,7 @@ func TestUnregisterGroupCleanupLag(t *testing.T) {
 		deleteFn:      func(context.Context, int64) error { return nil },
 	}, groupUnregistrationCleanerStub{
 		deleteFn: func(context.Context, string) error { return errors.New("boom") },
-	}, obs)
+	}, nil, obs)
 
 	got, err := uc.UnregisterGroup(t.Context(), 7, 100, core.CreatorResetKeepMembers)
 	if err != nil {
@@ -184,7 +184,7 @@ func TestUnregisterGroupKickTrackedMembers(t *testing.T) {
 		},
 		listTrackedFn: func(context.Context, int64) ([]int64, error) { return []int64{9, 8}, nil },
 		deleteFn:      func(context.Context, int64) error { return nil },
-	}, nil, obs)
+	}, nil, nil, obs)
 
 	got, err := uc.UnregisterGroup(t.Context(), 7, 100, core.CreatorResetKickTrackedMembers)
 	if err != nil {

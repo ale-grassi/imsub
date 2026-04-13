@@ -173,6 +173,7 @@ func TestBuildJoinTargets(t *testing.T) {
 		},
 		nil,
 		nil,
+		nil,
 	)
 
 	got, err := svc.BuildJoinTargets(t.Context(), 7, "tw-1")
@@ -204,6 +205,7 @@ func TestBuildJoinTargetsListError(t *testing.T) {
 			},
 		},
 		&fakeGroupOps{},
+		nil,
 		nil,
 		nil,
 	)
@@ -254,6 +256,7 @@ func TestResolveJoinPlanDoesNotMutateTrackedMembership(t *testing.T) {
 		&fakeGroupOps{
 			isMemberFn: func(_ context.Context, _, _ int64) bool { return false },
 		},
+		nil,
 		nil,
 		nil,
 	)
@@ -308,6 +311,7 @@ func TestBuildJoinTargetsRecordsMetrics(t *testing.T) {
 			},
 		},
 		nil,
+		nil,
 		obs,
 	)
 
@@ -360,6 +364,7 @@ func TestBuildJoinTargetsRecordsInviteFailureReason(t *testing.T) {
 			},
 		},
 		nil,
+		nil,
 		obs,
 	)
 
@@ -401,6 +406,7 @@ func TestBuildJoinTargetsSkipsBlockedCreator(t *testing.T) {
 			},
 		},
 		&fakeGroupOps{},
+		nil,
 		nil,
 		nil,
 	)
@@ -453,6 +459,7 @@ func TestBuildJoinTargetsForCreatorScopesToCreator(t *testing.T) {
 		},
 		nil,
 		nil,
+		nil,
 	)
 
 	got, err := svc.BuildJoinTargetsForCreator(t.Context(), "c1", 7, "tw-1")
@@ -496,6 +503,7 @@ func TestResolveJoinPlanUsesActiveCreatorGroupsStoreRead(t *testing.T) {
 			},
 		},
 		&fakeGroupOps{},
+		nil,
 		nil,
 		nil,
 	)

@@ -9,6 +9,7 @@ import (
 	"imsub/internal/platform/i18n"
 	"imsub/internal/transport/telegram/client"
 	"imsub/internal/transport/telegram/ui"
+	"imsub/internal/usecase"
 	"strings"
 
 	"github.com/mymmrac/telego"
@@ -47,6 +48,11 @@ func (c *Bot) handleViewerStartForUser(ctx context.Context, telegramUserID int64
 	}
 
 	if !access.HasIdentity {
+		if access.AccessMode == usecase.ViewerAccessModeGod {
+			view := buildViewerGodView(lang, access.Targets)
+			c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
+			return ""
+		}
 		payload := core.OAuthStatePayload{
 			Mode:            core.OAuthModeViewer,
 			TelegramUserID:  telegramUserID,

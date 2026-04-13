@@ -115,7 +115,6 @@ func Run() error {
 		}
 		return count, nil
 	}, logger)
-	subscriptionSvc := core.NewSubscriptionService(s)
 	oauthSvc := core.NewOAuthService(s, twitchAPI)
 	creatorSvc := core.NewCreatorService(s, eventSubSvc, logger)
 	creatorStatusUC := usecase.NewCreatorStatusUseCase(creatorSvc, eventSink)
@@ -126,15 +125,13 @@ func Run() error {
 	groupPolicyUpdateUC := usecase.NewGroupPolicyUpdateUseCase(s, eventSink)
 	groupLanguageUpdateUC := usecase.NewGroupLanguageUpdateUseCase(s, eventSink)
 	creatorActivationUC := usecase.NewCreatorActivationUseCase(eventSubSvc, eventSink)
-	subscriptionEndUC := usecase.NewSubscriptionEndUseCase(subscriptionSvc, eventSink)
 	jobRunner := jobs.NewRunner(logger, eventSink)
 	subscriberTask := jobs.NewSubscriberTask(reconcileSvc)
 	eventSubTask := jobs.NewEventSubTask(eventSubSvc)
 	tgClient := telegramclient.New(tgBot, tgLimiter, logger)
 	tgClient.SetObserver(eventSink)
 	tgGroups := telegramgroups.New(tgBot, tgLimiter, logger, s, eventSink)
-	groupUnregistrationUC := usecase.NewGroupUnregistrationUseCase(s, eventSubSvc, eventSink)
-	gracePolicyTask := jobs.NewGracePolicyTask(s, tgGroups, logger)
+	var godAccess = core.NewGodAccessChecker(cfg.GodTelegramUserIDs...)
 	integrityTask := jobs.NewIntegrityAuditTask(s, logger, eventSink)
 	blocklistSvc = core.NewCreatorBlocklistService(s, twitchAPI, tgGroups, logger)
 	var groupBootstrapSvc *core.GroupBootstrapService
@@ -143,13 +140,19 @@ func Run() error {
 		if err != nil {
 			return fmt.Errorf("telegram mtproto init failed: %w", err)
 		}
-		if _, err := mtprotoClient.Validate(ctx); err != nil {
+		mtprotoSelfID, err := mtprotoClient.Validate(ctx)
+		if err != nil {
 			return fmt.Errorf("telegram mtproto validation failed: %w", err)
 		}
-		groupBootstrapSvc = core.NewGroupBootstrapService(s, tgGroups, mtprotoClient, eventSink, logger)
+		godAccess = godAccess.WithIDs(mtprotoSelfID)
+		groupBootstrapSvc = core.NewGroupBootstrapService(s, tgGroups, mtprotoClient, godAccess, eventSink, logger)
 	} else {
 		logger.Info("telegram mtproto bootstrap disabled; groups will not dump pre-existing members on registration")
 	}
+	subscriptionSvc := core.NewSubscriptionService(s, godAccess)
+	subscriptionEndUC := usecase.NewSubscriptionEndUseCase(subscriptionSvc, eventSink)
+	groupUnregistrationUC := usecase.NewGroupUnregistrationUseCase(s, eventSubSvc, godAccess, eventSink)
+	gracePolicyTask := jobs.NewGracePolicyTask(s, tgGroups, godAccess, logger)
 
 	flowController := telegrambot.New(telegrambot.Dependencies{
 		Config:              cfg,
@@ -162,6 +165,7 @@ func Run() error {
 		TelegramGroups:      tgGroups,
 		CreatorStatus:       creatorStatusUC,
 		CreatorBlocklist:    blocklistSvc,
+		GodAccess:           godAccess,
 		ViewerOAuth:         viewerOAuthUC,
 		CreatorOAuth:        creatorOAuthUC,
 		GroupRegistration:   groupRegistrationUC,
@@ -174,13 +178,13 @@ func Run() error {
 		Privacy:             privacyUC,
 		Events:              eventSink,
 	})
-	viewerAccessUC := usecase.NewViewerAccessUseCase(core.NewViewerService(s, flowController.ViewerGroupOps(), logger, eventSink), eventSink)
-	resetSvc := core.NewResetService(s, flowController.KickFromGroup, logger)
+	viewerAccessUC := usecase.NewViewerAccessUseCase(core.NewViewerService(s, flowController.ViewerGroupOps(), godAccess, logger, eventSink), godAccess, eventSink)
+	resetSvc := core.NewResetService(s, flowController.KickFromGroup, godAccess, logger)
 	resetSvc.SetEventSubCleaner(eventSubSvc)
 	flowController.SetViewerAccessUseCase(viewerAccessUC)
 	flowController.SetResetUseCase(usecase.NewResetUseCase(resetSvc, eventSink))
-	subscriptionGraceTask := jobs.NewSubscriptionGraceTask(s, tgGroups, flowController, logger)
-	memberCleanupTask := jobs.NewMemberCleanupTask(s, tgGroups, flowController, logger)
+	subscriptionGraceTask := jobs.NewSubscriptionGraceTask(s, tgGroups, flowController, godAccess, logger)
+	memberCleanupTask := jobs.NewMemberCleanupTask(s, tgGroups, flowController, godAccess, logger)
 	productMetricsTask := jobs.NewProductMetricsSnapshotTask(s, metrics)
 	creatorMetricsTask := jobs.NewCreatorMetricsTask(s, metrics, logger)
 	privacyRetentionTask := jobs.NewPrivacyRetentionTask(s, cfg.UntrackedRetention)

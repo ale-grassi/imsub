@@ -28,7 +28,7 @@ func TestHandleSubscriptionStartReturnsNilForUnlinkedTwitchUser(t *testing.T) {
 
 	b := &Bot{
 		store:        &routeTestStore{},
-		viewerAccess: usecase.NewViewerAccessUseCase(subscriptionStartViewerAccessService{}, nil),
+		viewerAccess: usecase.NewViewerAccessUseCase(subscriptionStartViewerAccessService{}, nil, nil),
 		logger:       slog.Default(),
 	}
 

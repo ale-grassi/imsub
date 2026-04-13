@@ -99,7 +99,7 @@ func TestProcessEndFound(t *testing.T) {
 			}
 			return UserIdentity{TelegramUserID: 777, Language: "it"}, true, nil
 		},
-	})
+	}, nil)
 
 	got, err := svc.ProcessEnd(t.Context(), "c1", "", "tw-1")
 	if err != nil {
@@ -126,7 +126,7 @@ func TestProcessEndNotFound(t *testing.T) {
 		removeByTwitchFn: func(context.Context, string, string) (int64, bool, error) {
 			return 0, false, nil
 		},
-	})
+	}, nil)
 
 	got, err := svc.ProcessEnd(t.Context(), "c1", "streamer1", "tw-1")
 	if err != nil {
@@ -144,7 +144,7 @@ func TestProcessEndStoreError(t *testing.T) {
 		removeByTwitchFn: func(context.Context, string, string) (int64, bool, error) {
 			return 0, false, errors.New("redis down")
 		},
-	})
+	}, nil)
 
 	_, err := svc.ProcessEnd(t.Context(), "c1", "streamer1", "tw-1")
 	if err == nil {
@@ -159,7 +159,7 @@ func TestProcessEndRemoveSubscriberError(t *testing.T) {
 		removeCreatorSubscriberFn: func(context.Context, string, string) error {
 			return errors.New("remove subscriber failed")
 		},
-	})
+	}, nil)
 
 	_, err := svc.ProcessEnd(t.Context(), "c1", "streamer1", "tw-1")
 	if err == nil {
@@ -174,7 +174,7 @@ func TestProcessEndGetCreatorError(t *testing.T) {
 		getCreatorFn: func(context.Context, string) (Creator, bool, error) {
 			return Creator{}, false, errors.New("creator lookup failed")
 		},
-	})
+	}, nil)
 
 	_, err := svc.ProcessEnd(t.Context(), "c1", "streamer1", "tw-1")
 	if err == nil {
@@ -195,11 +195,48 @@ func TestProcessEndGetIdentityError(t *testing.T) {
 		getUserIdentityFn: func(context.Context, int64) (UserIdentity, bool, error) {
 			return UserIdentity{}, false, errors.New("identity lookup failed")
 		},
-	})
+	}, nil)
 
 	_, err := svc.ProcessEnd(t.Context(), "c1", "streamer1", "tw-1")
 	if err == nil {
 		t.Fatalf("ProcessEnd(%q, %q, %q) returned error nil, want error from UserIdentity lookup", "c1", "streamer1", "tw-1")
+	}
+}
+
+func TestProcessEndGodUserStillRemovesSubscriberStateButSuppressesEffects(t *testing.T) {
+	t.Parallel()
+
+	removedByTwitch := false
+	identityLookedUp := false
+	svc := NewSubscriptionService(&subscriptionFakeStore{
+		getCreatorFn: func(_ context.Context, creatorID string) (Creator, bool, error) {
+			return Creator{ID: creatorID, TwitchLogin: "creator"}, true, nil
+		},
+		listManagedGroupsFn: func(_ context.Context, creatorID string) ([]ManagedGroup, error) {
+			return []ManagedGroup{{ChatID: 100, CreatorID: creatorID, GroupName: "VIP"}}, nil
+		},
+		removeByTwitchFn: func(context.Context, string, string) (int64, bool, error) {
+			removedByTwitch = true
+			return 777, true, nil
+		},
+		getUserIdentityFn: func(context.Context, int64) (UserIdentity, bool, error) {
+			identityLookedUp = true
+			return UserIdentity{Language: "it"}, true, nil
+		},
+	}, NewGodAccessChecker(777))
+
+	got, err := svc.ProcessEnd(t.Context(), "c1", "creator", "tw-1")
+	if err != nil {
+		t.Fatalf("ProcessEnd() error = %v", err)
+	}
+	if !removedByTwitch {
+		t.Fatal("RemoveUserCreatorByTwitch was not called, want subscriber-derived state cleanup")
+	}
+	if identityLookedUp {
+		t.Fatal("UserIdentity was called, want god-path suppression before identity lookup")
+	}
+	if got.Found {
+		t.Fatalf("ProcessEnd() Found = %t, want false for suppressed god user", got.Found)
 	}
 }
 
@@ -219,7 +256,7 @@ func TestPrepareEndFoundResult(t *testing.T) {
 		getUserIdentityFn: func(context.Context, int64) (UserIdentity, bool, error) {
 			return UserIdentity{Language: "it-IT"}, true, nil
 		},
-	})
+	}, nil)
 
 	got, err := svc.PrepareEnd(t.Context(), "c1", "creator", "u1", "viewer_login")
 	if err != nil {
@@ -258,7 +295,7 @@ func TestPrepareEndGraceResult(t *testing.T) {
 			saved = job
 			return job, nil
 		},
-	})
+	}, nil)
 	svc.now = func() time.Time { return now }
 
 	got, err := svc.PrepareEnd(t.Context(), "c1", "creator", "u1", "viewer_login")
@@ -283,7 +320,7 @@ func TestPrepareEndNotFound(t *testing.T) {
 		removeByTwitchFn: func(context.Context, string, string) (int64, bool, error) {
 			return 0, false, nil
 		},
-	})
+	}, nil)
 
 	got, err := svc.PrepareEnd(t.Context(), "c1", "creator", "u1", "viewer")
 	if err != nil {
@@ -301,7 +338,7 @@ func TestPrepareEndPropagatesError(t *testing.T) {
 		removeByTwitchFn: func(context.Context, string, string) (int64, bool, error) {
 			return 0, false, errors.New("boom")
 		},
-	})
+	}, nil)
 
 	_, err := svc.PrepareEnd(t.Context(), "c1", "creator", "u1", "viewer")
 	if err == nil {

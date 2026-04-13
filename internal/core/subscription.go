@@ -23,13 +23,15 @@ type subscriptionStore interface {
 type SubscriptionService struct {
 	store subscriptionStore
 	now   func() time.Time
+	god   *GodAccessChecker
 }
 
 // NewSubscriptionService creates a subscription service.
-func NewSubscriptionService(store subscriptionStore) *SubscriptionService {
+func NewSubscriptionService(store subscriptionStore, god *GodAccessChecker) *SubscriptionService {
 	return &SubscriptionService{
 		store: store,
 		now:   func() time.Time { return time.Now().UTC() },
+		god:   god,
 	}
 }
 
@@ -104,6 +106,13 @@ func (s *SubscriptionService) ProcessEnd(ctx context.Context, broadcasterID, bro
 		if !found {
 			return EndResult{Found: false}, nil
 		}
+	}
+	// God-listed users keep global access even after subscriber-derived access is
+	// revoked. The store mutations above are still intentional: subscription
+	// state should be cleaned up, but downstream kicks and notifications must be
+	// suppressed for these operator-bypassed accounts.
+	if s.god != nil && s.god.IsGodTelegramUser(telegramUserID) {
+		return EndResult{Found: false}, nil
 	}
 
 	identity, hasIdentity, err := s.store.UserIdentity(ctx, telegramUserID)

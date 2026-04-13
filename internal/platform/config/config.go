@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -42,6 +43,7 @@ type Config struct {
 	PrivacyPolicyVersion   string
 	PrivacyReceiptTTL      time.Duration
 	UntrackedRetention     time.Duration
+	GodTelegramUserIDs     []int64
 }
 
 // MTProtoEnabled reports whether MTProto bootstrap support is fully configured.
@@ -77,6 +79,11 @@ func Load() (Config, error) {
 		PrivacyPolicyURL:       strings.TrimSpace(os.Getenv("IMSUB_PRIVACY_POLICY_URL")),
 		PrivacyPolicyVersion:   strings.TrimSpace(os.Getenv("IMSUB_PRIVACY_POLICY_VERSION")),
 	}
+	godIDs, err := parseTelegramUserIDsEnv(os.Getenv("IMSUB_GOD_TELEGRAM_USER_IDS"))
+	if err != nil {
+		return Config{}, fmt.Errorf("parse IMSUB_GOD_TELEGRAM_USER_IDS: %w", err)
+	}
+	cfg.GodTelegramUserIDs = godIDs
 
 	backupIntervalRaw := strings.TrimSpace(os.Getenv("IMSUB_BACKUP_INTERVAL"))
 	mtprotoAppIDRaw := strings.TrimSpace(os.Getenv("IMSUB_TELEGRAM_MTPROTO_API_ID"))
@@ -243,4 +250,29 @@ func IsFalseEnv(v string) bool {
 	default:
 		return false
 	}
+}
+
+func parseTelegramUserIDsEnv(raw string) ([]int64, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]int64, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		id, err := strconv.ParseInt(part, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid telegram user id %q: %w", part, err)
+		}
+		if id == 0 {
+			continue
+		}
+		out = append(out, id)
+	}
+	slices.Sort(out)
+	return slices.Compact(out), nil
 }

@@ -45,6 +45,7 @@ type ResetService struct {
 	store         resetStore
 	kick          kickFunc
 	log           *slog.Logger
+	god           *GodAccessChecker
 	eventSubClean eventSubCleaner
 }
 
@@ -107,13 +108,14 @@ type BothResetResult struct {
 }
 
 // NewResetService creates a reset service with optional logger fallback.
-func NewResetService(store resetStore, kick func(context.Context, int64, int64, KickReason) error, logger *slog.Logger) *ResetService {
+func NewResetService(store resetStore, kick func(context.Context, int64, int64, KickReason) error, god *GodAccessChecker, logger *slog.Logger) *ResetService {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return &ResetService{
 		store: store,
 		kick:  kick,
+		god:   god,
 		log:   logger,
 	}
 }
@@ -475,6 +477,10 @@ func (r *ResetService) cleanupCreatorGroupsForReset(ctx context.Context, ownerTe
 		}
 		summary.TargetedMembershipCount += len(memberIDs)
 		for _, telegramUserID := range memberIDs {
+			if r.god != nil && r.god.IsGodTelegramUser(telegramUserID) {
+				summary.TargetedMembershipCount--
+				continue
+			}
 			targets = append(targets, MemberCleanupTarget{
 				ChatID:         group.ChatID,
 				TelegramUserID: telegramUserID,
