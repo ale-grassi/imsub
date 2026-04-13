@@ -71,6 +71,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          cache: true
           cache-dependency-path: go.sum
 
       - name: Vet
@@ -87,6 +88,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          cache: true
           cache-dependency-path: go.sum
 
       - name: Build
@@ -103,6 +105,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          cache: true
           cache-dependency-path: go.sum
 
       - name: Test with race detector and coverage
@@ -151,6 +154,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          cache: true
           cache-dependency-path: go.sum
 
       - name: Integration Tests
@@ -169,6 +173,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          cache: true
           cache-dependency-path: go.sum
 
       - uses: golangci/golangci-lint-action@v9
@@ -207,6 +212,7 @@ jobs:
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          cache: true
           cache-dependency-path: go.sum
 
       - name: Run govulncheck
