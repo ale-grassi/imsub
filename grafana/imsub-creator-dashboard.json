@@ -561,6 +561,8 @@
         {
           "editorMode": "code",
           "expr": "sum(increase(imsub_twitch_eventsub_notifications_total{creator_id=\"$creator_id\",subscription_type=\"channel.subscribe\",result=\"ok\"}[$__range]))",
+          "instant": true,
+          "range": false,
           "refId": "A"
         }
       ],
@@ -615,6 +617,8 @@
         {
           "editorMode": "code",
           "expr": "sum(increase(imsub_twitch_eventsub_notifications_total{creator_id=\"$creator_id\",subscription_type=\"channel.subscription.end\",result=\"ok\"}[$__range]))",
+          "instant": true,
+          "range": false,
           "refId": "A"
         }
       ],
@@ -669,6 +673,8 @@
         {
           "editorMode": "code",
           "expr": "sum(increase(imsub_twitch_eventsub_notifications_total{creator_id=\"$creator_id\",subscription_type=\"channel.ban\",result=\"ok\"}[$__range]))",
+          "instant": true,
+          "range": false,
           "refId": "A"
         }
       ],
@@ -723,6 +729,8 @@
         {
           "editorMode": "code",
           "expr": "sum(increase(imsub_twitch_eventsub_notifications_total{creator_id=\"$creator_id\",subscription_type=\"channel.unban\",result=\"ok\"}[$__range]))",
+          "instant": true,
+          "range": false,
           "refId": "A"
         }
       ],
