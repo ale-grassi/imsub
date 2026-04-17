@@ -124,6 +124,14 @@ type gracePolicyTask struct {
 	graceAfter time.Duration
 }
 
+type kickPolicyTask struct {
+	store  gracePolicyStore
+	kicker groupKicker
+	god    *core.GodAccessChecker
+	logger *slog.Logger
+	now    func() time.Time
+}
+
 type memberCleanupTask struct {
 	store            memberCleanupStore
 	kicker           groupKicker
@@ -175,6 +183,23 @@ func NewGracePolicyTask(store gracePolicyStore, kicker groupKicker, god *core.Go
 		logger:     logger,
 		now:        func() time.Time { return time.Now().UTC() },
 		graceAfter: 7 * 24 * time.Hour,
+	}
+}
+
+// NewKickPolicyTask builds the periodic sweep that re-attempts kicks for groups
+// whose policy is GroupPolicyKick when an earlier kick failed (e.g. the bot
+// temporarily lacked CanRestrictMembers) and the member is still persisted as
+// untracked.
+func NewKickPolicyTask(store gracePolicyStore, kicker groupKicker, god *core.GodAccessChecker, logger *slog.Logger) Task {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return kickPolicyTask{
+		store:  store,
+		kicker: kicker,
+		god:    god,
+		logger: logger,
+		now:    func() time.Time { return time.Now().UTC() },
 	}
 }
 
@@ -327,6 +352,70 @@ func (t gracePolicyTask) Run(ctx context.Context) error {
 }
 
 func (t gracePolicyTask) Classify(err error) string {
+	switch {
+	case err == nil:
+		return "ok"
+	case errors.Is(err, core.ErrPartialReconcile):
+		return taskResultPartialFailure
+	default:
+		return taskResultFailed
+	}
+}
+
+func (t kickPolicyTask) Name() string { return "enforce_group_kick_policy" }
+
+func (t kickPolicyTask) Run(ctx context.Context) error {
+	if t.store == nil || t.kicker == nil {
+		return nil
+	}
+
+	groups, err := t.store.ListManagedGroups(ctx)
+	if err != nil {
+		return fmt.Errorf("list managed groups: %w", err)
+	}
+
+	var partialErrs []error
+	for _, group := range groups {
+		if group.Policy != core.GroupPolicyKick {
+			continue
+		}
+		untracked, err := t.store.ListUntrackedGroupMembers(ctx, group.ChatID)
+		if err != nil {
+			partialErrs = append(partialErrs, fmt.Errorf("list untracked group members for %d: %w", group.ChatID, err))
+			t.logger.Warn("kick policy list untracked members failed", "chat_id", group.ChatID, "error", err)
+			continue
+		}
+		for _, member := range untracked {
+			if t.god != nil && t.god.IsGodTelegramUser(member.TelegramUserID) {
+				if err := t.store.AddTrackedGroupMember(ctx, group.ChatID, member.TelegramUserID, "god_list_kick_policy", t.now()); err != nil {
+					partialErrs = append(partialErrs, fmt.Errorf("track god member %d from %d: %w", member.TelegramUserID, group.ChatID, err))
+					t.logger.Warn("kick policy track god member failed", "chat_id", group.ChatID, "telegram_user_id", member.TelegramUserID, "error", err)
+					continue
+				}
+				if err := t.store.RemoveUntrackedGroupMember(ctx, group.ChatID, member.TelegramUserID); err != nil {
+					partialErrs = append(partialErrs, fmt.Errorf("remove god untracked group member %d from %d: %w", member.TelegramUserID, group.ChatID, err))
+					t.logger.Warn("kick policy remove god untracked member failed", "chat_id", group.ChatID, "telegram_user_id", member.TelegramUserID, "error", err)
+				}
+				continue
+			}
+			if err := t.kicker.KickFromGroup(ctx, group.ChatID, member.TelegramUserID, core.KickReasonGroupPolicy); err != nil {
+				partialErrs = append(partialErrs, fmt.Errorf("kick unverified member %d from %d: %w", member.TelegramUserID, group.ChatID, err))
+				t.logger.Warn("kick policy kick failed", "chat_id", group.ChatID, "telegram_user_id", member.TelegramUserID, "error", err)
+				continue
+			}
+			if err := t.store.RemoveUntrackedGroupMember(ctx, group.ChatID, member.TelegramUserID); err != nil {
+				partialErrs = append(partialErrs, fmt.Errorf("remove untracked group member %d from %d: %w", member.TelegramUserID, group.ChatID, err))
+				t.logger.Warn("kick policy untracked cleanup failed", "chat_id", group.ChatID, "telegram_user_id", member.TelegramUserID, "error", err)
+			}
+		}
+	}
+	if len(partialErrs) > 0 {
+		return errors.Join(append([]error{core.ErrPartialReconcile}, partialErrs...)...)
+	}
+	return nil
+}
+
+func (t kickPolicyTask) Classify(err error) string {
 	switch {
 	case err == nil:
 		return "ok"

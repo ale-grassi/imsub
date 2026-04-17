@@ -153,6 +153,7 @@ func Run() error {
 	subscriptionEndUC := usecase.NewSubscriptionEndUseCase(subscriptionSvc, eventSink)
 	groupUnregistrationUC := usecase.NewGroupUnregistrationUseCase(s, eventSubSvc, godAccess, eventSink)
 	gracePolicyTask := jobs.NewGracePolicyTask(s, tgGroups, godAccess, logger)
+	kickPolicyTask := jobs.NewKickPolicyTask(s, tgGroups, godAccess, logger)
 
 	flowController := telegrambot.New(telegrambot.Dependencies{
 		Config:              cfg,
@@ -280,6 +281,12 @@ func Run() error {
 		return jobRunner.RunScheduled(gctx, jobs.Schedule{
 			Task:     gracePolicyTask,
 			Interval: 1 * time.Hour,
+		})
+	})
+	g.Go(func() error {
+		return jobRunner.RunScheduled(gctx, jobs.Schedule{
+			Task:     kickPolicyTask,
+			Interval: 15 * time.Minute,
 		})
 	})
 	g.Go(func() error {

@@ -497,6 +497,276 @@ func TestGracePolicyTaskContinuesAfterMemberError(t *testing.T) {
 	}
 }
 
+func TestKickPolicyTaskKicksUntrackedMembers(t *testing.T) {
+	t.Parallel()
+
+	kicker := &fakeGroupKicker{}
+	var removed [][2]int64
+	store := &fakeStore{
+		listManagedGroups: func(context.Context) ([]core.ManagedGroup, error) {
+			return []core.ManagedGroup{
+				{ChatID: 100, Policy: core.GroupPolicyKick},
+				{ChatID: 101, Policy: core.GroupPolicyObserve},
+				{ChatID: 102, Policy: core.GroupPolicyGraceWeek},
+			}, nil
+		},
+		listUntracked: func(_ context.Context, chatID int64) ([]core.UntrackedGroupMember, error) {
+			if chatID != 100 {
+				return nil, errors.New("unexpected list for non-kick group")
+			}
+			return []core.UntrackedGroupMember{
+				{ChatID: 100, TelegramUserID: 10},
+				{ChatID: 100, TelegramUserID: 11},
+			}, nil
+		},
+		removeUntracked: func(_ context.Context, chatID, telegramUserID int64) error {
+			removed = append(removed, [2]int64{chatID, telegramUserID})
+			return nil
+		},
+	}
+
+	task := NewKickPolicyTask(store, kicker, nil, nil)
+	if err := task.Run(t.Context()); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	if got := kicker.snapshot(); len(got) != 2 || got[0] != [2]int64{100, 10} || got[1] != [2]int64{100, 11} {
+		t.Fatalf("kicks = %#v, want both untracked members of chat 100", got)
+	}
+	if len(removed) != 2 || removed[0] != [2]int64{100, 10} || removed[1] != [2]int64{100, 11} {
+		t.Fatalf("removed = %#v, want both untracked members cleaned up", removed)
+	}
+	if task.Classify(nil) != "ok" {
+		t.Fatalf("Classify(nil) = %q, want ok", task.Classify(nil))
+	}
+}
+
+func TestKickPolicyTaskSkipsGodUsers(t *testing.T) {
+	t.Parallel()
+
+	god := core.NewGodAccessChecker(42)
+	kicker := &fakeGroupKicker{}
+	var trackedAdds []int64
+	var removed []int64
+	store := &fakeStore{
+		listManagedGroups: func(context.Context) ([]core.ManagedGroup, error) {
+			return []core.ManagedGroup{{ChatID: 100, Policy: core.GroupPolicyKick}}, nil
+		},
+		listUntracked: func(_ context.Context, _ int64) ([]core.UntrackedGroupMember, error) {
+			return []core.UntrackedGroupMember{
+				{ChatID: 100, TelegramUserID: 42},
+				{ChatID: 100, TelegramUserID: 11},
+			}, nil
+		},
+		addTracked: func(_ context.Context, _, telegramUserID int64, _ string, _ time.Time) error {
+			trackedAdds = append(trackedAdds, telegramUserID)
+			return nil
+		},
+		removeUntracked: func(_ context.Context, _, telegramUserID int64) error {
+			removed = append(removed, telegramUserID)
+			return nil
+		},
+	}
+
+	task := NewKickPolicyTask(store, kicker, god, nil)
+	if err := task.Run(t.Context()); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+
+	if got := kicker.snapshot(); len(got) != 1 || got[0] != [2]int64{100, 11} {
+		t.Fatalf("kicks = %#v, want only non-god member kicked", got)
+	}
+	if len(trackedAdds) != 1 || trackedAdds[0] != 42 {
+		t.Fatalf("trackedAdds = %#v, want god user promoted to tracked", trackedAdds)
+	}
+	if len(removed) != 2 {
+		t.Fatalf("removed = %#v, want both untracked entries cleared", removed)
+	}
+}
+
+type failingKicker struct {
+	fail map[int64]bool
+	base fakeGroupKicker
+}
+
+func (f *failingKicker) KickFromGroup(ctx context.Context, chatID, telegramUserID int64, reason core.KickReason) error {
+	if f.fail[telegramUserID] {
+		return errors.New("permission denied")
+	}
+	return f.base.KickFromGroup(ctx, chatID, telegramUserID, reason)
+}
+
+func TestKickPolicyTaskContinuesAndReportsPartialFailure(t *testing.T) {
+	t.Parallel()
+
+	kicker := &failingKicker{fail: map[int64]bool{10: true}}
+	var removed []int64
+	store := &fakeStore{
+		listManagedGroups: func(context.Context) ([]core.ManagedGroup, error) {
+			return []core.ManagedGroup{{ChatID: 100, Policy: core.GroupPolicyKick}}, nil
+		},
+		listUntracked: func(_ context.Context, _ int64) ([]core.UntrackedGroupMember, error) {
+			return []core.UntrackedGroupMember{
+				{ChatID: 100, TelegramUserID: 10},
+				{ChatID: 100, TelegramUserID: 11},
+			}, nil
+		},
+		removeUntracked: func(_ context.Context, _, telegramUserID int64) error {
+			removed = append(removed, telegramUserID)
+			return nil
+		},
+	}
+
+	task := NewKickPolicyTask(store, kicker, nil, nil)
+	err := task.Run(t.Context())
+	if err == nil {
+		t.Fatal("Run() error = nil, want partial failure")
+	}
+	if got := task.Classify(err); got != "partial_failure" {
+		t.Fatalf("Classify() = %q, want %q", got, "partial_failure")
+	}
+	if got := kicker.base.snapshot(); len(got) != 1 || got[0] != [2]int64{100, 11} {
+		t.Fatalf("kicks = %#v, want only successful kick recorded", got)
+	}
+	if len(removed) != 1 || removed[0] != 11 {
+		t.Fatalf("removed = %#v, want only successfully kicked member cleaned up (failed one must stay for retry)", removed)
+	}
+}
+
+func TestKickPolicyTaskListManagedGroupsErrorIsHardFailure(t *testing.T) {
+	t.Parallel()
+
+	kicker := &fakeGroupKicker{}
+	store := &fakeStore{
+		listManagedGroups: func(context.Context) ([]core.ManagedGroup, error) {
+			return nil, errors.New("redis down")
+		},
+	}
+
+	task := NewKickPolicyTask(store, kicker, nil, nil)
+	err := task.Run(t.Context())
+	if err == nil {
+		t.Fatal("Run() error = nil, want error")
+	}
+	if errors.Is(err, core.ErrPartialReconcile) {
+		t.Fatalf("Run() error = %v, want a hard failure (not partial)", err)
+	}
+	if got := task.Classify(err); got != "failed" {
+		t.Fatalf("Classify() = %q, want %q", got, "failed")
+	}
+	if got := kicker.snapshot(); len(got) != 0 {
+		t.Fatalf("kicks = %#v, want none", got)
+	}
+}
+
+func TestKickPolicyTaskListUntrackedErrorIsPartialAndContinuesNextGroup(t *testing.T) {
+	t.Parallel()
+
+	kicker := &fakeGroupKicker{}
+	store := &fakeStore{
+		listManagedGroups: func(context.Context) ([]core.ManagedGroup, error) {
+			return []core.ManagedGroup{
+				{ChatID: 100, Policy: core.GroupPolicyKick},
+				{ChatID: 200, Policy: core.GroupPolicyKick},
+			}, nil
+		},
+		listUntracked: func(_ context.Context, chatID int64) ([]core.UntrackedGroupMember, error) {
+			if chatID == 100 {
+				return nil, errors.New("list boom")
+			}
+			return []core.UntrackedGroupMember{{ChatID: 200, TelegramUserID: 22}}, nil
+		},
+	}
+
+	task := NewKickPolicyTask(store, kicker, nil, nil)
+	err := task.Run(t.Context())
+	if err == nil {
+		t.Fatal("Run() error = nil, want partial failure")
+	}
+	if got := task.Classify(err); got != "partial_failure" {
+		t.Fatalf("Classify() = %q, want %q", got, "partial_failure")
+	}
+	if got := kicker.snapshot(); len(got) != 1 || got[0] != [2]int64{200, 22} {
+		t.Fatalf("kicks = %#v, want only the second group's member kicked", got)
+	}
+}
+
+func TestKickPolicyTaskGodPathStoreErrorsAreReportedPartial(t *testing.T) {
+	t.Parallel()
+
+	god := core.NewGodAccessChecker(42, 43)
+	kicker := &fakeGroupKicker{}
+	var trackedAdds []int64
+	store := &fakeStore{
+		listManagedGroups: func(context.Context) ([]core.ManagedGroup, error) {
+			return []core.ManagedGroup{{ChatID: 100, Policy: core.GroupPolicyKick}}, nil
+		},
+		listUntracked: func(_ context.Context, _ int64) ([]core.UntrackedGroupMember, error) {
+			return []core.UntrackedGroupMember{
+				{ChatID: 100, TelegramUserID: 42},
+				{ChatID: 100, TelegramUserID: 43},
+			}, nil
+		},
+		addTracked: func(_ context.Context, _, telegramUserID int64, _ string, _ time.Time) error {
+			trackedAdds = append(trackedAdds, telegramUserID)
+			if telegramUserID == 42 {
+				return errors.New("track boom")
+			}
+			return nil
+		},
+		removeUntracked: func(_ context.Context, _, telegramUserID int64) error {
+			if telegramUserID == 43 {
+				return errors.New("remove boom")
+			}
+			return nil
+		},
+	}
+
+	task := NewKickPolicyTask(store, kicker, god, nil)
+	err := task.Run(t.Context())
+	if err == nil {
+		t.Fatal("Run() error = nil, want partial failure")
+	}
+	if got := task.Classify(err); got != "partial_failure" {
+		t.Fatalf("Classify() = %q, want %q", got, "partial_failure")
+	}
+	if len(trackedAdds) != 2 {
+		t.Fatalf("trackedAdds = %#v, want both god users attempted (first fails, second continues)", trackedAdds)
+	}
+	if got := kicker.snapshot(); len(got) != 0 {
+		t.Fatalf("kicks = %#v, want no god users kicked even on store errors", got)
+	}
+}
+
+func TestKickPolicyTaskRemoveUntrackedErrorAfterKickIsPartial(t *testing.T) {
+	t.Parallel()
+
+	kicker := &fakeGroupKicker{}
+	store := &fakeStore{
+		listManagedGroups: func(context.Context) ([]core.ManagedGroup, error) {
+			return []core.ManagedGroup{{ChatID: 100, Policy: core.GroupPolicyKick}}, nil
+		},
+		listUntracked: func(_ context.Context, _ int64) ([]core.UntrackedGroupMember, error) {
+			return []core.UntrackedGroupMember{{ChatID: 100, TelegramUserID: 10}}, nil
+		},
+		removeUntracked: func(_ context.Context, _, _ int64) error {
+			return errors.New("cleanup boom")
+		},
+	}
+
+	task := NewKickPolicyTask(store, kicker, nil, nil)
+	err := task.Run(t.Context())
+	if err == nil {
+		t.Fatal("Run() error = nil, want partial failure")
+	}
+	if got := task.Classify(err); got != "partial_failure" {
+		t.Fatalf("Classify() = %q, want %q", got, "partial_failure")
+	}
+	if got := kicker.snapshot(); len(got) != 1 || got[0] != [2]int64{100, 10} {
+		t.Fatalf("kicks = %#v, want the member still kicked despite cleanup error", got)
+	}
+}
+
 func TestMemberCleanupTaskProcessJobCapsWorkPerRun(t *testing.T) {
 	t.Parallel()
 
