@@ -48,6 +48,11 @@ const (
 	msgGroupWarnBotNoInvite       = "group_warn_bot_no_invite"   //nolint:gosec // i18n key, not a credential
 	msgGroupWarnBotNoRestrict     = "group_warn_bot_no_restrict" //nolint:gosec // i18n key, not a credential
 	msgGroupWarnSettingsIntro     = "group_warn_settings_intro"  //nolint:gosec // i18n key, not a credential
+	msgGroupRegisteredLinks       = "group_registered_links"
+	msgGroupSetupPermissions      = "group_setup_permissions_html"
+	msgGroupPermissionsBlocked    = "group_permissions_blocked_html"
+	msgGroupCompromised           = "group_functionality_compromised_html"
+	msgGroupCompromisedOwnerDM    = "group_functionality_compromised_owner_dm_html"
 	msgGroupPolicyPrompt          = "group_policy_prompt_html"
 	msgGroupPolicyExistingMembers = "group_policy_existing_members_html"
 	msgGroupPolicyObserveLine     = "group_policy_observe_line"
@@ -156,6 +161,9 @@ type Bot struct {
 	events              events.EventSink
 
 	backgroundWG sync.WaitGroup
+
+	botUsernameMu     sync.Mutex
+	botUsernameCached string
 }
 
 // New creates a Telegram bot from dependencies.

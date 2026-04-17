@@ -25,6 +25,7 @@ const (
 	msgCreatorRegisterInfo         = "creator_register_info"
 	msgCreatorRegisteredNoGroup    = "creator_registered_no_group_html"
 	msgCreatorRegistered           = "creator_registered_html"
+	msgCreatorRegisteredLinks      = "creator_registered_links"
 	msgCreatorAuthHealthy          = "creator_auth_healthy"
 	msgCreatorAuthReconnect        = "creator_auth_reconnect_required"
 	msgCreatorSubscribersPending   = "creator_subscribers_pending"
@@ -248,7 +249,7 @@ func (c *Bot) replyCreatorStatus(ctx context.Context, telegramUserID int64, edit
 			return
 		}
 	}
-	view := buildCreatorStatusView(lang, reconnectURL, res.Creator, res.Status, res.Groups)
+	view := buildCreatorStatusView(lang, reconnectURL, c.botUsername(ctx), res.Creator, res.Status, res.Groups)
 
 	if editMsgID != 0 {
 		c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
@@ -382,6 +383,14 @@ func creatorCacheSummaryText(status core.Status, lang string) string {
 		subscriberLine = fmt.Sprintf(i18n.Translate(lang, "creator_subscribers_cached"), creatorSubscriberStatusText(status, lang))
 	}
 	return joinNonEmptyLines(subscriberLine, creatorBannedUserCountText(status, lang))
+}
+
+func creatorFinalStepText(lang, botUsername string) string {
+	handle, link := botEntryLinks(botUsername)
+	if handle == "" && link == "" {
+		return ""
+	}
+	return fmt.Sprintf(i18n.Translate(lang, msgCreatorRegisteredLinks), html.EscapeString(handle), html.EscapeString(link))
 }
 
 func creatorBlocklistStatusText(lang string, creator core.Creator, active bool) string {
@@ -759,7 +768,7 @@ func (c *Bot) replyCreatorStatusWithNotice(ctx context.Context, telegramUserID i
 			return view.text
 		}
 	}
-	view := buildCreatorStatusView(lang, reconnectURL, res.Creator, res.Status, res.Groups)
+	view := buildCreatorStatusView(lang, reconnectURL, c.botUsername(ctx), res.Creator, res.Status, res.Groups)
 	if strings.TrimSpace(notice) != "" {
 		view.text = notice + "\n\n" + view.text
 	}
@@ -810,7 +819,7 @@ func buildCreatorPromptView(lang, authURL string, reconnect bool) sharedView {
 	}
 }
 
-func buildCreatorStatusView(lang, reconnectURL string, creator core.Creator, status core.Status, groups []core.ManagedGroup) sharedView {
+func buildCreatorStatusView(lang, reconnectURL, botUsername string, creator core.Creator, status core.Status, groups []core.ManagedGroup) sharedView {
 	profileDisplay := ui.TwitchProfileHTML(creator.TwitchLogin, creator.TwitchDisplayName)
 	groupLines := CreatorGroupLines(lang, groups)
 	eventSubStatus := creatorEventSubStatusText(status, lang)
@@ -819,11 +828,12 @@ func buildCreatorStatusView(lang, reconnectURL string, creator core.Creator, sta
 	isActive := len(groups) > 0
 	blocklistStatus := creatorBlocklistStatusText(lang, creator, isActive)
 	graceStatus := creatorGraceStatusText(lang, creator, isActive)
-	summaryBlock := joinNonEmptySections(
+	summarySections := []textSection{
 		creatorDashboardSection(lang, "creator_dashboard_setup_status", authStatus, eventSubStatus, statusDetails),
 		creatorDashboardSection(lang, "creator_dashboard_settings", graceStatus, blocklistStatus),
 		creatorDashboardSection(lang, "creator_dashboard_current_data", creatorCacheSummaryText(status, lang)),
-	)
+	}
+	summaryBlock := joinNonEmptySections(summarySections...)
 	statusMenuRows := creatorStatusMenuRows(lang, groups)
 
 	if len(groups) == 0 {
@@ -841,6 +851,10 @@ func buildCreatorStatusView(lang, reconnectURL string, creator core.Creator, sta
 				Markup:         ui.WithCreatorStatusMenu(lang, reconnectURL, creatorStatusMenuCallbacks(false, false, false, false), statusMenuRows...),
 			},
 		}
+	}
+
+	if finalStepBlock := creatorFinalStepText(lang, botUsername); finalStepBlock != "" {
+		summaryBlock = joinNonEmptySections(textSection{text: summaryBlock}, textSection{text: finalStepBlock})
 	}
 
 	return sharedView{

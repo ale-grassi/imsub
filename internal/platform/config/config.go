@@ -10,6 +10,9 @@ import (
 	"time"
 )
 
+// DefaultS3Region is the fallback region used when IMSUB_S3_REGION is unset.
+const DefaultS3Region = "auto"
+
 // ErrMissingEnv indicates one or more required environment variables are not set.
 var ErrMissingEnv = errors.New("missing env vars")
 
@@ -146,7 +149,7 @@ func Load() (Config, error) {
 		cfg.MetricsPath = "/" + cfg.MetricsPath
 	}
 	if cfg.S3Region == "" {
-		cfg.S3Region = "auto"
+		cfg.S3Region = DefaultS3Region
 	}
 	if cfg.PrivacyPolicyVersion == "" {
 		cfg.PrivacyPolicyVersion = "v1"

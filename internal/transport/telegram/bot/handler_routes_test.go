@@ -494,7 +494,7 @@ func TestRegisterTelegramHandlersGroupRegisterPolicyCallbackShowsWarningsInMessa
 	})
 
 	body := h.caller.lastEditMessageBody()
-	h.assertEditMessageTextContains(t, body, "Group settings need attention")
+	h.assertEditMessageTextContains(t, body, "Step 3 of 4")
 	h.assertEditMessageTextContains(t, body, "Invite Users")
 	h.assertEditMessageTextContains(t, body, "Ban Users")
 
@@ -1014,7 +1014,8 @@ func TestRegisterTelegramHandlersRegisterGroupAlwaysPromptsForPolicy(t *testing.
 	})
 
 	body := h.caller.lastSendMessageBody()
-	h.assertEditMessageTextContains(t, body, "Choose a group policy")
+	h.assertEditMessageTextContains(t, body, "Step 4 of 4")
+	h.assertEditMessageTextContains(t, body, "Choose the group policy")
 	h.assertEditMessageLacksCallback(t, body, creatorRefreshCallback())
 	h.assertEditMessageHasCallback(t, body, groupRegisterPolicyCallback(-1005, 0, core.GroupPolicyObserve))
 	h.assertEditMessageHasCallback(t, body, groupRegisterPolicyCallback(-1005, 0, core.GroupPolicyObserveWarn))
@@ -1063,7 +1064,8 @@ func TestRegisterTelegramHandlersRegisterGroupPromptIncludesExistingMemberWarnin
 	})
 
 	body := h.caller.lastSendMessageBody()
-	h.assertEditMessageTextContains(t, body, "Choose a group policy")
+	h.assertEditMessageTextContains(t, body, "Step 4 of 4")
+	h.assertEditMessageTextContains(t, body, "Choose the group policy")
 	h.assertEditMessageTextContains(t, body, "4 existing non-admin members detected")
 	h.assertEditMessageHasCallback(t, body, groupRegisterPolicyCallback(-1006, 0, core.GroupPolicyObserve))
 	h.assertEditMessageHasCallback(t, body, groupRegisterPolicyCallback(-1006, 0, core.GroupPolicyObserveWarn))

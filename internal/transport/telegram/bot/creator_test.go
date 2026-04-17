@@ -33,7 +33,7 @@ func TestBuildCreatorStatusViewNoGroups(t *testing.T) {
 		t.Fatalf("i18n.Ensure failed: %v", err)
 	}
 
-	view := buildCreatorStatusView("en", "", core.Creator{TwitchLogin: "creator"}, core.Status{}, nil)
+	view := buildCreatorStatusView("en", "", "imsub_bot", core.Creator{TwitchLogin: "creator"}, core.Status{}, nil)
 	if view.text == "" || view.opts.Markup == nil {
 		t.Fatalf("buildCreatorStatusView() = %+v, want non-empty text and markup", view)
 	}
@@ -59,7 +59,7 @@ func TestBuildCreatorStatusViewWithSingleGroup(t *testing.T) {
 		t.Fatalf("i18n.Ensure failed: %v", err)
 	}
 
-	view := buildCreatorStatusView("en", "", core.Creator{TwitchLogin: "creator"}, core.Status{HasBannedUserCount: true, BannedUserCount: 2}, []core.ManagedGroup{{ChatID: 1, GroupName: "VIP"}})
+	view := buildCreatorStatusView("en", "", "imsub_bot", core.Creator{TwitchLogin: "creator"}, core.Status{HasBannedUserCount: true, BannedUserCount: 2}, []core.ManagedGroup{{ChatID: 1, GroupName: "VIP"}})
 	if view.text == "" || view.opts.Markup == nil {
 		t.Fatalf("buildCreatorStatusView() = %+v, want non-empty text and markup", view)
 	}
@@ -78,7 +78,7 @@ func TestBuildCreatorStatusViewWithMultipleGroups(t *testing.T) {
 		t.Fatalf("i18n.Ensure failed: %v", err)
 	}
 
-	view := buildCreatorStatusView("en", "", core.Creator{TwitchLogin: "creator"}, core.Status{}, []core.ManagedGroup{{ChatID: 1, GroupName: "VIP"}, {ChatID: 2, GroupName: "Patrons"}})
+	view := buildCreatorStatusView("en", "", "imsub_bot", core.Creator{TwitchLogin: "creator"}, core.Status{}, []core.ManagedGroup{{ChatID: 1, GroupName: "VIP"}, {ChatID: 2, GroupName: "Patrons"}})
 	if view.text == "" || view.opts.Markup == nil {
 		t.Fatalf("buildCreatorStatusView() = %+v, want non-empty text and markup", view)
 	}
@@ -91,7 +91,7 @@ func TestBuildCreatorStatusViewWithBlocklistEnabled(t *testing.T) {
 		t.Fatalf("i18n.Ensure failed: %v", err)
 	}
 
-	view := buildCreatorStatusView("en", "", core.Creator{
+	view := buildCreatorStatusView("en", "", "imsub_bot", core.Creator{
 		TwitchLogin:          "creator",
 		BlocklistSyncEnabled: true,
 	}, core.Status{HasBannedUserCount: true, BannedUserCount: 4}, []core.ManagedGroup{{ChatID: 1, GroupName: "VIP"}})
@@ -124,7 +124,7 @@ func TestBuildCreatorStatusViewWithGraceEnabled(t *testing.T) {
 		t.Fatalf("i18n.Ensure failed: %v", err)
 	}
 
-	view := buildCreatorStatusView("en", "", core.Creator{
+	view := buildCreatorStatusView("en", "", "imsub_bot", core.Creator{
 		TwitchLogin:          "creator",
 		SubscriptionEndGrace: core.SubscriptionEndGrace48h,
 	}, core.Status{}, []core.ManagedGroup{{ChatID: 1, GroupName: "VIP"}})

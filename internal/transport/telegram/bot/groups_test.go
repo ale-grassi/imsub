@@ -7,8 +7,6 @@ import (
 	"imsub/internal/core"
 	"imsub/internal/events"
 	"imsub/internal/usecase"
-
-	"github.com/mymmrac/telego"
 )
 
 type bootstrapEventSinkStub struct {
@@ -42,7 +40,7 @@ func TestFormatGroupSettingsResultWithWarnings(t *testing.T) {
 
 func TestBuildGroupRegistrationViewTakenByOther(t *testing.T) {
 	t.Parallel()
-	if _, ok := buildGroupRegistrationView("en", 1, usecase.RegisterGroupResult{
+	if _, ok := buildGroupRegistrationView("en", 1, "imsub_bot", usecase.RegisterGroupResult{
 		Outcome:          usecase.RegisterGroupOutcomeTakenByOther,
 		OtherCreatorName: "other",
 	}); ok {
@@ -52,7 +50,7 @@ func TestBuildGroupRegistrationViewTakenByOther(t *testing.T) {
 
 func TestBuildGroupRegistrationViewAlreadyLinked(t *testing.T) {
 	t.Parallel()
-	if _, ok := buildGroupRegistrationView("en", 1, usecase.RegisterGroupResult{
+	if _, ok := buildGroupRegistrationView("en", 1, "imsub_bot", usecase.RegisterGroupResult{
 		Outcome: usecase.RegisterGroupOutcomeAlreadyLinked,
 		Creator: core.Creator{TwitchLogin: "creator"},
 	}); ok {
@@ -62,7 +60,7 @@ func TestBuildGroupRegistrationViewAlreadyLinked(t *testing.T) {
 
 func TestBuildGroupRegistrationViewRegistered(t *testing.T) {
 	t.Parallel()
-	if _, ok := buildGroupRegistrationView("en", 1, usecase.RegisterGroupResult{
+	if _, ok := buildGroupRegistrationView("en", 1, "imsub_bot", usecase.RegisterGroupResult{
 		Outcome: usecase.RegisterGroupOutcomeRegistered,
 		Creator: core.Creator{TwitchLogin: "creator"},
 	}); !ok {
@@ -72,7 +70,7 @@ func TestBuildGroupRegistrationViewRegistered(t *testing.T) {
 
 func TestBuildGroupRegistrationViewUnsupportedOutcome(t *testing.T) {
 	t.Parallel()
-	if _, ok := buildGroupRegistrationView("en", 1, usecase.RegisterGroupResult{}); ok {
+	if _, ok := buildGroupRegistrationView("en", 1, "imsub_bot", usecase.RegisterGroupResult{}); ok {
 		t.Fatal("buildGroupRegistrationView() ok = true, want false")
 	}
 }
@@ -172,7 +170,7 @@ func TestDispatchGroupRegistrationFollowUpEmitsDisabledBootstrapOutcome(t *testi
 		},
 	}
 
-	b.dispatchGroupRegistrationFollowUp(t.Context(), telego.Message{Chat: telego.Chat{ID: 42}}, "en", regRes, groupRegistrationView{}, 0, 0)
+	b.dispatchGroupRegistrationFollowUp(t.Context(), "en", regRes)
 
 	if len(sink.events) != 1 {
 		t.Fatalf("emitted events = %d, want 1", len(sink.events))

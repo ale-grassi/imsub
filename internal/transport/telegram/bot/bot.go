@@ -143,6 +143,24 @@ func (c *Bot) createInviteLink(ctx context.Context, groupChatID int64, telegramU
 	return link, nil
 }
 
+func (c *Bot) botUsername(ctx context.Context) string {
+	if c == nil || c.tg == nil {
+		return ""
+	}
+	c.botUsernameMu.Lock()
+	defer c.botUsernameMu.Unlock()
+	if c.botUsernameCached != "" {
+		return c.botUsernameCached
+	}
+	me, err := c.tg.GetMe(ctx)
+	if err != nil {
+		c.log().Warn("GetMe failed while resolving bot username", "error", err)
+		return ""
+	}
+	c.botUsernameCached = strings.TrimSpace(me.Username)
+	return c.botUsernameCached
+}
+
 func (c *Bot) kickDisplacedUser(ctx context.Context, telegramUserID int64) {
 	if c == nil || c.telegramGroups == nil {
 		return
@@ -463,7 +481,6 @@ type callbackExecution struct {
 	userID        int64
 	editChatID    int64
 	editChatTitle string
-	editThreadID  int
 	editMsgID     int
 	lang          string
 	action        callbackAction
@@ -476,7 +493,7 @@ func (c *Bot) dispatchCallbackAction(ctx context.Context, exec callbackExecution
 	case callbackDomainCreator:
 		return c.handleCreatorCallback(ctx, exec.userID, exec.editMsgID, exec.lang, exec.action)
 	case callbackDomainGroup:
-		return c.handleGroupCallback(ctx, exec.userID, exec.editChatID, exec.editChatTitle, exec.editThreadID, exec.editMsgID, exec.lang, exec.action)
+		return c.handleGroupCallback(ctx, exec.userID, exec.editChatID, exec.editChatTitle, exec.editMsgID, exec.lang, exec.action)
 	case callbackDomainReset:
 		return c.handleResetAction(ctx, exec.userID, exec.editMsgID, exec.lang, exec.action)
 	}

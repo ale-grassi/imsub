@@ -171,3 +171,11 @@ func renderCreatorNames(names []string) string {
 	}
 	return strings.Join(lines, "\n")
 }
+
+func botEntryLinks(botUsername string) (handle string, link string) {
+	botUsername = strings.TrimSpace(strings.TrimPrefix(botUsername, "@"))
+	if botUsername == "" {
+		return "", ""
+	}
+	return "@" + botUsername, "t.me/" + botUsername
+}

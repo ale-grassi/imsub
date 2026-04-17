@@ -8,7 +8,7 @@ other = "Entra in %s"
 other = "Collega Twitch"
 
 [btn_copy_link]
-other = "Copia link"
+other = "Copia link del bot"
 
 [btn_refresh]
 other = "Aggiorna"
@@ -41,7 +41,7 @@ other = "72 ore"
 other = "Consenti"
 
 [btn_group_policy_observe_warn]
-other = "Consenti, ma avvisa"
+other = "Consenti, ma avvisa sugli ingressi non verificati"
 
 [btn_group_policy_kick]
 other = "Rimuovi subito"
@@ -146,16 +146,19 @@ other = "⚠️ <b>Cambiare policy del gruppo?</b>\n\n<b>Gruppo:</b> %s\n<b>Poli
 other = "🌐 <b>Cambia lingua del gruppo</b>\n\nScegli la lingua dei messaggi del bot inviati in questo gruppo.\n\n<b>Gruppo:</b> %s\n<b>Lingua attuale:</b> %s"
 
 [creator_register_info]
-other = "🎙️ <b>Configura il tuo account creator</b>\n\nCollega il tuo <b>account creator Twitch</b> per configurare gruppi Telegram riservati agli abbonati.\n\n⚠️ <b>Solo creator</b>\nQuesti passaggi servono solo ai creator che vogliono proteggere un gruppo.\nSe vuoi entrare in un gruppo come subscriber, usa invece /start.\n\n<b>Per iniziare</b>\n1. Tocca <b>Collega account creator</b>\n2. Accedi su Twitch e approva l'accesso\n3. Nel gruppo che vuoi proteggere, esegui <code>/linkgroup</code>. Devi essere admin in quel gruppo.\n\n<b>Nota privacy</b>\nImSub memorizza il tuo ID Telegram, l'account creator Twitch collegato, i token OAuth creator e le impostazioni dei gruppi gestiti per far funzionare il controllo degli accessi. Usa /reset per esportare o eliminare i dati del bot.\n\n<i>Se hai qualsiasi problema, copia il link usando il pulsante qui sotto e incollalo in un browser. I link di autorizzazione restano validi per 30 minuti e possono essere usati una sola volta. Se il problema persiste, incollalo nella modalita' in incognito del browser.</i>"
+other = "🎙️ <b>Configura il tuo account creator</b>\n\n⚠️ <b>Solo creator</b>\nQuesti passaggi servono solo ai creator che vogliono proteggere un gruppo. Se vuoi entrare in un gruppo come subscriber, usa invece /start.\n\n➡️ <b>Step 1 di 4</b>\nCollega il tuo <b>account creator Twitch</b>.\n\n<b>Percorso di setup</b>\n1. Collega account Twitch\n2. Aggiungi il bot al gruppo\n3. Concedi al bot i permessi necessari\n4. Esegui <code>/linkgroup</code> e scegli la policy del gruppo\n\n<b>Nota privacy</b>\nImSub memorizza il tuo ID Telegram, l'account creator Twitch collegato, i token OAuth creator e le impostazioni dei gruppi gestiti per far funzionare il controllo degli accessi. Usa /reset per esportare o eliminare i dati del bot.\n\n<i>Se hai qualsiasi problema, copia il link usando il pulsante qui sotto e incollalo in un browser. I link di autorizzazione restano validi per 30 minuti e possono essere usati una sola volta. Se il problema persiste, incollalo nella modalita' in incognito del browser.</i>"
 
 [creator_reconnect_info]
 other = "🔄 <b>Ricollega account creator</b>\n\n<b>Ricollega</b> il tuo account creator per continuare a gestire i tuoi gruppi.\n\n<b>Nota privacy</b>\nImSub memorizza il tuo ID Telegram, l'account creator Twitch collegato, i token OAuth creator e le impostazioni dei gruppi gestiti per far funzionare il controllo degli accessi. Usa /reset per esportare o eliminare i dati del bot.\n\n<i>Se hai qualsiasi problema, copia il link usando il pulsante qui sotto e incollalo in un browser. I link di autorizzazione restano validi per 30 minuti e possono essere usati una sola volta. Se il problema persiste, incollalo nella modalita' in incognito del browser.</i>"
 
 [creator_registered_html]
-other = "✅ <b>Dashboard creator</b>\n🎙️ <b>Account:</b> %s\n\n%s\n\n<b>Gruppi gestiti</b>\n%s\n\n<i>Usa i pulsanti qui sotto per gestire i gruppi o cambiare le impostazioni di accesso.</i>"
+other = "✅ <b>Setup completato</b>\n🎙️ <b>Account:</b> %s\n\n%s\n\n<b>Gruppi gestiti</b>\n%s\n\n<i>Usa i pulsanti qui sotto per gestire i gruppi o cambiare le impostazioni di accesso.</i>"
 
 [creator_registered_no_group_html]
-other = "⚠️ <b>Setup creator non completato</b>\n🎙️ <b>Account:</b> %s\n\n%s\n\n<b>Prossimo step</b>\nNel gruppo che vuoi proteggere, esegui <code>/linkgroup</code>. Devi essere admin in quel gruppo."
+other = "⚠️ <b>Setup creator non completato</b>\n🎙️ <b>Account:</b> %s\n\n%s\n\n➡️ <b>Step 2 di 4</b>\nAggiungi il bot al gruppo che vuoi proteggere."
+
+[creator_registered_links]
+other = "Gli abbonati possono ora usare il bot per collegarsi al tuo gruppo tramite <b>%s</b> oppure <b>%s</b>."
 
 [creator_dashboard_setup_status]
 other = "<b>Stato setup</b>"
@@ -266,10 +269,25 @@ other = "⚠️ Configura prima il tuo account creator in chat privata con <code
 other = "⚠️ Usa questo comando in un gruppo per renderlo riservato agli abbonati."
 
 [group_registered]
-other = "✅ <b>Gruppo collegato</b>\n\n<b>Prossimo step</b>\nI viewer con un abbonamento attivo possono usare <code>/start</code> per ottenere un link di accesso."
+other = "✅ <b>Step 4 di 4 completato</b>\nGruppo collegato."
+
+[group_registered_links]
+other = "Gli abbonati possono ora usare il bot per collegarsi a questo gruppo tramite <b>%s</b> oppure <b>%s</b>."
+
+[group_setup_permissions_html]
+other = "➡️ <b>Step 3 di 4</b>\nConcedi al bot i permessi necessari prima di collegare questo gruppo.\n\n<b>Permessi richiesti</b>\n• Amministratore\n• Invita utenti\n• Ban utenti\n\nDopo, esegui <code>/linkgroup</code> per continuare con lo Step 4."
+
+[group_permissions_blocked_html]
+other = "➡️ <b>Step 3 di 4</b>\nA questo gruppo mancano i permessi richiesti per il bot.\n\n<b>Permessi richiesti</b>\n• Amministratore\n• Invita utenti\n• Ban utenti\n\nConcedi i permessi mancanti, poi riprova <code>/linkgroup</code> per continuare con lo Step 4."
+
+[group_functionality_compromised_html]
+other = "⚠️ <b>Funzionalita' del gruppo compromesse</b>\n\nA ImSub mancano i permessi richiesti in questo gruppo. Il controllo accessi basato sugli abbonamenti potrebbe non funzionare correttamente finche' i permessi non vengono ripristinati.\n\n<b>Permessi mancanti</b>\n%s"
+
+[group_functionality_compromised_owner_dm_html]
+other = "⚠️ <b>Funzionalita' del gruppo compromesse</b>\n\nA ImSub mancano i permessi richiesti in <b>%s</b>. Il controllo accessi basato sugli abbonamenti potrebbe non funzionare correttamente finche' i permessi non vengono ripristinati.\n\n<b>Permessi mancanti</b>\n%s"
 
 [group_policy_prompt_html]
-other = "🛡️ <b>Scegli una policy per il gruppo</b>\n\nScegli cosa deve succedere quando il bot vede un membro non verificato in questo gruppo."
+other = "➡️ <b>Step 4 di 4</b>\nScegli la policy del gruppo.\n\nScegli cosa deve succedere quando il bot vede un membro non verificato in questo gruppo."
 
 [group_policy_existing_members_html]
 other = "⚠️ <b>Rilevati %d membri non admin gia' presenti</b>\nI membri che erano gia' in questo gruppo prima del collegamento non possono essere verificati automaticamente.\n\n<i>Questa policy si applica solo ai membri che il bot puo' vedere da ora in poi. Per un controllo accessi rigoroso, rimuovi manualmente i membri non verificati e falli rientrare tramite il bot.</i>"
@@ -278,7 +296,7 @@ other = "⚠️ <b>Rilevati %d membri non admin gia' presenti</b>\nI membri che 
 other = "<b>Policy attuale:</b> Consenti"
 
 [group_policy_observe_warn_line]
-other = "<b>Policy attuale:</b> Consenti, ma avvisa quando entra qualcuno"
+other = "<b>Policy attuale:</b> Consenti, ma avvisa quando entra un membro non verificato"
 
 [group_policy_kick_line]
 other = "<b>Policy attuale:</b> Rimuovi subito"

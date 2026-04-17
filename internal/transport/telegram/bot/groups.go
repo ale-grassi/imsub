@@ -125,7 +125,7 @@ func (c *Bot) onRegisterGroup(ctx *tghandler.Context, msg telego.Message) error 
 	}
 	if eval := c.evaluateBotGroupCapabilities(ctx, msg.Chat.ID); len(eval.issues(lang)) > 0 {
 		setTelegramCommandResponseResult(ctx, "capability_warning")
-		view := buildGroupSettingWarningsView(lang, msg.MessageID, eval.issues(lang))
+		view := buildGroupPermissionsBlockedView(lang, msg.MessageID)
 		view.opts.MessageThreadID = threadID
 		c.sendMsg(ctx, msg.Chat.ID, view.text, &view.opts)
 		return nil
@@ -141,7 +141,7 @@ func (c *Bot) onRegisterGroup(ctx *tghandler.Context, msg telego.Message) error 
 	return nil
 }
 
-func (c *Bot) handleGroupCallback(ctx context.Context, userID, chatID int64, chatTitle string, messageThreadID, editMsgID int, lang string, action callbackAction) callbackFeedback {
+func (c *Bot) handleGroupCallback(ctx context.Context, userID, chatID int64, chatTitle string, editMsgID int, lang string, action callbackAction) callbackFeedback {
 	lang = c.groupChatLanguage(ctx, chatID, lang)
 	if chatID == 0 || action.chatID == 0 || action.chatID != chatID {
 		setTelegramCallbackResponseResult(ctx, "chat_mismatch")
@@ -182,7 +182,7 @@ func (c *Bot) handleGroupCallback(ctx context.Context, userID, chatID int64, cha
 		c.log().Info("group registration callback received", "chat_id", chatID, "owner_telegram_id", userID, "policy", action.policy, "thread_id", action.threadID)
 		if eval := c.evaluateBotGroupCapabilities(ctx, chatID); len(eval.issues(lang)) > 0 {
 			setTelegramCallbackResponseResult(ctx, "capability_warning")
-			view := buildGroupSettingWarningsView(lang, editMsgID, eval.issues(lang))
+			view := buildGroupPermissionsBlockedView(lang, editMsgID)
 			c.reply(ctx, chatID, editMsgID, view.text, &view.opts)
 			return noCallbackFeedback()
 		}
@@ -207,7 +207,7 @@ func (c *Bot) handleGroupCallback(ctx context.Context, userID, chatID int64, cha
 		default:
 			setTelegramCallbackResponseResult(ctx, "unsupported")
 		}
-		view, ok := buildGroupRegistrationView(lang, editMsgID, regRes)
+		view, ok := buildGroupRegistrationView(lang, editMsgID, c.botUsername(ctx), regRes)
 		if !ok {
 			switch regRes.Outcome {
 			case usecase.RegisterGroupOutcomeAlreadyLinked, usecase.RegisterGroupOutcomeTakenByOther:
@@ -222,17 +222,7 @@ func (c *Bot) handleGroupCallback(ctx context.Context, userID, chatID int64, cha
 		}
 		c.reply(ctx, chatID, editMsgID, view.text, &view.opts)
 		if view.dispatchFollowUp {
-			c.dispatchGroupRegistrationFollowUp(ctx, telego.Message{
-				MessageID:       editMsgID,
-				MessageThreadID: messageThreadID,
-				IsTopicMessage:  messageThreadID > 0,
-				Chat: telego.Chat{
-					ID:    chatID,
-					Type:  telego.ChatTypeSupergroup,
-					Title: chatTitle,
-				},
-				From: &telego.User{ID: userID, LanguageCode: lang},
-			}, lang, regRes, view, editMsgID, messageThreadID)
+			c.dispatchGroupRegistrationFollowUp(ctx, lang, regRes)
 		}
 		return callbackAck(i18n.Translate(lang, msgCbGroupRegistered))
 	case callbackVerbExecute:
@@ -367,28 +357,62 @@ func (c *Bot) onMyChatMemberUpdated(ctx *tghandler.Context, update telego.ChatMe
 		return nil
 	}
 
+	oldCaps := capabilitiesFromChatMember(update.OldChatMember)
+	newCaps := capabilitiesFromChatMember(update.NewChatMember)
 	oldStatus := ""
 	if update.OldChatMember != nil {
 		oldStatus = update.OldChatMember.MemberStatus()
 	}
 	newStatus := update.NewChatMember.MemberStatus()
-	if oldStatus == newStatus {
-		return nil
-	}
 
 	switch newStatus {
 	case telego.MemberStatusMember, telego.MemberStatusAdministrator, telego.MemberStatusCreator:
 		lang := i18n.NormalizeLanguage(update.From.LanguageCode)
-		c.runBackground(context.WithoutCancel(ctx), func(bg context.Context) {
-			warnings := c.evaluateGroupSettings(bg, update.Chat.ID).issues(lang)
-			if len(warnings) == 0 {
-				return
+		group, managed, err := c.store.ManagedGroupByChatID(ctx, update.Chat.ID)
+		if err != nil {
+			c.log().Warn("ManagedGroupByChatID for chat-member update failed", "chat_id", update.Chat.ID, "error", err)
+			return nil
+		}
+		if managed {
+			if group.RegistrationThreadID > 0 {
+				lang = c.groupChatLanguage(ctx, group.ChatID, lang)
 			}
-			view := buildGroupSettingWarningsView(lang, 0, warnings)
+			if oldCaps.healthy() && !newCaps.healthy() {
+				c.runBackground(context.WithoutCancel(ctx), func(bg context.Context) {
+					c.notifyManagedGroupPermissionsCompromised(bg, group, lang, newCaps)
+				})
+				return nil
+			}
+			if oldStatus == newStatus {
+				return nil
+			}
+			c.runBackground(context.WithoutCancel(ctx), func(bg context.Context) {
+				warnings := c.evaluateGroupSettings(bg, update.Chat.ID).issues(lang)
+				if len(warnings) == 0 {
+					return
+				}
+				view := buildGroupSettingWarningsView(lang, 0, warnings)
+				view.opts.MessageThreadID = group.RegistrationThreadID
+				c.sendMsg(bg, update.Chat.ID, view.text, &view.opts)
+			})
+			return nil
+		}
+		if oldStatus == newStatus {
+			return nil
+		}
+		c.runBackground(context.WithoutCancel(ctx), func(bg context.Context) {
+			view := buildGroupSetupPermissionsView(lang)
 			c.sendMsg(bg, update.Chat.ID, view.text, &view.opts)
 		})
 	case telego.MemberStatusLeft, telego.MemberStatusBanned:
+		if oldStatus == newStatus {
+			return nil
+		}
 		c.handleBotRemovedFromManagedGroup(ctx, update.Chat.ID, newStatus)
+	default:
+		if oldStatus == newStatus {
+			return nil
+		}
 	}
 
 	return nil
@@ -447,6 +471,27 @@ func (c *Bot) notifyOwnerGroupAutoUnregistered(ctx context.Context, creator core
 	if messageID := c.sendMsg(ctx, creator.OwnerTelegramID, view.text, &view.opts); messageID == 0 {
 		c.log().Warn("send auto-unregister owner notification failed", "creator_id", creator.ID, "owner_telegram_id", creator.OwnerTelegramID, "chat_id", group.ChatID)
 	}
+}
+
+func (c *Bot) notifyManagedGroupPermissionsCompromised(ctx context.Context, group core.ManagedGroup, lang string, caps membershipCapabilitySnapshot) {
+	missing := formatMissingRequiredPermissions(lang, caps)
+	view := buildGroupCompromisedView(lang, missing)
+	view.opts.MessageThreadID = group.RegistrationThreadID
+	c.sendMsg(ctx, group.ChatID, view.text, &view.opts)
+
+	creator, ok, err := c.store.Creator(ctx, group.CreatorID)
+	if err != nil || !ok {
+		if err != nil {
+			c.log().Warn("load creator for compromised group notification failed", "creator_id", group.CreatorID, "chat_id", group.ChatID, "error", err)
+		}
+		return
+	}
+	ownerLang := lang
+	if identity, found, identityErr := c.store.UserIdentity(ctx, creator.OwnerTelegramID); identityErr == nil && found && identity.Language != "" {
+		ownerLang = identity.Language
+	}
+	dmView := buildGroupCompromisedOwnerView(ownerLang, group.GroupName, formatMissingRequiredPermissions(ownerLang, caps))
+	c.sendMsg(ctx, creator.OwnerTelegramID, dmView.text, &dmView.opts)
 }
 
 func (c *Bot) onChatMemberUpdated(ctx *tghandler.Context, update telego.ChatMemberUpdated) error {
@@ -523,15 +568,6 @@ func telegramUserDisplayName(user telego.User) string {
 	return ""
 }
 
-func (c *Bot) sendPostRegistrationSettingsCheck(ctx context.Context, groupChatID int64, groupMsgID int, messageThreadID int, lang, groupBaseText string) {
-	warnings := c.evaluateGroupSettings(ctx, groupChatID).issues(lang)
-	if groupMsgID != 0 {
-		view := buildGroupSettingsCheckResultView(lang, groupBaseText, warnings)
-		view.opts.MessageThreadID = messageThreadID
-		c.reply(ctx, groupChatID, groupMsgID, view.text, &view.opts)
-	}
-}
-
 type groupRegistrationView struct {
 	text             string
 	opts             client.MessageOptions
@@ -539,7 +575,7 @@ type groupRegistrationView struct {
 	dispatchFollowUp bool
 }
 
-func buildGroupRegistrationView(lang string, replyToMessageID int, regRes usecase.RegisterGroupResult) (groupRegistrationView, bool) {
+func buildGroupRegistrationView(lang string, replyToMessageID int, botUsername string, regRes usecase.RegisterGroupResult) (groupRegistrationView, bool) {
 	view := groupRegistrationView{opts: client.MessageOptions{ReplyToMessageID: replyToMessageID}}
 	policyLine := formatGroupPolicyLine(lang, regRes.ExistingGroup.Policy)
 
@@ -551,12 +587,24 @@ func buildGroupRegistrationView(lang string, replyToMessageID int, regRes usecas
 	case usecase.RegisterGroupOutcomeAlreadyLinked:
 		return groupRegistrationView{}, false
 	case usecase.RegisterGroupOutcomeRegistered:
-		view.groupBaseText = i18n.Translate(lang, msgGroupRegistered)
+		handle, link := botEntryLinks(botUsername)
+		linksLine := ""
+		if handle != "" && link != "" {
+			linksLine = fmt.Sprintf(i18n.Translate(lang, msgGroupRegisteredLinks), html.EscapeString(handle), html.EscapeString(link))
+		}
+		view.groupBaseText = joinNonEmptySections(
+			textSection{text: i18n.Translate(lang, msgGroupRegistered)},
+			textSection{text: linksLine},
+		)
 		view.text = joinNonEmptySections(
 			textSection{text: view.groupBaseText},
 			textSection{text: policyLine},
-			textSection{text: i18n.Translate(lang, msgGroupCheckingSettings)},
 		)
+		if link != "" {
+			view.opts.Markup = telegoutil.InlineKeyboard(
+				telegoutil.InlineKeyboardRow(telegramui.CopyLinkButton(i18n.Translate(lang, btnCopyLink), "https://"+link)),
+			)
+		}
 		view.dispatchFollowUp = true
 	default:
 		return groupRegistrationView{}, false
@@ -565,7 +613,7 @@ func buildGroupRegistrationView(lang string, replyToMessageID int, regRes usecas
 	return view, true
 }
 
-func (c *Bot) dispatchGroupRegistrationFollowUp(ctx context.Context, msg telego.Message, lang string, regRes usecase.RegisterGroupResult, view groupRegistrationView, groupMsgID int, messageThreadID int) {
+func (c *Bot) dispatchGroupRegistrationFollowUp(ctx context.Context, lang string, regRes usecase.RegisterGroupResult) {
 	shouldBootstrap := regRes.Outcome == usecase.RegisterGroupOutcomeRegistered
 	if !regRes.FollowUp.NeedsActivation && !regRes.FollowUp.NeedsSettingsCheck && !shouldBootstrap {
 		return
@@ -573,11 +621,6 @@ func (c *Bot) dispatchGroupRegistrationFollowUp(ctx context.Context, msg telego.
 	if regRes.FollowUp.NeedsActivation && c.creatorActivation != nil {
 		c.runBackground(context.WithoutCancel(ctx), func(bg context.Context) {
 			c.activateCreatorOnFirstGroupRegistration(bg, regRes.Creator, lang)
-		})
-	}
-	if regRes.FollowUp.NeedsSettingsCheck {
-		c.runBackground(context.WithoutCancel(ctx), func(bg context.Context) {
-			c.sendPostRegistrationSettingsCheck(bg, msg.Chat.ID, groupMsgID, messageThreadID, lang, view.groupBaseText)
 		})
 	}
 	if !shouldBootstrap {
@@ -665,6 +708,45 @@ type groupCapabilityEvaluation struct {
 	botMissing       bool
 	canInviteUsers   bool
 	canRestrictUsers bool
+}
+
+type membershipCapabilitySnapshot struct {
+	isAdmin            bool
+	canInviteUsers     bool
+	canRestrictMembers bool
+}
+
+func (s membershipCapabilitySnapshot) healthy() bool {
+	return s.isAdmin && s.canInviteUsers && s.canRestrictMembers
+}
+
+func capabilitiesFromChatMember(member telego.ChatMember) membershipCapabilitySnapshot {
+	switch m := member.(type) {
+	case *telego.ChatMemberOwner:
+		return membershipCapabilitySnapshot{isAdmin: true, canInviteUsers: true, canRestrictMembers: true}
+	case *telego.ChatMemberAdministrator:
+		return membershipCapabilitySnapshot{
+			isAdmin:            true,
+			canInviteUsers:     m.CanInviteUsers,
+			canRestrictMembers: m.CanRestrictMembers,
+		}
+	default:
+		return membershipCapabilitySnapshot{}
+	}
+}
+
+func (s membershipCapabilitySnapshot) missingRequiredPermissions() []string {
+	if !s.isAdmin {
+		return []string{"admin", "invite", "restrict"}
+	}
+	var out []string
+	if !s.canInviteUsers {
+		out = append(out, "invite")
+	}
+	if !s.canRestrictMembers {
+		out = append(out, "restrict")
+	}
+	return out
 }
 
 func (e groupCapabilityEvaluation) issues(lang string) []string {
@@ -909,11 +991,49 @@ func buildGroupSettingWarningsView(lang string, replyToMessageID int, issues []s
 	}
 }
 
-func buildGroupSettingsCheckResultView(lang, groupBaseText string, issues []string) sharedView {
+func buildGroupSetupPermissionsView(lang string) sharedView {
+	return sharedView{text: i18n.Translate(lang, msgGroupSetupPermissions)}
+}
+
+func buildGroupPermissionsBlockedView(lang string, replyToMessageID int) sharedView {
 	return sharedView{
-		text: groupBaseText + "\n\n" + formatGroupSettingsResult(lang, issues),
-		opts: client.MessageOptions{},
+		text: i18n.Translate(lang, msgGroupPermissionsBlocked),
+		opts: client.MessageOptions{ReplyToMessageID: replyToMessageID},
 	}
+}
+
+func buildGroupCompromisedView(lang, missing string) sharedView {
+	return sharedView{text: fmt.Sprintf(i18n.Translate(lang, msgGroupCompromised), missing)}
+}
+
+func buildGroupCompromisedOwnerView(lang, groupName, missing string) sharedView {
+	return sharedView{
+		text: fmt.Sprintf(i18n.Translate(lang, msgGroupCompromisedOwnerDM), html.EscapeString(groupName), missing),
+	}
+}
+
+func formatMissingRequiredPermissions(lang string, caps membershipCapabilitySnapshot) string {
+	missing := caps.missingRequiredPermissions()
+	lines := make([]string, 0, len(missing))
+	for _, item := range missing {
+		switch item {
+		case "admin":
+			lines = append(lines, "• "+permissionShortLabel(lang, msgGroupWarnBotNotAdmin))
+		case "invite":
+			lines = append(lines, "• "+permissionShortLabel(lang, msgGroupWarnBotNoInvite))
+		case "restrict":
+			lines = append(lines, "• "+permissionShortLabel(lang, msgGroupWarnBotNoRestrict))
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+func permissionShortLabel(lang, key string) string {
+	text := i18n.Translate(lang, key)
+	text = strings.TrimSpace(text)
+	text = strings.TrimPrefix(text, "• ")
+	text = strings.TrimPrefix(text, "•")
+	return text
 }
 
 func buildGroupUntrackedJoinWarningView(lang string, memberUserID int64, memberLabel string) sharedView {

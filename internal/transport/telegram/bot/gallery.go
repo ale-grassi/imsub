@@ -143,7 +143,7 @@ func PreviewScenarios() []PreviewScenario {
 			Group: "Creator",
 			Title: "Creator dashboard with no linked groups",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(buildCreatorStatusView(lang, "", sampleCreator(), core.Status{
+				return previewFromShared(buildCreatorStatusView(lang, "", "imsub_bot", sampleCreator(), core.Status{
 					Auth:         core.CreatorAuthHealthy,
 					LastSyncAt:   sampleTime(0),
 					AuthStatusAt: sampleTime(-24 * time.Hour),
@@ -158,7 +158,7 @@ func PreviewScenarios() []PreviewScenario {
 				creator := sampleCreator()
 				creator.BlocklistSyncEnabled = true
 				creator.SubscriptionEndGrace = core.SubscriptionEndGrace48h
-				return previewFromShared(buildCreatorStatusView(lang, "", creator, core.Status{
+				return previewFromShared(buildCreatorStatusView(lang, "", "imsub_bot", creator, core.Status{
 					EventSub:           core.EventSubActive,
 					Auth:               core.CreatorAuthHealthy,
 					LastSyncAt:         sampleTime(-2 * time.Hour),
@@ -333,7 +333,7 @@ func PreviewScenarios() []PreviewScenario {
 			Group: "Group/Admin",
 			Title: "Group linked result",
 			Render: func(lang string) PreviewView {
-				view, _ := buildGroupRegistrationView(lang, 0, usecase.RegisterGroupResult{
+				view, _ := buildGroupRegistrationView(lang, 0, "imsub_bot", usecase.RegisterGroupResult{
 					Outcome: usecase.RegisterGroupOutcomeRegistered,
 					Creator: sampleCreator(),
 					ExistingGroup: core.ManagedGroup{
@@ -345,19 +345,43 @@ func PreviewScenarios() []PreviewScenario {
 			},
 		},
 		{
-			ID:    "group-registration-settings-ok",
-			Group: "Group/Admin",
-			Title: "Group linked with passing settings",
-			Render: func(lang string) PreviewView {
-				return previewFromShared(buildGroupSettingsCheckResultView(lang, i18n.Translate(lang, msgGroupRegistered), nil))
-			},
-		},
-		{
 			ID:    "group-settings-warnings",
 			Group: "Group/Admin",
 			Title: "Settings warnings block",
 			Render: func(lang string) PreviewView {
 				return previewFromShared(buildGroupSettingWarningsView(lang, 0, sampleGroupIssues(lang)))
+			},
+		},
+		{
+			ID:    "group-setup-permissions",
+			Group: "Group/Admin",
+			Title: "Step 3 permissions prompt",
+			Render: func(lang string) PreviewView {
+				return previewFromShared(buildGroupSetupPermissionsView(lang))
+			},
+		},
+		{
+			ID:    "group-permissions-blocked",
+			Group: "Group/Admin",
+			Title: "Step 3 permissions blocked on /linkgroup",
+			Render: func(lang string) PreviewView {
+				return previewFromShared(buildGroupPermissionsBlockedView(lang, 0))
+			},
+		},
+		{
+			ID:    "group-functionality-compromised",
+			Group: "Group/Admin",
+			Title: "Managed group permissions downgraded",
+			Render: func(lang string) PreviewView {
+				return previewFromShared(buildGroupCompromisedView(lang, formatMissingRequiredPermissions(lang, membershipCapabilitySnapshot{isAdmin: true, canInviteUsers: false, canRestrictMembers: true})))
+			},
+		},
+		{
+			ID:    "group-functionality-compromised-owner-dm",
+			Group: "Group/Admin",
+			Title: "Owner DM for compromised group permissions",
+			Render: func(lang string) PreviewView {
+				return previewFromShared(buildGroupCompromisedOwnerView(lang, "VIP Lounge", formatMissingRequiredPermissions(lang, membershipCapabilitySnapshot{isAdmin: true, canInviteUsers: true, canRestrictMembers: false})))
 			},
 		},
 		{
