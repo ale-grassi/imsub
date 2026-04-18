@@ -17,6 +17,12 @@ type healthStore interface {
 	Ping(ctx context.Context) error
 }
 
+// ReadinessChecker reports whether the app has completed startup.
+// A nil ReadinessChecker is treated as always ready to preserve legacy behavior.
+type ReadinessChecker interface {
+	Ready() bool
+}
+
 const repoHomepageURL = "https://github.com/ale-grassi/imsub"
 
 // Handlers groups route handlers consumed by the HTTP transport runtime.
@@ -29,11 +35,12 @@ type Handlers struct {
 
 // Dependencies configures HTTP server construction and lifecycle.
 type Dependencies struct {
-	Config   config.Config
-	Store    healthStore
-	Logger   *slog.Logger
-	Metrics  *observability.Metrics
-	Handlers Handlers
+	Config    config.Config
+	Store     healthStore
+	Logger    *slog.Logger
+	Metrics   *observability.Metrics
+	Readiness ReadinessChecker
+	Handlers  Handlers
 }
 
 func loggerOrDefault(logger *slog.Logger) *slog.Logger {
@@ -51,6 +58,11 @@ func newMux(deps Dependencies) *http.ServeMux {
 		http.Redirect(w, r, repoHomepageURL, http.StatusFound)
 	})
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		if deps.Readiness != nil && !deps.Readiness.Ready() {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write([]byte("starting"))
+			return
+		}
 		checkCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 		defer cancel()
 		if err := deps.Store.Ping(checkCtx); err != nil {

@@ -77,6 +77,10 @@ type Metrics struct {
 	telegramAPIErrors    *prometheus.CounterVec
 	telegramKickActions  *prometheus.CounterVec
 	telegramMTProtoBoot  *prometheus.CounterVec
+	startupPhaseDuration *prometheus.HistogramVec
+	startupTotalDuration *prometheus.HistogramVec
+	startupReady         prometheus.Gauge
+	startupReadyAt       prometheus.Gauge
 }
 
 // New creates and registers all Prometheus metrics.
@@ -435,6 +439,30 @@ func New() *Metrics {
 			},
 			[]string{"outcome"},
 		),
+		startupPhaseDuration: prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "imsub_startup_phase_duration_seconds",
+				Help:    "Duration of each synchronous startup phase in seconds.",
+				Buckets: []float64{0.01, 0.05, 0.1, 0.25, 0.5, 1, 2, 3, 5, 7.5, 10, 15},
+			},
+			[]string{"phase", "result"},
+		),
+		startupTotalDuration: prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    "imsub_startup_total_duration_seconds",
+				Help:    "End-to-end startup duration in seconds from process boot to readiness.",
+				Buckets: []float64{0.5, 1, 2, 3, 4, 5, 6, 7.5, 10, 12.5, 15, 20, 30},
+			},
+			[]string{"result"},
+		),
+		startupReady: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "imsub_startup_ready",
+			Help: "Whether the app has completed startup and is ready to serve (0/1).",
+		}),
+		startupReadyAt: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "imsub_startup_ready_timestamp_seconds",
+			Help: "Unix timestamp of the moment startup completed (0 until ready).",
+		}),
 	}
 
 	m.registry.MustRegister(
@@ -491,6 +519,10 @@ func New() *Metrics {
 		m.telegramAPIErrors,
 		m.telegramKickActions,
 		m.telegramMTProtoBoot,
+		m.startupPhaseDuration,
+		m.startupTotalDuration,
+		m.startupReady,
+		m.startupReadyAt,
 	)
 
 	return m
@@ -828,6 +860,29 @@ func (m *Metrics) TelegramKickAction(reason, result string) {
 		httputil.LabelOrUnknown(reason),
 		httputil.LabelOrUnknown(result),
 	).Inc()
+}
+
+// StartupPhase records the duration and result of a synchronous startup phase.
+func (m *Metrics) StartupPhase(phase, result string, d time.Duration) {
+	if m == nil {
+		return
+	}
+	m.startupPhaseDuration.WithLabelValues(
+		httputil.LabelOrUnknown(phase),
+		httputil.LabelOrUnknown(result),
+	).Observe(d.Seconds())
+}
+
+// StartupReady marks the process as ready and records total startup duration.
+func (m *Metrics) StartupReady(result string, total time.Duration, readyAt time.Time) {
+	if m == nil {
+		return
+	}
+	m.startupTotalDuration.WithLabelValues(httputil.LabelOrUnknown(result)).Observe(total.Seconds())
+	if result == "ok" {
+		m.startupReady.Set(1)
+		m.startupReadyAt.Set(float64(readyAt.Unix()))
+	}
 }
 
 // TelegramMTProtoBootstrap records MTProto bootstrap attempts by outcome.

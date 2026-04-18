@@ -81,6 +81,45 @@ func TestNewHandlerRootRedirectsToRepoHomepage(t *testing.T) {
 	}
 }
 
+type fakeReadiness struct{ ready bool }
+
+func (f fakeReadiness) Ready() bool { return f.ready }
+
+func TestNewHandlerHealthzNotReady(t *testing.T) {
+	t.Parallel()
+
+	deps := testDeps(fakeHealthStore{})
+	deps.Readiness = fakeReadiness{ready: false}
+	handler := newHandler(deps, nil)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/healthz", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Errorf("StatusCode = %d, want %d", rec.Code, http.StatusServiceUnavailable)
+	}
+	if rec.Body.String() != "starting" {
+		t.Errorf("Body = %q, want %q", rec.Body.String(), "starting")
+	}
+}
+
+func TestNewHandlerHealthzReadyGateAndRedis(t *testing.T) {
+	t.Parallel()
+
+	deps := testDeps(fakeHealthStore{})
+	deps.Readiness = fakeReadiness{ready: true}
+	handler := newHandler(deps, nil)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/healthz", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK || rec.Body.String() != "ok" {
+		t.Errorf("status/body = %d/%q, want 200/ok", rec.Code, rec.Body.String())
+	}
+}
+
 func TestNewHandlerHealthzStoreError(t *testing.T) {
 	t.Parallel()
 
