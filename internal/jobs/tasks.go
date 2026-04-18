@@ -26,10 +26,9 @@ type eventSubReconciler interface {
 }
 
 type gracePolicyStore interface {
+	core.PromoteExistingMemberStore
 	ListManagedGroups(ctx context.Context) ([]core.ManagedGroup, error)
 	ListUntrackedGroupMembers(ctx context.Context, chatID int64) ([]core.UntrackedGroupMember, error)
-	RemoveUntrackedGroupMember(ctx context.Context, chatID, telegramUserID int64) error
-	AddTrackedGroupMember(ctx context.Context, chatID, telegramUserID int64, source string, at time.Time) error
 }
 
 type groupKicker interface {
@@ -332,7 +331,7 @@ func (t gracePolicyTask) Run(ctx context.Context) error {
 		}
 		for _, member := range untracked {
 			if t.god != nil && t.god.IsGodTelegramUser(member.TelegramUserID) {
-				if err := t.store.AddTrackedGroupMember(ctx, group.ChatID, member.TelegramUserID, "god_list_grace_policy", t.now()); err != nil {
+				if err := t.store.AddTrackedGroupMember(ctx, group.ChatID, member.TelegramUserID, core.SourceGodListGracePolicy, t.now()); err != nil {
 					partialErrs = append(partialErrs, fmt.Errorf("track god member %d from %d: %w", member.TelegramUserID, group.ChatID, err))
 					t.counts.inc("errors")
 					t.logger.Warn("grace policy track god member failed", "chat_id", group.ChatID, "telegram_user_id", member.TelegramUserID, "error", err)
@@ -346,6 +345,29 @@ func (t gracePolicyTask) Run(ctx context.Context) error {
 				continue
 			}
 			if member.FirstSeenAt.IsZero() || member.FirstSeenAt.After(deadline) {
+				continue
+			}
+			promoted, err := core.PromoteExistingMemberIfEligible(ctx, t.store, t.god, group, member.TelegramUserID, core.SourceGracePolicyRescue, t.now())
+			if promoted {
+				t.counts.inc("rescued")
+				t.logger.Info("grace policy rescued eligible member", "chat_id", group.ChatID, "creator_id", group.CreatorID, "telegram_user_id", member.TelegramUserID)
+				if err != nil {
+					partialErrs = append(partialErrs, fmt.Errorf("rescue cleanup %d from %d: %w", member.TelegramUserID, group.ChatID, err))
+					t.counts.inc("errors")
+					t.logger.Warn("grace policy rescue cleanup failed", "chat_id", group.ChatID, "creator_id", group.CreatorID, "telegram_user_id", member.TelegramUserID, "error", err)
+				} else {
+					t.counts.inc("removed")
+				}
+				continue
+			}
+			if err != nil {
+				partialErrs = append(partialErrs, fmt.Errorf("promote eligible member %d from %d: %w", member.TelegramUserID, group.ChatID, err))
+				t.counts.inc("errors")
+				if errors.Is(err, core.ErrCreatorMissing) {
+					t.logger.Warn("grace policy creator missing", "chat_id", group.ChatID, "creator_id", group.CreatorID)
+				} else {
+					t.logger.Warn("grace policy promote failed", "chat_id", group.ChatID, "creator_id", group.CreatorID, "telegram_user_id", member.TelegramUserID, "error", err)
+				}
 				continue
 			}
 			if err := t.kicker.KickFromGroup(ctx, group.ChatID, member.TelegramUserID, core.KickReasonGroupGracePolicy); err != nil {
@@ -411,7 +433,7 @@ func (t kickPolicyTask) Run(ctx context.Context) error {
 		}
 		for _, member := range untracked {
 			if t.god != nil && t.god.IsGodTelegramUser(member.TelegramUserID) {
-				if err := t.store.AddTrackedGroupMember(ctx, group.ChatID, member.TelegramUserID, "god_list_kick_policy", t.now()); err != nil {
+				if err := t.store.AddTrackedGroupMember(ctx, group.ChatID, member.TelegramUserID, core.SourceGodListKickPolicy, t.now()); err != nil {
 					partialErrs = append(partialErrs, fmt.Errorf("track god member %d from %d: %w", member.TelegramUserID, group.ChatID, err))
 					t.counts.inc("errors")
 					t.logger.Warn("kick policy track god member failed", "chat_id", group.ChatID, "telegram_user_id", member.TelegramUserID, "error", err)
@@ -421,6 +443,29 @@ func (t kickPolicyTask) Run(ctx context.Context) error {
 					partialErrs = append(partialErrs, fmt.Errorf("remove god untracked group member %d from %d: %w", member.TelegramUserID, group.ChatID, err))
 					t.counts.inc("errors")
 					t.logger.Warn("kick policy remove god untracked member failed", "chat_id", group.ChatID, "telegram_user_id", member.TelegramUserID, "error", err)
+				}
+				continue
+			}
+			promoted, err := core.PromoteExistingMemberIfEligible(ctx, t.store, t.god, group, member.TelegramUserID, core.SourceKickPolicyRescue, t.now())
+			if promoted {
+				t.counts.inc("rescued")
+				t.logger.Info("kick policy rescued eligible member", "chat_id", group.ChatID, "creator_id", group.CreatorID, "telegram_user_id", member.TelegramUserID)
+				if err != nil {
+					partialErrs = append(partialErrs, fmt.Errorf("rescue cleanup %d from %d: %w", member.TelegramUserID, group.ChatID, err))
+					t.counts.inc("errors")
+					t.logger.Warn("kick policy rescue cleanup failed", "chat_id", group.ChatID, "creator_id", group.CreatorID, "telegram_user_id", member.TelegramUserID, "error", err)
+				} else {
+					t.counts.inc("removed")
+				}
+				continue
+			}
+			if err != nil {
+				partialErrs = append(partialErrs, fmt.Errorf("promote eligible member %d from %d: %w", member.TelegramUserID, group.ChatID, err))
+				t.counts.inc("errors")
+				if errors.Is(err, core.ErrCreatorMissing) {
+					t.logger.Warn("kick policy creator missing", "chat_id", group.ChatID, "creator_id", group.CreatorID)
+				} else {
+					t.logger.Warn("kick policy promote failed", "chat_id", group.ChatID, "creator_id", group.CreatorID, "telegram_user_id", member.TelegramUserID, "error", err)
 				}
 				continue
 			}

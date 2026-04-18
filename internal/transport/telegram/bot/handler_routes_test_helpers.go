@@ -488,6 +488,7 @@ type routeTestStore struct {
 	untrackedUpserts        []routeTestUntrackedUpsert
 	untrackedMembersByGroup map[int64]map[int64]core.UntrackedGroupMember
 	untrackedCountByChatID  map[int64]int
+	subscribersByCreator    map[string]map[string]bool
 	blockedByCreatorUser    map[string]map[string]bool
 	activeUsers             []int64
 	consentRecord           core.ConsentRecord
@@ -795,6 +796,15 @@ func (s *routeTestStore) IsCreatorBlocked(_ context.Context, creatorID, twitchUs
 		return false, nil
 	}
 	return s.blockedByCreatorUser[creatorID][twitchUserID], nil
+}
+
+func (s *routeTestStore) IsCreatorSubscriber(_ context.Context, creatorID, twitchUserID string) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.subscribersByCreator == nil || s.subscribersByCreator[creatorID] == nil {
+		return false, nil
+	}
+	return s.subscribersByCreator[creatorID][twitchUserID], nil
 }
 
 func (s *routeTestStore) ListManagedGroupsByCreator(_ context.Context, creatorID string) ([]core.ManagedGroup, error) {

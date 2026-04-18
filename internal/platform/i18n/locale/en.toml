@@ -290,7 +290,7 @@ other = "⚠️ <b>Group functionality compromised</b>\n\nImSub is missing requi
 other = "➡️ <b>Step 4 of 4</b>\nChoose the group policy.\n\nChoose what should happen when the bot sees an unverified member in this group."
 
 [group_policy_existing_members_html]
-other = "⚠️ <b>%d existing non-admin members detected</b>\nMembers who were already in this group before linking cannot be verified automatically.\n\n<i>This policy only applies to members the bot can see from now on. For strict access control, remove existing unverified members manually and let them rejoin through the bot.</i>"
+other = "⚠️ <b>%d existing non-admin members detected</b>\nMembers who were already in this group before linking are not verified immediately.\n\n<i>Linked eligible members can be promoted when they open /start or when the bot sees them again. Members who remain unlinked or ineligible stay subject to this policy and may still need to rejoin through the bot.</i>"
 
 [group_policy_observe_line]
 other = "<b>Current policy:</b> Allow"

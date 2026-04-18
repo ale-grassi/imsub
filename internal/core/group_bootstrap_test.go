@@ -11,6 +11,7 @@ import (
 )
 
 type bootstrapStoreStub struct {
+	creators        map[string]Creator
 	identities      map[int64]UserIdentity
 	subscribers     map[string]map[string]bool
 	blocked         map[string]map[string]bool
@@ -23,6 +24,11 @@ type bootstrapStoreStub struct {
 func (s *bootstrapStoreStub) UserIdentity(_ context.Context, telegramUserID int64) (UserIdentity, bool, error) {
 	identity, ok := s.identities[telegramUserID]
 	return identity, ok, nil
+}
+
+func (s *bootstrapStoreStub) Creator(_ context.Context, creatorID string) (Creator, bool, error) {
+	creator, ok := s.creators[creatorID]
+	return creator, ok, nil
 }
 
 func (s *bootstrapStoreStub) IsCreatorSubscriber(_ context.Context, creatorID, twitchUserID string) (bool, error) {
@@ -105,6 +111,9 @@ func TestGroupBootstrapTracksEligibleAndObservesUnknownMembers(t *testing.T) {
 	t.Parallel()
 
 	store := &bootstrapStoreStub{
+		creators: map[string]Creator{
+			"creator-1": {ID: "creator-1"},
+		},
 		identities: map[int64]UserIdentity{
 			10: {TelegramUserID: 10, TwitchUserID: "tw-10"},
 		},
@@ -151,6 +160,9 @@ func TestGroupBootstrapKickPolicyRemovesUnknownMembers(t *testing.T) {
 	t.Parallel()
 
 	store := &bootstrapStoreStub{
+		creators: map[string]Creator{
+			"creator-1": {ID: "creator-1"},
+		},
 		subscribers: map[string]map[string]bool{"creator-1": {}},
 		blocked:     map[string]map[string]bool{"creator-1": {}},
 	}
@@ -177,6 +189,9 @@ func TestGroupBootstrapBlockedSubscriberStaysUntracked(t *testing.T) {
 	t.Parallel()
 
 	store := &bootstrapStoreStub{
+		creators: map[string]Creator{
+			"creator-1": {ID: "creator-1", BlocklistSyncEnabled: true},
+		},
 		identities: map[int64]UserIdentity{
 			10: {TelegramUserID: 10, TwitchUserID: "tw-10"},
 		},
@@ -209,6 +224,9 @@ func TestGroupBootstrapRetriesAndThenFailsSilently(t *testing.T) {
 	t.Parallel()
 
 	store := &bootstrapStoreStub{
+		creators: map[string]Creator{
+			"creator-1": {ID: "creator-1"},
+		},
 		subscribers: map[string]map[string]bool{"creator-1": {}},
 		blocked:     map[string]map[string]bool{"creator-1": {}},
 	}
@@ -251,6 +269,9 @@ func TestGroupBootstrapLeaveFailureTriggersCleanupKick(t *testing.T) {
 	t.Parallel()
 
 	store := &bootstrapStoreStub{
+		creators: map[string]Creator{
+			"creator-1": {ID: "creator-1"},
+		},
 		subscribers: map[string]map[string]bool{"creator-1": {}},
 		blocked:     map[string]map[string]bool{"creator-1": {}},
 	}

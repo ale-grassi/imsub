@@ -290,7 +290,7 @@ other = "⚠️ <b>Funzionalita' del gruppo compromesse</b>\n\nA ImSub mancano i
 other = "➡️ <b>Step 4 di 4</b>\nScegli la policy del gruppo.\n\nScegli cosa deve succedere quando il bot vede un membro non verificato in questo gruppo."
 
 [group_policy_existing_members_html]
-other = "⚠️ <b>Rilevati %d membri non admin gia' presenti</b>\nI membri che erano gia' in questo gruppo prima del collegamento non possono essere verificati automaticamente.\n\n<i>Questa policy si applica solo ai membri che il bot puo' vedere da ora in poi. Per un controllo accessi rigoroso, rimuovi manualmente i membri non verificati e falli rientrare tramite il bot.</i>"
+other = "⚠️ <b>Rilevati %d membri non admin gia' presenti</b>\nI membri che erano gia' in questo gruppo prima del collegamento non vengono verificati subito.\n\n<i>I membri collegati e idonei possono essere promossi quando aprono /start o quando il bot li vede di nuovo. I membri che restano scollegati o non idonei restano soggetti a questa policy e potrebbero comunque dover rientrare tramite il bot.</i>"
 
 [group_policy_observe_line]
 other = "<b>Policy attuale:</b> Consenti"

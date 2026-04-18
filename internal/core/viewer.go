@@ -178,10 +178,12 @@ type resolvedJoinGroup struct {
 type resolvedJoinPlan struct {
 	activeCreatorNames []string
 	inviteGroups       []resolvedJoinGroup
+	eligibleExisting   []resolvedJoinGroup
 	untrackedGroups    []int64
 }
 
 type viewerResolverStore interface {
+	viewerIdentityStore
 	ListActiveCreatorGroups(ctx context.Context) ([]ActiveCreatorGroups, error)
 	IsCreatorSubscriber(ctx context.Context, creatorID, twitchUserID string) (bool, error)
 	IsCreatorBlocked(ctx context.Context, creatorID, twitchUserID string) (bool, error)
@@ -238,32 +240,21 @@ func (r *viewerEligibilityResolver) resolveActiveCreators(ctx context.Context, a
 	out := resolvedJoinPlan{
 		activeCreatorNames: make([]string, 0, len(active)),
 		inviteGroups:       make([]resolvedJoinGroup, 0, len(active)),
+		eligibleExisting:   make([]resolvedJoinGroup, 0, len(active)),
 		untrackedGroups:    make([]int64, 0, len(active)),
 	}
 	for _, item := range active {
-		isSubscriber, err := r.store.IsCreatorSubscriber(ctx, item.Creator.ID, twitchUserID)
+		// god access is short-circuited upstream in BuildJoinTargets, so pass nil.
+		eligible, err := IsEligibleTrackedMember(ctx, r.store, nil, item.Creator, telegramUserID, twitchUserID)
 		if err != nil {
-			r.log.Warn("build join targets is creator subscriber failed", "creator_id", item.Creator.ID, "error", err)
+			r.log.Warn("build join targets eligibility failed", "creator_id", item.Creator.ID, "telegram_user_id", telegramUserID, "error", err)
 			continue
 		}
-		if !isSubscriber {
+		if !eligible {
 			for _, group := range item.Groups {
 				out.untrackedGroups = append(out.untrackedGroups, group.ChatID)
 			}
 			continue
-		}
-		if item.Creator.BlocklistSyncEnabled {
-			isBlocked, err := r.store.IsCreatorBlocked(ctx, item.Creator.ID, twitchUserID)
-			if err != nil {
-				r.log.Warn("build join targets is creator blocked failed", "creator_id", item.Creator.ID, "error", err)
-				continue
-			}
-			if isBlocked {
-				for _, group := range item.Groups {
-					out.untrackedGroups = append(out.untrackedGroups, group.ChatID)
-				}
-				continue
-			}
 		}
 
 		creatorName := item.Creator.TwitchDisplayName
@@ -273,6 +264,10 @@ func (r *viewerEligibilityResolver) resolveActiveCreators(ctx context.Context, a
 		out.activeCreatorNames = append(out.activeCreatorNames, creatorName)
 		for _, group := range item.Groups {
 			if r.membership.IsGroupMember(ctx, group.ChatID, telegramUserID) {
+				out.eligibleExisting = append(out.eligibleExisting, resolvedJoinGroup{
+					creatorName: creatorName,
+					group:       group,
+				})
 				continue
 			}
 			out.inviteGroups = append(out.inviteGroups, resolvedJoinGroup{
@@ -284,6 +279,7 @@ func (r *viewerEligibilityResolver) resolveActiveCreators(ctx context.Context, a
 
 	slices.Sort(out.activeCreatorNames)
 	recordViewerJoinTargets(ctx, r.obs, "active_creators", len(out.activeCreatorNames))
+	recordViewerJoinTargets(ctx, r.obs, "eligible_existing_groups", len(out.eligibleExisting))
 	recordViewerJoinTargets(ctx, r.obs, "invite_groups", len(out.inviteGroups))
 	return out, nil
 }
@@ -315,14 +311,21 @@ func (c *viewerMembershipCache) sync(ctx context.Context, telegramUserID int64, 
 			c.log.Warn("remove tracked group member failed", "telegram_user_id", telegramUserID, "chat_id", groupChatID, "error", err)
 		}
 	}
+	for _, existing := range plan.eligibleExisting {
+		if err := c.store.AddTrackedGroupMember(ctx, existing.group.ChatID, telegramUserID, SourceViewerExistingMember, now); err != nil {
+			c.log.Warn("add tracked existing group member failed", "telegram_user_id", telegramUserID, "chat_id", existing.group.ChatID, "error", err)
+		}
+	}
 	for _, joinGroup := range plan.inviteGroups {
-		if err := c.store.AddTrackedGroupMember(ctx, joinGroup.group.ChatID, telegramUserID, "viewer_join_target", now); err != nil {
+		if err := c.store.AddTrackedGroupMember(ctx, joinGroup.group.ChatID, telegramUserID, SourceViewerJoinTarget, now); err != nil {
 			c.log.Warn("add tracked group member failed", "telegram_user_id", telegramUserID, "chat_id", joinGroup.group.ChatID, "error", err)
 		}
 	}
 
+	// cache_adds now covers both newly joined groups (invite_groups) and groups
+	// the viewer is already in but wasn't tracked for yet (eligible_existing_groups).
 	recordViewerJoinTargets(ctx, c.obs, "cache_removes", len(plan.untrackedGroups))
-	recordViewerJoinTargets(ctx, c.obs, "cache_adds", len(plan.inviteGroups))
+	recordViewerJoinTargets(ctx, c.obs, "cache_adds", len(plan.eligibleExisting)+len(plan.inviteGroups))
 }
 
 type viewerInviteOps interface {

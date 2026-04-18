@@ -120,6 +120,7 @@ type controllerStore interface {
 	ListManagedGroups(ctx context.Context) ([]core.ManagedGroup, error)
 	DeleteManagedGroup(ctx context.Context, chatID int64) error
 	IsCreatorBlocked(ctx context.Context, creatorID, twitchUserID string) (bool, error)
+	IsCreatorSubscriber(ctx context.Context, creatorID, twitchUserID string) (bool, error)
 	ListTrackedGroupIDsForUser(ctx context.Context, telegramUserID int64) ([]int64, error)
 	CountUntrackedGroupMembers(ctx context.Context, chatID int64) (int, error)
 	IsTrackedGroupMember(ctx context.Context, chatID, telegramUserID int64) (bool, error)

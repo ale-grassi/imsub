@@ -187,8 +187,8 @@ func TestBuildJoinTargets(t *testing.T) {
 	if len(got.JoinLinks) != 1 || got.JoinLinks[0].CreatorName != "zeta" {
 		t.Errorf("BuildJoinTargets() JoinLinks = %+v, want 1 link with CreatorName=\"zeta\"", got.JoinLinks)
 	}
-	if !slices.Equal(added, []int64{101}) {
-		t.Errorf("BuildJoinTargets(7, tw-1) added memberships mismatch: got=%v want=%v", added, []int64{101})
+	if !slices.Equal(added, []int64{102, 101}) {
+		t.Errorf("BuildJoinTargets(7, tw-1) added memberships mismatch: got=%v want=%v", added, []int64{102, 101})
 	}
 	if !slices.Equal(removed, []int64{103}) {
 		t.Errorf("BuildJoinTargets(7, tw-1) removed memberships mismatch: got=%v want=%v", removed, []int64{103})
@@ -242,7 +242,7 @@ func TestResolveJoinPlanDoesNotMutateTrackedMembership(t *testing.T) {
 				return nil, nil
 			},
 			isSubscriberFn: func(_ context.Context, creatorID, _ string) (bool, error) {
-				return creatorID == "c1", nil
+				return creatorID == "c1" || creatorID == "c2", nil
 			},
 			addMembershipFn: func(_ context.Context, _, _ int64) error {
 				addCalls++
@@ -254,7 +254,7 @@ func TestResolveJoinPlanDoesNotMutateTrackedMembership(t *testing.T) {
 			},
 		},
 		&fakeGroupOps{
-			isMemberFn: func(_ context.Context, _, _ int64) bool { return false },
+			isMemberFn: func(_ context.Context, groupChatID, _ int64) bool { return groupChatID == 202 },
 		},
 		nil,
 		nil,
@@ -265,14 +265,21 @@ func TestResolveJoinPlanDoesNotMutateTrackedMembership(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolveJoinPlan() error = %v", err)
 	}
-	if !slices.Equal(got.activeCreatorNames, []string{"alpha"}) {
-		t.Fatalf("activeCreatorNames = %v, want [alpha]", got.activeCreatorNames)
+	if !slices.Equal(got.activeCreatorNames, []string{"alpha", "beta"}) {
+		t.Fatalf("activeCreatorNames = %v, want [alpha beta]", got.activeCreatorNames)
 	}
 	if len(got.inviteGroups) != 1 || got.inviteGroups[0].group.ChatID != 101 {
 		t.Fatalf("inviteGroups = %+v, want one invite group for 101", got.inviteGroups)
 	}
-	if !slices.Equal(got.untrackedGroups, []int64{202}) {
-		t.Fatalf("untrackedGroups = %v, want [202]", got.untrackedGroups)
+	if len(got.eligibleExisting) != 1 ||
+		got.eligibleExisting[0].creatorName != "beta" ||
+		got.eligibleExisting[0].group.ChatID != 202 ||
+		got.eligibleExisting[0].group.CreatorID != "c2" ||
+		got.eligibleExisting[0].group.GroupName != "B" {
+		t.Fatalf("eligibleExisting = %+v, want one existing group for 202 under beta", got.eligibleExisting)
+	}
+	if len(got.untrackedGroups) != 0 {
+		t.Fatalf("untrackedGroups = %v, want none", got.untrackedGroups)
 	}
 	if addCalls != 0 || removeCalls != 0 {
 		t.Fatalf("resolveJoinPlan mutated tracked membership: addCalls=%d removeCalls=%d", addCalls, removeCalls)
@@ -301,11 +308,14 @@ func TestBuildJoinTargetsRecordsMetrics(t *testing.T) {
 				return nil, nil
 			},
 			isSubscriberFn: func(_ context.Context, creatorID, _ string) (bool, error) {
-				return creatorID == "c1", nil
+				return true, nil
+			},
+			isBlockedFn: func(_ context.Context, creatorID, _ string) (bool, error) {
+				return creatorID == "c2", nil
 			},
 		},
 		&fakeGroupOps{
-			isMemberFn: func(_ context.Context, _, _ int64) bool { return false },
+			isMemberFn: func(_ context.Context, groupChatID, _ int64) bool { return groupChatID == 202 },
 			createInviteFn: func(_ context.Context, _ int64, _ int64, _ string) (string, error) {
 				return "https://invite", nil
 			},
@@ -324,10 +334,10 @@ func TestBuildJoinTargetsRecordsMetrics(t *testing.T) {
 	}
 
 	wantEvents := []events.Event{
-		{Name: events.NameViewerJoinTarget, Fields: map[string]string{"kind": "active_creators"}, Count: 1},
+		{Name: events.NameViewerJoinTarget, Fields: map[string]string{"kind": "active_creators"}, Count: 2},
+		{Name: events.NameViewerJoinTarget, Fields: map[string]string{"kind": "eligible_existing_groups"}, Count: 1},
 		{Name: events.NameViewerJoinTarget, Fields: map[string]string{"kind": "invite_groups"}, Count: 1},
-		{Name: events.NameViewerJoinTarget, Fields: map[string]string{"kind": "cache_removes"}, Count: 1},
-		{Name: events.NameViewerJoinTarget, Fields: map[string]string{"kind": "cache_adds"}, Count: 1},
+		{Name: events.NameViewerJoinTarget, Fields: map[string]string{"kind": "cache_adds"}, Count: 2},
 		{Name: events.NameViewerInviteLink, Outcome: "ok", Fields: map[string]string{"reason": "none"}},
 		{Name: events.NameViewerJoinTarget, Fields: map[string]string{"kind": "join_links"}, Count: 1},
 	}
@@ -474,6 +484,51 @@ func TestBuildJoinTargetsForCreatorScopesToCreator(t *testing.T) {
 	}
 	if !slices.Equal(added, []int64{101}) {
 		t.Fatalf("BuildJoinTargetsForCreator() added memberships = %v, want [101]", added)
+	}
+}
+
+func TestBuildJoinTargetsTracksEligibleExistingMember(t *testing.T) {
+	t.Parallel()
+
+	var added []int64
+	svc := NewViewerService(
+		&viewerFakeStore{
+			listActiveCreatorGroups: func(_ context.Context) ([]ActiveCreatorGroups, error) {
+				return []ActiveCreatorGroups{{
+					Creator: Creator{ID: "c1", TwitchLogin: "alpha"},
+					Groups:  []ManagedGroup{{ChatID: 101, CreatorID: "c1", GroupName: "VIP"}},
+				}}, nil
+			},
+			isSubscriberFn: func(_ context.Context, creatorID, twitchUserID string) (bool, error) {
+				return creatorID == "c1" && twitchUserID == "tw-1", nil
+			},
+			addMembershipFn: func(_ context.Context, chatID, _ int64) error {
+				added = append(added, chatID)
+				return nil
+			},
+		},
+		&fakeGroupOps{
+			isMemberFn: func(_ context.Context, groupChatID, telegramUserID int64) bool {
+				return groupChatID == 101 && telegramUserID == 7
+			},
+		},
+		nil,
+		nil,
+		nil,
+	)
+
+	got, err := svc.BuildJoinTargets(t.Context(), 7, "tw-1")
+	if err != nil {
+		t.Fatalf("BuildJoinTargets() error = %v", err)
+	}
+	if !slices.Equal(got.ActiveCreatorNames, []string{"alpha"}) {
+		t.Fatalf("BuildJoinTargets() active names = %v, want [alpha]", got.ActiveCreatorNames)
+	}
+	if len(got.JoinLinks) != 0 {
+		t.Fatalf("JoinLinks = %+v, want no invites for existing member", got.JoinLinks)
+	}
+	if !slices.Equal(added, []int64{101}) {
+		t.Fatalf("added memberships = %v, want [101]", added)
 	}
 }
 

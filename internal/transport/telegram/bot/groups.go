@@ -879,7 +879,7 @@ func (c *Bot) estimateExistingNonAdminMembers(ctx context.Context, chatID int64)
 func (c *Bot) observeGroupMember(ctx context.Context, group core.ManagedGroup, telegramUserID int64, source, status, memberLabel string) {
 	if c.godAccess != nil && c.godAccess.IsGodTelegramUser(telegramUserID) {
 		now := time.Now().UTC()
-		if err := c.store.AddTrackedGroupMember(ctx, group.ChatID, telegramUserID, "god_list", now); err != nil {
+		if err := c.store.AddTrackedGroupMember(ctx, group.ChatID, telegramUserID, core.SourceGodList, now); err != nil {
 			c.log().Warn("AddTrackedGroupMember god access failed", "chat_id", group.ChatID, "telegram_user_id", telegramUserID, "error", err)
 			return
 		}
@@ -902,6 +902,20 @@ func (c *Bot) observeGroupMember(ctx context.Context, group core.ManagedGroup, t
 			c.log().Warn("RemoveUntrackedGroupMember refresh failed", "chat_id", group.ChatID, "telegram_user_id", telegramUserID, "error", err)
 		}
 		return
+	}
+	promoted, err := core.PromoteExistingMemberIfEligible(ctx, c.store, c.godAccess, group, telegramUserID, core.SourceObservedExistingMember, now)
+	if promoted {
+		if err != nil {
+			c.log().Warn("promote observed group member cleanup failed", "chat_id", group.ChatID, "creator_id", group.CreatorID, "telegram_user_id", telegramUserID, "error", err)
+		}
+		return
+	}
+	if err != nil {
+		if !errors.Is(err, core.ErrCreatorMissing) {
+			c.log().Warn("promote observed group member failed", "chat_id", group.ChatID, "creator_id", group.CreatorID, "telegram_user_id", telegramUserID, "error", err)
+			return
+		}
+		c.log().Warn("creator missing for observed group member", "chat_id", group.ChatID, "creator_id", group.CreatorID, "telegram_user_id", telegramUserID)
 	}
 	if err := c.store.UpsertUntrackedGroupMember(ctx, group.ChatID, telegramUserID, source, status, now); err != nil {
 		c.log().Warn("UpsertUntrackedGroupMember failed", "chat_id", group.ChatID, "telegram_user_id", telegramUserID, "source", source, "error", err)

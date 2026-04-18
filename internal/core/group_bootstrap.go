@@ -13,6 +13,7 @@ import (
 
 type groupBootstrapStore interface {
 	UserIdentity(ctx context.Context, telegramUserID int64) (UserIdentity, bool, error)
+	Creator(ctx context.Context, creatorID string) (Creator, bool, error)
 	IsCreatorSubscriber(ctx context.Context, creatorID, twitchUserID string) (bool, error)
 	IsCreatorBlocked(ctx context.Context, creatorID, twitchUserID string) (bool, error)
 	AddTrackedGroupMember(ctx context.Context, chatID, telegramUserID int64, source string, at time.Time) error
@@ -136,7 +137,7 @@ func (s *GroupBootstrapService) bootstrapAttempt(ctx context.Context, group Mana
 			return counts, fmt.Errorf("classify member %d: %w", member.TelegramUserID, err)
 		}
 		if eligible {
-			if err := s.store.AddTrackedGroupMember(ctx, group.ChatID, member.TelegramUserID, "mtproto_bootstrap", now); err != nil {
+			if err := s.store.AddTrackedGroupMember(ctx, group.ChatID, member.TelegramUserID, SourceMTProtoBootstrap, now); err != nil {
 				return counts, fmt.Errorf("track member %d: %w", member.TelegramUserID, err)
 			}
 			if err := s.store.RemoveUntrackedGroupMember(ctx, group.ChatID, member.TelegramUserID); err != nil {
@@ -149,7 +150,7 @@ func (s *GroupBootstrapService) bootstrapAttempt(ctx context.Context, group Mana
 		if err := s.store.RemoveTrackedGroupMember(ctx, group.ChatID, member.TelegramUserID); err != nil {
 			return counts, fmt.Errorf("remove stale tracked member %d: %w", member.TelegramUserID, err)
 		}
-		if err := s.store.UpsertUntrackedGroupMember(ctx, group.ChatID, member.TelegramUserID, "mtproto_bootstrap", mtproto.StatusText(member), now); err != nil {
+		if err := s.store.UpsertUntrackedGroupMember(ctx, group.ChatID, member.TelegramUserID, SourceMTProtoBootstrap, mtproto.StatusText(member), now); err != nil {
 			return counts, fmt.Errorf("upsert untracked member %d: %w", member.TelegramUserID, err)
 		}
 		counts.untracked++
@@ -169,30 +170,18 @@ func (s *GroupBootstrapService) bootstrapAttempt(ctx context.Context, group Mana
 }
 
 func (s *GroupBootstrapService) isEligibleTrackedMember(ctx context.Context, creatorID string, telegramUserID int64) (bool, error) {
-	if s.god != nil && s.god.IsGodTelegramUser(telegramUserID) {
-		return true, nil
-	}
-	identity, found, err := s.store.UserIdentity(ctx, telegramUserID)
+	creator, found, err := s.store.Creator(ctx, creatorID)
 	if err != nil {
-		return false, fmt.Errorf("load user identity: %w", err)
+		return false, fmt.Errorf("load creator: %w", err)
 	}
-	if !found || identity.TwitchUserID == "" {
+	if !found {
 		return false, nil
 	}
-
-	subscribed, err := s.store.IsCreatorSubscriber(ctx, creatorID, identity.TwitchUserID)
+	eligible, err := IsEligibleTrackedMember(ctx, s.store, s.god, creator, telegramUserID, "")
 	if err != nil {
-		return false, fmt.Errorf("check creator subscriber: %w", err)
+		return false, fmt.Errorf("check member eligibility: %w", err)
 	}
-	if !subscribed {
-		return false, nil
-	}
-
-	blocked, err := s.store.IsCreatorBlocked(ctx, creatorID, identity.TwitchUserID)
-	if err != nil {
-		return false, fmt.Errorf("check creator blocked: %w", err)
-	}
-	return !blocked, nil
+	return eligible, nil
 }
 
 func (s *GroupBootstrapService) cleanupMTProtoUser(ctx context.Context, chatID int64) error {

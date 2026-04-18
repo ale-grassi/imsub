@@ -15,16 +15,31 @@ import (
 
 type fakeStore struct {
 	listCreatorsFn     func(ctx context.Context) ([]core.Creator, error)
+	creatorFn          func(ctx context.Context, creatorID string) (core.Creator, bool, error)
 	activeWithoutGroup func(ctx context.Context, creators []core.Creator) (int, error)
 	repairReverseIndex func(ctx context.Context) (int, int, int, int, error)
 	listManagedGroups  func(ctx context.Context) ([]core.ManagedGroup, error)
 	listUntracked      func(ctx context.Context, chatID int64) ([]core.UntrackedGroupMember, error)
 	removeUntracked    func(ctx context.Context, chatID, telegramUserID int64) error
 	addTracked         func(ctx context.Context, chatID, telegramUserID int64, source string, at time.Time) error
+	userIdentityFn     func(ctx context.Context, telegramUserID int64) (core.UserIdentity, bool, error)
+	isSubscriberFn     func(ctx context.Context, creatorID, twitchUserID string) (bool, error)
+	isBlockedFn        func(ctx context.Context, creatorID, twitchUserID string) (bool, error)
 	countActiveUsers   func(ctx context.Context, since time.Time) (int, error)
 	countViewers       func(ctx context.Context) (int, error)
 	countCreators      func(ctx context.Context) (int, error)
 	countManaged       func(ctx context.Context) (int, error)
+}
+
+// newGracePolicyFakeStore returns a fakeStore preconfigured with the minimal
+// defaults that the grace/kick policy tasks expect (creator lookups succeed).
+// Individual tests override the hooks they care about.
+func newGracePolicyFakeStore() *fakeStore {
+	return &fakeStore{
+		creatorFn: func(_ context.Context, creatorID string) (core.Creator, bool, error) {
+			return core.Creator{ID: creatorID}, true, nil
+		},
+	}
 }
 
 type fakeMemberCleanupStore struct {
@@ -49,6 +64,13 @@ func (f *fakeStore) ListCreators(ctx context.Context) ([]core.Creator, error) {
 		return f.listCreatorsFn(ctx)
 	}
 	return nil, nil
+}
+
+func (f *fakeStore) Creator(ctx context.Context, creatorID string) (core.Creator, bool, error) {
+	if f.creatorFn != nil {
+		return f.creatorFn(ctx, creatorID)
+	}
+	return core.Creator{}, false, nil
 }
 
 func (f *fakeStore) ActiveCreatorIDsWithoutGroup(ctx context.Context, creators []core.Creator) (int, error) {
@@ -91,6 +113,27 @@ func (f *fakeStore) AddTrackedGroupMember(ctx context.Context, chatID, telegramU
 		return f.addTracked(ctx, chatID, telegramUserID, source, at)
 	}
 	return nil
+}
+
+func (f *fakeStore) UserIdentity(ctx context.Context, telegramUserID int64) (core.UserIdentity, bool, error) {
+	if f.userIdentityFn != nil {
+		return f.userIdentityFn(ctx, telegramUserID)
+	}
+	return core.UserIdentity{}, false, nil
+}
+
+func (f *fakeStore) IsCreatorSubscriber(ctx context.Context, creatorID, twitchUserID string) (bool, error) {
+	if f.isSubscriberFn != nil {
+		return f.isSubscriberFn(ctx, creatorID, twitchUserID)
+	}
+	return false, nil
+}
+
+func (f *fakeStore) IsCreatorBlocked(ctx context.Context, creatorID, twitchUserID string) (bool, error) {
+	if f.isBlockedFn != nil {
+		return f.isBlockedFn(ctx, creatorID, twitchUserID)
+	}
+	return false, nil
 }
 
 func (f *fakeStore) CountTelegramActiveUsersSince(ctx context.Context, since time.Time) (int, error) {
@@ -424,26 +467,25 @@ func TestGracePolicyTaskKicksExpiredUnverifiedMembers(t *testing.T) {
 
 	kicker := &fakeGroupKicker{}
 	var removed [][2]int64
-	store := &fakeStore{
-		listManagedGroups: func(context.Context) ([]core.ManagedGroup, error) {
-			return []core.ManagedGroup{
-				{ChatID: 100, Policy: core.GroupPolicyGraceWeek},
-				{ChatID: 101, Policy: core.GroupPolicyObserve},
-			}, nil
-		},
-		listUntracked: func(_ context.Context, chatID int64) ([]core.UntrackedGroupMember, error) {
-			if chatID != 100 {
-				return nil, nil
-			}
-			return []core.UntrackedGroupMember{
-				{ChatID: 100, TelegramUserID: 10, FirstSeenAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)},
-				{ChatID: 100, TelegramUserID: 11, FirstSeenAt: time.Date(2026, 3, 9, 0, 0, 0, 0, time.UTC)},
-			}, nil
-		},
-		removeUntracked: func(_ context.Context, chatID, telegramUserID int64) error {
-			removed = append(removed, [2]int64{chatID, telegramUserID})
-			return nil
-		},
+	store := newGracePolicyFakeStore()
+	store.listManagedGroups = func(context.Context) ([]core.ManagedGroup, error) {
+		return []core.ManagedGroup{
+			{ChatID: 100, Policy: core.GroupPolicyGraceWeek},
+			{ChatID: 101, Policy: core.GroupPolicyObserve},
+		}, nil
+	}
+	store.listUntracked = func(_ context.Context, chatID int64) ([]core.UntrackedGroupMember, error) {
+		if chatID != 100 {
+			return nil, nil
+		}
+		return []core.UntrackedGroupMember{
+			{ChatID: 100, TelegramUserID: 10, FirstSeenAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)},
+			{ChatID: 100, TelegramUserID: 11, FirstSeenAt: time.Date(2026, 3, 9, 0, 0, 0, 0, time.UTC)},
+		}, nil
+	}
+	store.removeUntracked = func(_ context.Context, chatID, telegramUserID int64) error {
+		removed = append(removed, [2]int64{chatID, telegramUserID})
+		return nil
 	}
 
 	taskIface := NewGracePolicyTask(store, kicker, nil, nil)
@@ -469,22 +511,21 @@ func TestGracePolicyTaskContinuesAfterMemberError(t *testing.T) {
 	t.Parallel()
 
 	kicker := &fakeGroupKicker{}
-	store := &fakeStore{
-		listManagedGroups: func(context.Context) ([]core.ManagedGroup, error) {
-			return []core.ManagedGroup{{ChatID: 100, Policy: core.GroupPolicyGraceWeek}}, nil
-		},
-		listUntracked: func(_ context.Context, _ int64) ([]core.UntrackedGroupMember, error) {
-			return []core.UntrackedGroupMember{
-				{ChatID: 100, TelegramUserID: 10, FirstSeenAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)},
-				{ChatID: 100, TelegramUserID: 11, FirstSeenAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)},
-			}, nil
-		},
-		removeUntracked: func(_ context.Context, _ int64, telegramUserID int64) error {
-			if telegramUserID == 10 {
-				return errors.New("cleanup boom")
-			}
-			return nil
-		},
+	store := newGracePolicyFakeStore()
+	store.listManagedGroups = func(context.Context) ([]core.ManagedGroup, error) {
+		return []core.ManagedGroup{{ChatID: 100, Policy: core.GroupPolicyGraceWeek}}, nil
+	}
+	store.listUntracked = func(_ context.Context, _ int64) ([]core.UntrackedGroupMember, error) {
+		return []core.UntrackedGroupMember{
+			{ChatID: 100, TelegramUserID: 10, FirstSeenAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)},
+			{ChatID: 100, TelegramUserID: 11, FirstSeenAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)},
+		}, nil
+	}
+	store.removeUntracked = func(_ context.Context, _ int64, telegramUserID int64) error {
+		if telegramUserID == 10 {
+			return errors.New("cleanup boom")
+		}
+		return nil
 	}
 
 	taskIface := NewGracePolicyTask(store, kicker, nil, nil)
@@ -506,32 +547,144 @@ func TestGracePolicyTaskContinuesAfterMemberError(t *testing.T) {
 	}
 }
 
+type trackedAdd struct {
+	chatID int64
+	userID int64
+	source string
+}
+
+func TestGracePolicyTaskRescuesEligibleExistingMembers(t *testing.T) {
+	t.Parallel()
+
+	kicker := &fakeGroupKicker{}
+	var trackedAdds []trackedAdd
+	var removed [][2]int64
+	store := newGracePolicyFakeStore()
+	store.listManagedGroups = func(context.Context) ([]core.ManagedGroup, error) {
+		return []core.ManagedGroup{{ChatID: 100, CreatorID: "c1", Policy: core.GroupPolicyGraceWeek}}, nil
+	}
+	store.listUntracked = func(_ context.Context, _ int64) ([]core.UntrackedGroupMember, error) {
+		return []core.UntrackedGroupMember{
+			{ChatID: 100, TelegramUserID: 10, FirstSeenAt: time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)},
+		}, nil
+	}
+	store.userIdentityFn = func(_ context.Context, telegramUserID int64) (core.UserIdentity, bool, error) {
+		return core.UserIdentity{TelegramUserID: telegramUserID, TwitchUserID: "tw-10"}, true, nil
+	}
+	store.isSubscriberFn = func(_ context.Context, creatorID, twitchUserID string) (bool, error) {
+		return creatorID == "c1" && twitchUserID == "tw-10", nil
+	}
+	store.addTracked = func(_ context.Context, chatID, telegramUserID int64, source string, _ time.Time) error {
+		trackedAdds = append(trackedAdds, trackedAdd{chatID: chatID, userID: telegramUserID, source: source})
+		return nil
+	}
+	store.removeUntracked = func(_ context.Context, chatID, telegramUserID int64) error {
+		removed = append(removed, [2]int64{chatID, telegramUserID})
+		return nil
+	}
+
+	taskIface := NewGracePolicyTask(store, kicker, nil, nil)
+	task, ok := taskIface.(gracePolicyTask)
+	if !ok {
+		t.Fatalf("NewGracePolicyTask() type = %T, want gracePolicyTask", taskIface)
+	}
+	task.now = func() time.Time { return time.Date(2026, 3, 10, 0, 0, 0, 0, time.UTC) }
+
+	if err := task.Run(t.Context()); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if got := kicker.snapshot(); len(got) != 0 {
+		t.Fatalf("kicks = %#v, want no kick for rescued member", got)
+	}
+	if len(trackedAdds) != 1 || trackedAdds[0].chatID != 100 || trackedAdds[0].userID != 10 || trackedAdds[0].source != core.SourceGracePolicyRescue {
+		t.Fatalf("trackedAdds = %#v, want one grace_policy_rescue add", trackedAdds)
+	}
+	if len(removed) != 1 || removed[0] != [2]int64{100, 10} {
+		t.Fatalf("removed = %#v, want rescued member cleanup", removed)
+	}
+	if report := task.Report(); report["rescued"] != 1 || report["removed"] != 1 {
+		t.Fatalf("report = %#v, want rescued=1 removed=1", report)
+	}
+}
+
+func TestKickPolicyTaskRescuesEligibleExistingMembers(t *testing.T) {
+	t.Parallel()
+
+	kicker := &fakeGroupKicker{}
+	var trackedAdds []trackedAdd
+	var removed [][2]int64
+	store := newGracePolicyFakeStore()
+	store.listManagedGroups = func(context.Context) ([]core.ManagedGroup, error) {
+		return []core.ManagedGroup{{ChatID: 100, CreatorID: "c1", Policy: core.GroupPolicyKick}}, nil
+	}
+	store.listUntracked = func(_ context.Context, _ int64) ([]core.UntrackedGroupMember, error) {
+		return []core.UntrackedGroupMember{
+			{ChatID: 100, TelegramUserID: 10},
+		}, nil
+	}
+	store.userIdentityFn = func(_ context.Context, telegramUserID int64) (core.UserIdentity, bool, error) {
+		return core.UserIdentity{TelegramUserID: telegramUserID, TwitchUserID: "tw-10"}, true, nil
+	}
+	store.isSubscriberFn = func(_ context.Context, creatorID, twitchUserID string) (bool, error) {
+		return creatorID == "c1" && twitchUserID == "tw-10", nil
+	}
+	store.addTracked = func(_ context.Context, chatID, telegramUserID int64, source string, _ time.Time) error {
+		trackedAdds = append(trackedAdds, trackedAdd{chatID: chatID, userID: telegramUserID, source: source})
+		return nil
+	}
+	store.removeUntracked = func(_ context.Context, chatID, telegramUserID int64) error {
+		removed = append(removed, [2]int64{chatID, telegramUserID})
+		return nil
+	}
+
+	taskIface := NewKickPolicyTask(store, kicker, nil, nil)
+	task, ok := taskIface.(kickPolicyTask)
+	if !ok {
+		t.Fatalf("NewKickPolicyTask() type = %T, want kickPolicyTask", taskIface)
+	}
+
+	if err := task.Run(t.Context()); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if got := kicker.snapshot(); len(got) != 0 {
+		t.Fatalf("kicks = %#v, want no kick for rescued member", got)
+	}
+	if len(trackedAdds) != 1 || trackedAdds[0].chatID != 100 || trackedAdds[0].userID != 10 || trackedAdds[0].source != core.SourceKickPolicyRescue {
+		t.Fatalf("trackedAdds = %#v, want one kick_policy_rescue add", trackedAdds)
+	}
+	if len(removed) != 1 || removed[0] != [2]int64{100, 10} {
+		t.Fatalf("removed = %#v, want rescued member cleanup", removed)
+	}
+	if report := task.Report(); report["rescued"] != 1 || report["removed"] != 1 {
+		t.Fatalf("report = %#v, want rescued=1 removed=1", report)
+	}
+}
+
 func TestKickPolicyTaskKicksUntrackedMembers(t *testing.T) {
 	t.Parallel()
 
 	kicker := &fakeGroupKicker{}
 	var removed [][2]int64
-	store := &fakeStore{
-		listManagedGroups: func(context.Context) ([]core.ManagedGroup, error) {
-			return []core.ManagedGroup{
-				{ChatID: 100, Policy: core.GroupPolicyKick},
-				{ChatID: 101, Policy: core.GroupPolicyObserve},
-				{ChatID: 102, Policy: core.GroupPolicyGraceWeek},
-			}, nil
-		},
-		listUntracked: func(_ context.Context, chatID int64) ([]core.UntrackedGroupMember, error) {
-			if chatID != 100 {
-				return nil, errors.New("unexpected list for non-kick group")
-			}
-			return []core.UntrackedGroupMember{
-				{ChatID: 100, TelegramUserID: 10},
-				{ChatID: 100, TelegramUserID: 11},
-			}, nil
-		},
-		removeUntracked: func(_ context.Context, chatID, telegramUserID int64) error {
-			removed = append(removed, [2]int64{chatID, telegramUserID})
-			return nil
-		},
+	store := newGracePolicyFakeStore()
+	store.listManagedGroups = func(context.Context) ([]core.ManagedGroup, error) {
+		return []core.ManagedGroup{
+			{ChatID: 100, Policy: core.GroupPolicyKick},
+			{ChatID: 101, Policy: core.GroupPolicyObserve},
+			{ChatID: 102, Policy: core.GroupPolicyGraceWeek},
+		}, nil
+	}
+	store.listUntracked = func(_ context.Context, chatID int64) ([]core.UntrackedGroupMember, error) {
+		if chatID != 100 {
+			return nil, errors.New("unexpected list for non-kick group")
+		}
+		return []core.UntrackedGroupMember{
+			{ChatID: 100, TelegramUserID: 10},
+			{ChatID: 100, TelegramUserID: 11},
+		}, nil
+	}
+	store.removeUntracked = func(_ context.Context, chatID, telegramUserID int64) error {
+		removed = append(removed, [2]int64{chatID, telegramUserID})
+		return nil
 	}
 
 	task := NewKickPolicyTask(store, kicker, nil, nil)
@@ -557,24 +710,23 @@ func TestKickPolicyTaskSkipsGodUsers(t *testing.T) {
 	kicker := &fakeGroupKicker{}
 	var trackedAdds []int64
 	var removed []int64
-	store := &fakeStore{
-		listManagedGroups: func(context.Context) ([]core.ManagedGroup, error) {
-			return []core.ManagedGroup{{ChatID: 100, Policy: core.GroupPolicyKick}}, nil
-		},
-		listUntracked: func(_ context.Context, _ int64) ([]core.UntrackedGroupMember, error) {
-			return []core.UntrackedGroupMember{
-				{ChatID: 100, TelegramUserID: 42},
-				{ChatID: 100, TelegramUserID: 11},
-			}, nil
-		},
-		addTracked: func(_ context.Context, _, telegramUserID int64, _ string, _ time.Time) error {
-			trackedAdds = append(trackedAdds, telegramUserID)
-			return nil
-		},
-		removeUntracked: func(_ context.Context, _, telegramUserID int64) error {
-			removed = append(removed, telegramUserID)
-			return nil
-		},
+	store := newGracePolicyFakeStore()
+	store.listManagedGroups = func(context.Context) ([]core.ManagedGroup, error) {
+		return []core.ManagedGroup{{ChatID: 100, Policy: core.GroupPolicyKick}}, nil
+	}
+	store.listUntracked = func(_ context.Context, _ int64) ([]core.UntrackedGroupMember, error) {
+		return []core.UntrackedGroupMember{
+			{ChatID: 100, TelegramUserID: 42},
+			{ChatID: 100, TelegramUserID: 11},
+		}, nil
+	}
+	store.addTracked = func(_ context.Context, _, telegramUserID int64, _ string, _ time.Time) error {
+		trackedAdds = append(trackedAdds, telegramUserID)
+		return nil
+	}
+	store.removeUntracked = func(_ context.Context, _, telegramUserID int64) error {
+		removed = append(removed, telegramUserID)
+		return nil
 	}
 
 	task := NewKickPolicyTask(store, kicker, god, nil)
@@ -610,20 +762,19 @@ func TestKickPolicyTaskContinuesAndReportsPartialFailure(t *testing.T) {
 
 	kicker := &failingKicker{fail: map[int64]bool{10: true}}
 	var removed []int64
-	store := &fakeStore{
-		listManagedGroups: func(context.Context) ([]core.ManagedGroup, error) {
-			return []core.ManagedGroup{{ChatID: 100, Policy: core.GroupPolicyKick}}, nil
-		},
-		listUntracked: func(_ context.Context, _ int64) ([]core.UntrackedGroupMember, error) {
-			return []core.UntrackedGroupMember{
-				{ChatID: 100, TelegramUserID: 10},
-				{ChatID: 100, TelegramUserID: 11},
-			}, nil
-		},
-		removeUntracked: func(_ context.Context, _, telegramUserID int64) error {
-			removed = append(removed, telegramUserID)
-			return nil
-		},
+	store := newGracePolicyFakeStore()
+	store.listManagedGroups = func(context.Context) ([]core.ManagedGroup, error) {
+		return []core.ManagedGroup{{ChatID: 100, Policy: core.GroupPolicyKick}}, nil
+	}
+	store.listUntracked = func(_ context.Context, _ int64) ([]core.UntrackedGroupMember, error) {
+		return []core.UntrackedGroupMember{
+			{ChatID: 100, TelegramUserID: 10},
+			{ChatID: 100, TelegramUserID: 11},
+		}, nil
+	}
+	store.removeUntracked = func(_ context.Context, _, telegramUserID int64) error {
+		removed = append(removed, telegramUserID)
+		return nil
 	}
 
 	task := NewKickPolicyTask(store, kicker, nil, nil)
@@ -672,19 +823,18 @@ func TestKickPolicyTaskListUntrackedErrorIsPartialAndContinuesNextGroup(t *testi
 	t.Parallel()
 
 	kicker := &fakeGroupKicker{}
-	store := &fakeStore{
-		listManagedGroups: func(context.Context) ([]core.ManagedGroup, error) {
-			return []core.ManagedGroup{
-				{ChatID: 100, Policy: core.GroupPolicyKick},
-				{ChatID: 200, Policy: core.GroupPolicyKick},
-			}, nil
-		},
-		listUntracked: func(_ context.Context, chatID int64) ([]core.UntrackedGroupMember, error) {
-			if chatID == 100 {
-				return nil, errors.New("list boom")
-			}
-			return []core.UntrackedGroupMember{{ChatID: 200, TelegramUserID: 22}}, nil
-		},
+	store := newGracePolicyFakeStore()
+	store.listManagedGroups = func(context.Context) ([]core.ManagedGroup, error) {
+		return []core.ManagedGroup{
+			{ChatID: 100, Policy: core.GroupPolicyKick},
+			{ChatID: 200, Policy: core.GroupPolicyKick},
+		}, nil
+	}
+	store.listUntracked = func(_ context.Context, chatID int64) ([]core.UntrackedGroupMember, error) {
+		if chatID == 100 {
+			return nil, errors.New("list boom")
+		}
+		return []core.UntrackedGroupMember{{ChatID: 200, TelegramUserID: 22}}, nil
 	}
 
 	task := NewKickPolicyTask(store, kicker, nil, nil)
@@ -751,16 +901,15 @@ func TestKickPolicyTaskRemoveUntrackedErrorAfterKickIsPartial(t *testing.T) {
 	t.Parallel()
 
 	kicker := &fakeGroupKicker{}
-	store := &fakeStore{
-		listManagedGroups: func(context.Context) ([]core.ManagedGroup, error) {
-			return []core.ManagedGroup{{ChatID: 100, Policy: core.GroupPolicyKick}}, nil
-		},
-		listUntracked: func(_ context.Context, _ int64) ([]core.UntrackedGroupMember, error) {
-			return []core.UntrackedGroupMember{{ChatID: 100, TelegramUserID: 10}}, nil
-		},
-		removeUntracked: func(_ context.Context, _, _ int64) error {
-			return errors.New("cleanup boom")
-		},
+	store := newGracePolicyFakeStore()
+	store.listManagedGroups = func(context.Context) ([]core.ManagedGroup, error) {
+		return []core.ManagedGroup{{ChatID: 100, Policy: core.GroupPolicyKick}}, nil
+	}
+	store.listUntracked = func(_ context.Context, _ int64) ([]core.UntrackedGroupMember, error) {
+		return []core.UntrackedGroupMember{{ChatID: 100, TelegramUserID: 10}}, nil
+	}
+	store.removeUntracked = func(_ context.Context, _, _ int64) error {
+		return errors.New("cleanup boom")
 	}
 
 	task := NewKickPolicyTask(store, kicker, nil, nil)
