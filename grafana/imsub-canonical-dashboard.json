@@ -1339,7 +1339,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Non-success background job executions by job name.",
+      "description": "Non-success background job executions by job name (includes timeout as a possible result).",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -4572,6 +4572,223 @@
       ],
       "title": "Log Volume",
       "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 220
+      },
+      "id": 900,
+      "panels": [],
+      "title": "Background Jobs Timeline",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Gantt-style timeline of background job executions. State encoding: 1=running, 2=ok, 3=failed, 4=partial_failure, 5=timeout.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 0,
+            "spanNulls": true
+          },
+          "mappings": [
+            {
+              "options": {
+                "1": {
+                  "color": "blue",
+                  "index": 0,
+                  "text": "Running"
+                },
+                "2": {
+                  "color": "green",
+                  "index": 1,
+                  "text": "OK"
+                },
+                "3": {
+                  "color": "red",
+                  "index": 2,
+                  "text": "Failed"
+                },
+                "4": {
+                  "color": "yellow",
+                  "index": 3,
+                  "text": "Partial"
+                },
+                "5": {
+                  "color": "orange",
+                  "index": 4,
+                  "text": "Timeout"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 221
+      },
+      "id": 901,
+      "options": {
+        "alignValue": "left",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "mergeValues": false,
+        "rowHeight": 0.9,
+        "showValue": "auto",
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "imsub_background_job_state",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Background Jobs Timeline",
+      "type": "state-timeline"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Per-run work reported by background jobs (kind-level counts).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 231
+      },
+      "id": 902,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "repeat": "job",
+      "repeatDirection": "v",
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(increase(imsub_background_job_items_total{job=\"$job\"}[$__rate_interval])) by (kind)",
+          "legendFormat": "{{kind}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Background Job Work: $job",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "${logs_datasource}"
+      },
+      "description": "Per-run log lines for background jobs (start and finish events, with items_* fields).",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 231
+      },
+      "id": 903,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "${logs_datasource}"
+          },
+          "editorMode": "code",
+          "expr": "fly.app.name: $app AND (event_name: background_job OR event_name: background_job_started)",
+          "metrics": [
+            {
+              "id": "1",
+              "settings": {
+                "limit": "1000"
+              },
+              "type": "logs"
+            }
+          ],
+          "query": "fly.app.name:\"$app\" AND (event_name:\"background_job\" OR event_name:\"background_job_started\")",
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "Background Job Runs (details)",
+      "type": "logs"
     }
   ],
   "refresh": "30s",

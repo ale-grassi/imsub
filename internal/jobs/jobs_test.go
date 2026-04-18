@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"maps"
 	"sync"
 	"testing"
 	"time"
@@ -214,6 +215,7 @@ func (f *fakeReconciler) callCount() int {
 type fakeObserver struct {
 	mu        sync.Mutex
 	lastEvent events.Event
+	events    []events.Event
 	calls     int
 }
 
@@ -247,12 +249,19 @@ func (f *fakeObserver) Emit(_ context.Context, evt events.Event) {
 	defer f.mu.Unlock()
 	f.calls++
 	f.lastEvent = evt
+	f.events = append(f.events, evt)
 }
 
 func (f *fakeObserver) snapshot() (calls int, evt events.Event) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.calls, f.lastEvent
+}
+
+func (f *fakeObserver) all() []events.Event {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]events.Event(nil), f.events...)
 }
 
 func (f *fakeProductMetricsSink) TelegramDailyActiveUsers(count int) { f.dailyActive = count }
@@ -875,5 +884,175 @@ func TestSubscriptionGraceTaskEnforcesDueJobs(t *testing.T) {
 	}
 	if len(notifier.results) != 1 || notifier.results[0].TelegramUserID != 7 {
 		t.Fatalf("notifications = %+v, want one result for telegram user 7", notifier.results)
+	}
+}
+
+type slowTask struct {
+	sleep  time.Duration
+	called bool
+}
+
+func (s *slowTask) Name() string { return "slow_task" }
+func (s *slowTask) Run(ctx context.Context) error {
+	s.called = true
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(s.sleep):
+		return nil
+	}
+}
+func (s *slowTask) Classify(err error) string {
+	if err != nil {
+		return taskResultFailed
+	}
+	return "ok"
+}
+
+func TestRunScheduledWrapsTimeout(t *testing.T) {
+	t.Parallel()
+
+	obs := &fakeObserver{}
+	task := &slowTask{sleep: 200 * time.Millisecond}
+	runner := NewRunner(nil, obs)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = runner.RunScheduled(ctx, Schedule{
+			Task:     task,
+			Interval: 500 * time.Millisecond,
+			Timeout:  10 * time.Millisecond,
+		})
+	}()
+
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if calls, _ := obs.snapshot(); calls >= 2 {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	cancel()
+	<-done
+
+	var finish events.Event
+	for _, e := range obs.all() {
+		if e.Name == events.NameBackgroundJob {
+			finish = e
+			break
+		}
+	}
+	if finish.Name == "" {
+		t.Fatalf("no background_job finish event, events=%+v", obs.all())
+	}
+	if finish.Outcome != "timeout" {
+		t.Errorf("finish.Outcome = %q, want %q", finish.Outcome, "timeout")
+	}
+}
+
+func TestRunScheduledEmitsStartEvent(t *testing.T) {
+	t.Parallel()
+
+	obs := &fakeObserver{}
+	reconcile := &fakeReconciler{result: "ok"}
+	runner := NewRunner(nil, obs)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = runner.RunScheduled(ctx, Schedule{
+			Task:     NewSubscriberTask(reconcile),
+			Interval: 5 * time.Millisecond,
+		})
+	}()
+	deadline := time.Now().Add(300 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if calls, _ := obs.snapshot(); calls >= 2 {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	cancel()
+	<-done
+
+	evts := obs.all()
+	if len(evts) < 2 {
+		t.Fatalf("events = %d, want >= 2", len(evts))
+	}
+	if evts[0].Name != events.NameBackgroundJobStarted {
+		t.Errorf("events[0].Name = %q, want %q", evts[0].Name, events.NameBackgroundJobStarted)
+	}
+	if evts[1].Name != events.NameBackgroundJob {
+		t.Errorf("events[1].Name = %q, want %q", evts[1].Name, events.NameBackgroundJob)
+	}
+}
+
+type reporterTask struct {
+	items map[string]int
+}
+
+func (r *reporterTask) Name() string              { return "reporter_task" }
+func (r *reporterTask) Run(context.Context) error { return nil }
+func (r *reporterTask) Classify(error) string     { return "ok" }
+func (r *reporterTask) Report() map[string]int {
+	out := make(map[string]int, len(r.items))
+	maps.Copy(out, r.items)
+	return out
+}
+
+func TestRunScheduledEmitsItemsFromReporter(t *testing.T) {
+	t.Parallel()
+
+	obs := &fakeObserver{}
+	task := &reporterTask{items: map[string]int{"processed": 3, "failed": 1}}
+	runner := NewRunner(nil, obs)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = runner.RunScheduled(ctx, Schedule{
+			Task:     task,
+			Interval: 500 * time.Millisecond,
+		})
+	}()
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if calls, _ := obs.snapshot(); calls >= 4 {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	cancel()
+	<-done
+
+	var finish events.Event
+	itemCounts := map[string]events.Event{}
+	for _, e := range obs.all() {
+		switch e.Name {
+		case events.NameBackgroundJob:
+			if finish.Name == "" {
+				finish = e
+			}
+		case events.NameBackgroundJobItems:
+			if _, seen := itemCounts[e.Fields["kind"]]; !seen {
+				itemCounts[e.Fields["kind"]] = e
+			}
+		}
+	}
+	if finish.Fields["items_processed"] != "3" {
+		t.Errorf("finish.Fields[items_processed] = %q, want %q", finish.Fields["items_processed"], "3")
+	}
+	if finish.Fields["items_failed"] != "1" {
+		t.Errorf("finish.Fields[items_failed] = %q, want %q", finish.Fields["items_failed"], "1")
+	}
+	if got := itemCounts["processed"]; got.Count != 3 || got.Outcome != "ok" {
+		t.Errorf("items[processed] = %+v, want count=3 outcome=ok", got)
+	}
+	if got := itemCounts["failed"]; got.Count != 1 || got.Outcome != "ok" {
+		t.Errorf("items[failed] = %+v, want count=1 outcome=ok", got)
 	}
 }

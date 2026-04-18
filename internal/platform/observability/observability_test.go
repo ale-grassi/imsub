@@ -163,6 +163,48 @@ func TestMetricsExposure(t *testing.T) {
 	}
 }
 
+func TestBackgroundJobStateAndItems(t *testing.T) {
+	t.Parallel()
+
+	m := New()
+	m.Emit(context.Background(), events.Event{
+		Name:   events.NameBackgroundJobStarted,
+		Fields: map[string]string{"job": "demo"},
+	})
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
+	rec := httptest.NewRecorder()
+	m.Handler().ServeHTTP(rec, req)
+	if !strings.Contains(rec.Body.String(), `imsub_background_job_state{job="demo"} 1`) {
+		t.Fatalf("state gauge not set to running: %s", rec.Body.String())
+	}
+
+	m.Emit(context.Background(), events.Event{
+		Name:     events.NameBackgroundJob,
+		Outcome:  "ok",
+		Fields:   map[string]string{"job": "demo"},
+		Duration: 10 * time.Millisecond,
+	})
+	m.Emit(context.Background(), events.Event{
+		Name:    events.NameBackgroundJobItems,
+		Outcome: "ok",
+		Fields:  map[string]string{"job": "demo", "kind": "processed"},
+		Count:   3,
+	})
+
+	rec = httptest.NewRecorder()
+	m.Handler().ServeHTTP(rec, req)
+	body := rec.Body.String()
+	for _, needle := range []string{
+		`imsub_background_job_state{job="demo"} 2`,
+		`imsub_background_job_items_total{job="demo",kind="processed",result="ok"} 3`,
+	} {
+		if !strings.Contains(body, needle) {
+			t.Fatalf("metrics output missing %q: %s", needle, body)
+		}
+	}
+}
+
 func TestRedisBackupMetricsKeepLastSuccessfulSnapshot(t *testing.T) {
 	t.Parallel()
 

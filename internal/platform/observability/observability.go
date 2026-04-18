@@ -45,6 +45,8 @@ type Metrics struct {
 	telegramWebhook      *prometheus.CounterVec
 	backgroundJobsTotal  *prometheus.CounterVec
 	backgroundJobTime    *prometheus.HistogramVec
+	backgroundJobState   *prometheus.GaugeVec
+	backgroundJobItems   *prometheus.CounterVec
 	redisBackupRuns      *prometheus.CounterVec
 	redisBackupTime      *prometheus.HistogramVec
 	redisBackupKeys      prometheus.Gauge
@@ -214,6 +216,20 @@ func New() *Metrics {
 				Buckets: []float64{0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 180},
 			},
 			[]string{"job"},
+		),
+		backgroundJobState: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "imsub_background_job_state",
+				Help: "Current state of a background job: 1=running, 2=ok, 3=failed, 4=partial_failure, 5=timeout.",
+			},
+			[]string{"job"},
+		),
+		backgroundJobItems: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "imsub_background_job_items_total",
+				Help: "Per-run item counts reported by background jobs (e.g. kicked, repaired, processed).",
+			},
+			[]string{"job", "kind", "result"},
 		),
 		redisBackupRuns: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
@@ -443,6 +459,8 @@ func New() *Metrics {
 		m.telegramWebhook,
 		m.backgroundJobsTotal,
 		m.backgroundJobTime,
+		m.backgroundJobState,
+		m.backgroundJobItems,
 		m.redisBackupRuns,
 		m.redisBackupTime,
 		m.redisBackupKeys,
@@ -857,7 +875,11 @@ func (m *Metrics) Emit(_ context.Context, evt events.Event) {
 	case events.NameCreatorReconnectNotice:
 		m.CreatorReconnectNotification(evt.Fields["creator_id"], evt.Outcome)
 	case events.NameBackgroundJob:
-		m.BackgroundJob(evt.Fields["job"], evt.Outcome, evt.Duration)
+		m.BackgroundJobFinished(evt.Fields["job"], evt.Outcome, evt.Duration)
+	case events.NameBackgroundJobStarted:
+		m.BackgroundJobStarted(evt.Fields["job"])
+	case events.NameBackgroundJobItems:
+		m.BackgroundJobItems(evt.Fields["job"], evt.Fields["kind"], evt.Outcome, evt.Count)
 	case events.NameReconciliationRepair:
 		m.ReconciliationRepair(evt.Fields["repair"], evt.Outcome, evt.Count)
 	case events.NameOAuthStart:
@@ -992,6 +1014,50 @@ func (m *Metrics) BackgroundJob(job, result string, d time.Duration) {
 	}
 	m.backgroundJobsTotal.WithLabelValues(httputil.LabelOrUnknown(job), httputil.LabelOrUnknown(result)).Inc()
 	m.backgroundJobTime.WithLabelValues(httputil.LabelOrUnknown(job)).Observe(d.Seconds())
+}
+
+// BackgroundJobStarted marks a background job as currently running for the State Timeline panel.
+func (m *Metrics) BackgroundJobStarted(job string) {
+	if m == nil {
+		return
+	}
+	m.backgroundJobState.WithLabelValues(httputil.LabelOrUnknown(job)).Set(backgroundJobStateCode("running"))
+}
+
+// BackgroundJobFinished records a completed background job execution and updates the state gauge.
+func (m *Metrics) BackgroundJobFinished(job, result string, d time.Duration) {
+	if m == nil {
+		return
+	}
+	m.BackgroundJob(job, result, d)
+	m.backgroundJobState.WithLabelValues(httputil.LabelOrUnknown(job)).Set(backgroundJobStateCode(result))
+}
+
+// BackgroundJobItems increments a per-kind counter for the given background job run.
+func (m *Metrics) BackgroundJobItems(job, kind, result string, n int) {
+	if m == nil || n == 0 {
+		return
+	}
+	m.backgroundJobItems.WithLabelValues(
+		httputil.LabelOrUnknown(job),
+		httputil.LabelOrUnknown(kind),
+		httputil.LabelOrUnknown(result),
+	).Add(float64(n))
+}
+
+func backgroundJobStateCode(result string) float64 {
+	switch result {
+	case "running":
+		return 1
+	case "ok":
+		return 2
+	case "partial_failure":
+		return 4
+	case "timeout":
+		return 5
+	default:
+		return 3
+	}
 }
 
 // RedisBackup records a Redis backup run and snapshots the latest successful size metrics.

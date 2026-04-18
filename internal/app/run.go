@@ -263,60 +263,70 @@ func Run() error {
 			Task:         eventSubTask,
 			InitialDelay: 3 * time.Second,
 			Interval:     1 * time.Hour,
+			Timeout:      10 * time.Minute,
 		})
 	})
 	g.Go(func() error {
 		return jobRunner.RunScheduled(gctx, jobs.Schedule{
 			Task:     subscriberTask,
 			Interval: 15 * time.Minute,
+			Timeout:  10 * time.Minute,
 		})
 	})
 	g.Go(func() error {
 		return jobRunner.RunScheduled(gctx, jobs.Schedule{
 			Task:     integrityTask,
 			Interval: 20 * time.Minute,
+			Timeout:  15 * time.Minute,
 		})
 	})
 	g.Go(func() error {
 		return jobRunner.RunScheduled(gctx, jobs.Schedule{
 			Task:     gracePolicyTask,
 			Interval: 1 * time.Hour,
+			Timeout:  15 * time.Minute,
 		})
 	})
 	g.Go(func() error {
 		return jobRunner.RunScheduled(gctx, jobs.Schedule{
 			Task:     kickPolicyTask,
 			Interval: 15 * time.Minute,
+			Timeout:  10 * time.Minute,
 		})
 	})
 	g.Go(func() error {
 		return jobRunner.RunScheduled(gctx, jobs.Schedule{
 			Task:     subscriptionGraceTask,
 			Interval: 15 * time.Minute,
+			Timeout:  10 * time.Minute,
 		})
 	})
 	g.Go(func() error {
 		return jobRunner.RunScheduled(gctx, jobs.Schedule{
 			Task:     memberCleanupTask,
 			Interval: 1 * time.Minute,
+			Timeout:  45 * time.Second,
 		})
 	})
 	g.Go(func() error {
 		return jobRunner.RunScheduled(gctx, jobs.Schedule{
 			Task:     productMetricsTask,
 			Interval: 5 * time.Minute,
+			Timeout:  2 * time.Minute,
 		})
 	})
 	g.Go(func() error {
 		return jobRunner.RunScheduled(gctx, jobs.Schedule{
 			Task:     creatorMetricsTask,
 			Interval: 5 * time.Minute,
+			Timeout:  2 * time.Minute,
 		})
 	})
 	g.Go(func() error {
 		return jobRunner.RunScheduled(gctx, jobs.Schedule{
 			Task:     privacyRetentionTask,
 			Interval: 12 * time.Hour,
+			Timeout:  2 * time.Hour,
 		})
 	})
 	if backupTask != nil {
@@ -325,6 +335,7 @@ func Run() error {
 				Task:         backupTask,
 				InitialDelay: 30 * time.Second,
 				Interval:     cfg.BackupInterval,
+				Timeout:      25 * time.Minute,
 			})
 		})
 	}

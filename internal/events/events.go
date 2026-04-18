@@ -36,6 +36,8 @@ const (
 	NameCreatorsReconnectRequired   = "creators_reconnect_required"
 	NameCreatorReconnectNotice      = "creator_reconnect_notification"
 	NameBackgroundJob               = "background_job"
+	NameBackgroundJobStarted        = "background_job_started"
+	NameBackgroundJobItems          = "background_job_items"
 	NameReconciliationRepair        = "reconciliation_repair"
 	NameOAuthStart                  = "oauth_start"
 	NameOAuthCallback               = "oauth_callback"

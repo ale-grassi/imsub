@@ -14,6 +14,7 @@ import (
 const (
 	taskResultFailed         = "failed"
 	taskResultPartialFailure = "partial_failure"
+	taskResultTimeout        = "timeout"
 )
 
 type subscriberReconciler interface {
@@ -122,6 +123,7 @@ type gracePolicyTask struct {
 	logger     *slog.Logger
 	now        func() time.Time
 	graceAfter time.Duration
+	counts     *runCounts
 }
 
 type kickPolicyTask struct {
@@ -130,6 +132,7 @@ type kickPolicyTask struct {
 	god    *core.GodAccessChecker
 	logger *slog.Logger
 	now    func() time.Time
+	counts *runCounts
 }
 
 type memberCleanupTask struct {
@@ -140,6 +143,7 @@ type memberCleanupTask struct {
 	logger           *slog.Logger
 	lockTTL          time.Duration
 	maxTargetsPerRun int
+	counts           *runCounts
 }
 
 type subscriptionGraceTask struct {
@@ -151,6 +155,7 @@ type subscriptionGraceTask struct {
 	lockTTL  time.Duration
 	maxJobs  int64
 	now      func() time.Time
+	counts   *runCounts
 }
 
 type productMetricsSnapshotTask struct {
@@ -183,6 +188,7 @@ func NewGracePolicyTask(store gracePolicyStore, kicker groupKicker, god *core.Go
 		logger:     logger,
 		now:        func() time.Time { return time.Now().UTC() },
 		graceAfter: 7 * 24 * time.Hour,
+		counts:     newRunCounts(),
 	}
 }
 
@@ -200,6 +206,7 @@ func NewKickPolicyTask(store gracePolicyStore, kicker groupKicker, god *core.God
 		god:    god,
 		logger: logger,
 		now:    func() time.Time { return time.Now().UTC() },
+		counts: newRunCounts(),
 	}
 }
 
@@ -216,6 +223,7 @@ func NewMemberCleanupTask(store memberCleanupStore, kicker groupKicker, notifier
 		logger:           logger,
 		lockTTL:          15 * time.Minute,
 		maxTargetsPerRun: 50,
+		counts:           newRunCounts(),
 	}
 }
 
@@ -234,6 +242,7 @@ func NewSubscriptionGraceTask(store subscriptionGraceStore, kicker groupKicker, 
 		lockTTL:  10 * time.Minute,
 		maxJobs:  100,
 		now:      func() time.Time { return time.Now().UTC() },
+		counts:   newRunCounts(),
 	}
 }
 
@@ -300,6 +309,7 @@ func (t gracePolicyTask) Run(ctx context.Context) error {
 	if t.store == nil || t.kicker == nil {
 		return nil
 	}
+	t.counts.reset()
 
 	groups, err := t.store.ListManagedGroups(ctx)
 	if err != nil {
@@ -312,9 +322,11 @@ func (t gracePolicyTask) Run(ctx context.Context) error {
 		if group.Policy != core.GroupPolicyGraceWeek {
 			continue
 		}
+		t.counts.inc("groups")
 		untracked, err := t.store.ListUntrackedGroupMembers(ctx, group.ChatID)
 		if err != nil {
 			partialErrs = append(partialErrs, fmt.Errorf("list untracked group members for %d: %w", group.ChatID, err))
+			t.counts.inc("errors")
 			t.logger.Warn("grace policy list untracked members failed", "chat_id", group.ChatID, "error", err)
 			continue
 		}
@@ -322,11 +334,13 @@ func (t gracePolicyTask) Run(ctx context.Context) error {
 			if t.god != nil && t.god.IsGodTelegramUser(member.TelegramUserID) {
 				if err := t.store.AddTrackedGroupMember(ctx, group.ChatID, member.TelegramUserID, "god_list_grace_policy", t.now()); err != nil {
 					partialErrs = append(partialErrs, fmt.Errorf("track god member %d from %d: %w", member.TelegramUserID, group.ChatID, err))
+					t.counts.inc("errors")
 					t.logger.Warn("grace policy track god member failed", "chat_id", group.ChatID, "telegram_user_id", member.TelegramUserID, "error", err)
 					continue
 				}
 				if err := t.store.RemoveUntrackedGroupMember(ctx, group.ChatID, member.TelegramUserID); err != nil {
 					partialErrs = append(partialErrs, fmt.Errorf("remove god untracked group member %d from %d: %w", member.TelegramUserID, group.ChatID, err))
+					t.counts.inc("errors")
 					t.logger.Warn("grace policy remove god untracked member failed", "chat_id", group.ChatID, "telegram_user_id", member.TelegramUserID, "error", err)
 				}
 				continue
@@ -336,13 +350,18 @@ func (t gracePolicyTask) Run(ctx context.Context) error {
 			}
 			if err := t.kicker.KickFromGroup(ctx, group.ChatID, member.TelegramUserID, core.KickReasonGroupGracePolicy); err != nil {
 				partialErrs = append(partialErrs, fmt.Errorf("kick unverified member %d from %d: %w", member.TelegramUserID, group.ChatID, err))
+				t.counts.inc("errors")
 				t.logger.Warn("grace policy kick failed", "chat_id", group.ChatID, "telegram_user_id", member.TelegramUserID, "error", err)
 				continue
 			}
+			t.counts.inc("kicked")
 			if err := t.store.RemoveUntrackedGroupMember(ctx, group.ChatID, member.TelegramUserID); err != nil {
 				partialErrs = append(partialErrs, fmt.Errorf("remove untracked group member %d from %d: %w", member.TelegramUserID, group.ChatID, err))
+				t.counts.inc("errors")
 				t.logger.Warn("grace policy untracked cleanup failed", "chat_id", group.ChatID, "telegram_user_id", member.TelegramUserID, "error", err)
+				continue
 			}
+			t.counts.inc("removed")
 		}
 	}
 	if len(partialErrs) > 0 {
@@ -350,6 +369,8 @@ func (t gracePolicyTask) Run(ctx context.Context) error {
 	}
 	return nil
 }
+
+func (t gracePolicyTask) Report() map[string]int { return t.counts.snapshot() }
 
 func (t gracePolicyTask) Classify(err error) string {
 	switch {
@@ -368,6 +389,7 @@ func (t kickPolicyTask) Run(ctx context.Context) error {
 	if t.store == nil || t.kicker == nil {
 		return nil
 	}
+	t.counts.reset()
 
 	groups, err := t.store.ListManagedGroups(ctx)
 	if err != nil {
@@ -379,9 +401,11 @@ func (t kickPolicyTask) Run(ctx context.Context) error {
 		if group.Policy != core.GroupPolicyKick {
 			continue
 		}
+		t.counts.inc("groups")
 		untracked, err := t.store.ListUntrackedGroupMembers(ctx, group.ChatID)
 		if err != nil {
 			partialErrs = append(partialErrs, fmt.Errorf("list untracked group members for %d: %w", group.ChatID, err))
+			t.counts.inc("errors")
 			t.logger.Warn("kick policy list untracked members failed", "chat_id", group.ChatID, "error", err)
 			continue
 		}
@@ -389,24 +413,31 @@ func (t kickPolicyTask) Run(ctx context.Context) error {
 			if t.god != nil && t.god.IsGodTelegramUser(member.TelegramUserID) {
 				if err := t.store.AddTrackedGroupMember(ctx, group.ChatID, member.TelegramUserID, "god_list_kick_policy", t.now()); err != nil {
 					partialErrs = append(partialErrs, fmt.Errorf("track god member %d from %d: %w", member.TelegramUserID, group.ChatID, err))
+					t.counts.inc("errors")
 					t.logger.Warn("kick policy track god member failed", "chat_id", group.ChatID, "telegram_user_id", member.TelegramUserID, "error", err)
 					continue
 				}
 				if err := t.store.RemoveUntrackedGroupMember(ctx, group.ChatID, member.TelegramUserID); err != nil {
 					partialErrs = append(partialErrs, fmt.Errorf("remove god untracked group member %d from %d: %w", member.TelegramUserID, group.ChatID, err))
+					t.counts.inc("errors")
 					t.logger.Warn("kick policy remove god untracked member failed", "chat_id", group.ChatID, "telegram_user_id", member.TelegramUserID, "error", err)
 				}
 				continue
 			}
 			if err := t.kicker.KickFromGroup(ctx, group.ChatID, member.TelegramUserID, core.KickReasonGroupPolicy); err != nil {
 				partialErrs = append(partialErrs, fmt.Errorf("kick unverified member %d from %d: %w", member.TelegramUserID, group.ChatID, err))
+				t.counts.inc("errors")
 				t.logger.Warn("kick policy kick failed", "chat_id", group.ChatID, "telegram_user_id", member.TelegramUserID, "error", err)
 				continue
 			}
+			t.counts.inc("kicked")
 			if err := t.store.RemoveUntrackedGroupMember(ctx, group.ChatID, member.TelegramUserID); err != nil {
 				partialErrs = append(partialErrs, fmt.Errorf("remove untracked group member %d from %d: %w", member.TelegramUserID, group.ChatID, err))
+				t.counts.inc("errors")
 				t.logger.Warn("kick policy untracked cleanup failed", "chat_id", group.ChatID, "telegram_user_id", member.TelegramUserID, "error", err)
+				continue
 			}
+			t.counts.inc("removed")
 		}
 	}
 	if len(partialErrs) > 0 {
@@ -414,6 +445,8 @@ func (t kickPolicyTask) Run(ctx context.Context) error {
 	}
 	return nil
 }
+
+func (t kickPolicyTask) Report() map[string]int { return t.counts.snapshot() }
 
 func (t kickPolicyTask) Classify(err error) string {
 	switch {
@@ -432,6 +465,7 @@ func (t memberCleanupTask) Run(ctx context.Context) error {
 	if t.store == nil || t.kicker == nil {
 		return nil
 	}
+	t.counts.reset()
 	jobs, err := t.store.ListPendingMemberCleanupJobs(ctx)
 	if err != nil {
 		return fmt.Errorf("list pending member cleanup jobs: %w", err)
@@ -441,16 +475,21 @@ func (t memberCleanupTask) Run(ctx context.Context) error {
 		claimed, err := t.store.ClaimMemberCleanupJob(ctx, job.ID, t.lockTTL)
 		if err != nil {
 			partialErrs = append(partialErrs, fmt.Errorf("claim member cleanup job %s: %w", job.ID, err))
+			t.counts.inc("errors")
 			continue
 		}
 		if !claimed {
 			continue
 		}
+		t.counts.inc("processed")
 		result, done, runErr := t.processJob(ctx, job)
 		if runErr != nil {
 			partialErrs = append(partialErrs, fmt.Errorf("process member cleanup job %s: %w", job.ID, runErr))
+			t.counts.inc("errors")
 			continue
 		}
+		t.counts.add("succeeded", result.SucceededCount)
+		t.counts.add("failed", result.FailedCount)
 		if !done {
 			continue
 		}
@@ -465,6 +504,8 @@ func (t memberCleanupTask) Run(ctx context.Context) error {
 	}
 	return nil
 }
+
+func (t memberCleanupTask) Report() map[string]int { return t.counts.snapshot() }
 
 func (t productMetricsSnapshotTask) Name() string { return "sync_product_metrics_snapshot" }
 
@@ -587,15 +628,18 @@ func (t subscriptionGraceTask) Run(ctx context.Context) error {
 	if t.store == nil || t.kicker == nil {
 		return nil
 	}
+	t.counts.reset()
 	jobs, err := t.store.ListDueSubscriptionEndGrace(ctx, t.now(), t.maxJobs)
 	if err != nil {
 		return fmt.Errorf("list due subscription-end grace jobs: %w", err)
 	}
+	t.counts.add("due", len(jobs))
 	var partialErrs []error
 	for _, job := range jobs {
 		claimed, err := t.store.ClaimSubscriptionEndGrace(ctx, job.ID, t.lockTTL)
 		if err != nil {
 			partialErrs = append(partialErrs, fmt.Errorf("claim subscription-end grace job %s: %w", job.ID, err))
+			t.counts.inc("errors")
 			continue
 		}
 		if !claimed {
@@ -603,6 +647,7 @@ func (t subscriptionGraceTask) Run(ctx context.Context) error {
 		}
 		if err := t.processJob(ctx, job); err != nil {
 			partialErrs = append(partialErrs, fmt.Errorf("process subscription-end grace job %s: %w", job.ID, err))
+			t.counts.inc("errors")
 		}
 	}
 	if len(partialErrs) > 0 {
@@ -610,6 +655,8 @@ func (t subscriptionGraceTask) Run(ctx context.Context) error {
 	}
 	return nil
 }
+
+func (t subscriptionGraceTask) Report() map[string]int { return t.counts.snapshot() }
 
 func (t subscriptionGraceTask) processJob(ctx context.Context, job core.PendingSubscriptionEndGrace) error {
 	subscriber, err := t.store.IsCreatorSubscriber(ctx, job.CreatorID, job.TwitchUserID)
@@ -638,9 +685,12 @@ func (t subscriptionGraceTask) processJob(ctx context.Context, job core.PendingS
 			t.logger.Warn("subscription grace kick failed", "creator_id", job.CreatorID, "chat_id", group.ChatID, "telegram_user_id", job.TelegramUserID, "error", err)
 			continue
 		}
+		t.counts.inc("kicked")
 		if err := t.store.RemoveTrackedGroupMember(ctx, group.ChatID, job.TelegramUserID); err != nil {
 			t.logger.Warn("subscription grace tracked membership cleanup failed", "creator_id", job.CreatorID, "chat_id", group.ChatID, "telegram_user_id", job.TelegramUserID, "error", err)
+			continue
 		}
+		t.counts.inc("removed")
 	}
 	if err := t.store.DeleteSubscriptionEndGrace(ctx, job.CreatorID, job.TwitchUserID); err != nil {
 		return fmt.Errorf("delete subscription-end grace job: %w", err)
@@ -658,6 +708,7 @@ func (t subscriptionGraceTask) processJob(ctx context.Context, job core.PendingS
 		}); err != nil {
 			t.logger.Warn("subscription grace expired notification failed", "creator_id", job.CreatorID, "telegram_user_id", job.TelegramUserID, "error", err)
 		}
+		t.counts.inc("notified")
 	}
 	return nil
 }
@@ -683,6 +734,7 @@ type integrityAuditTask struct {
 	store  integrityAuditStore
 	logger *slog.Logger
 	events events.EventSink
+	counts *runCounts
 }
 
 // NewIntegrityAuditTask builds the integrity audit and repair task.
@@ -690,8 +742,10 @@ func NewIntegrityAuditTask(store integrityAuditStore, logger *slog.Logger, sink 
 	if logger == nil {
 		logger = slog.Default()
 	}
-	return integrityAuditTask{store: store, logger: logger, events: sink}
+	return integrityAuditTask{store: store, logger: logger, events: sink, counts: newRunCounts()}
 }
+
+func (t integrityAuditTask) Report() map[string]int { return t.counts.snapshot() }
 
 func (t integrityAuditTask) Name() string { return "integrity_audit" }
 
@@ -720,6 +774,7 @@ func (t integrityAuditTask) Run(ctx context.Context) error {
 	if t.store == nil {
 		return nil
 	}
+	t.counts.reset()
 
 	creators, err := t.store.ListCreators(ctx)
 	if err != nil {
@@ -745,6 +800,13 @@ func (t integrityAuditTask) Run(ctx context.Context) error {
 			reconnectRequired++
 		}
 	}
+
+	t.counts.add("creators_checked", len(creators))
+	t.counts.add("active_without_group", activeNoGroup)
+	t.counts.add("reconnect_required", reconnectRequired)
+	t.counts.add("repairs", repairedUsers)
+	t.counts.add("missing_links", missingLinks)
+	t.counts.add("stale_links", staleLinks)
 
 	t.logger.Info("integrity audit done",
 		"creators", len(creators),
