@@ -307,6 +307,23 @@ func (f *fakeObserver) all() []events.Event {
 	return append([]events.Event(nil), f.events...)
 }
 
+func assertRunIDPresent(t *testing.T, evt events.Event) {
+	t.Helper()
+	if evt.Fields["run_id"] == "" {
+		t.Fatalf("%s: run_id missing, fields=%+v", evt.Name, evt.Fields)
+	}
+}
+
+func assertRunTimestamps(t *testing.T, evt events.Event, wantStart, wantFinish bool) {
+	t.Helper()
+	if wantStart && evt.Fields["started_at_unix_ms"] == "" {
+		t.Fatalf("%s: started_at_unix_ms missing, fields=%+v", evt.Name, evt.Fields)
+	}
+	if wantFinish && evt.Fields["finished_at_unix_ms"] == "" {
+		t.Fatalf("%s: finished_at_unix_ms missing, fields=%+v", evt.Name, evt.Fields)
+	}
+}
+
 func (f *fakeProductMetricsSink) TelegramDailyActiveUsers(count int) { f.dailyActive = count }
 func (f *fakeProductMetricsSink) LinkedViewerAccounts(count int)     { f.linkedViewers = count }
 func (f *fakeProductMetricsSink) LinkedCreatorAccounts(count int)    { f.linkedCreators = count }
@@ -1099,6 +1116,8 @@ func TestRunScheduledWrapsTimeout(t *testing.T) {
 	if finish.Outcome != "timeout" {
 		t.Errorf("finish.Outcome = %q, want %q", finish.Outcome, "timeout")
 	}
+	assertRunIDPresent(t, finish)
+	assertRunTimestamps(t, finish, true, true)
 }
 
 func TestRunScheduledEmitsStartEvent(t *testing.T) {
@@ -1137,6 +1156,12 @@ func TestRunScheduledEmitsStartEvent(t *testing.T) {
 	if evts[1].Name != events.NameBackgroundJob {
 		t.Errorf("events[1].Name = %q, want %q", evts[1].Name, events.NameBackgroundJob)
 	}
+	assertRunIDPresent(t, evts[0])
+	if evts[0].Fields["run_id"] != evts[1].Fields["run_id"] {
+		t.Fatalf("start/finish run_id mismatch: start=%q finish=%q", evts[0].Fields["run_id"], evts[1].Fields["run_id"])
+	}
+	assertRunTimestamps(t, evts[0], true, false)
+	assertRunTimestamps(t, evts[1], true, true)
 }
 
 type reporterTask struct {
@@ -1198,10 +1223,69 @@ func TestRunScheduledEmitsItemsFromReporter(t *testing.T) {
 	if finish.Fields["items_failed"] != "1" {
 		t.Errorf("finish.Fields[items_failed] = %q, want %q", finish.Fields["items_failed"], "1")
 	}
+	assertRunIDPresent(t, finish)
+	assertRunTimestamps(t, finish, true, true)
 	if got := itemCounts["processed"]; got.Count != 3 || got.Outcome != "ok" {
 		t.Errorf("items[processed] = %+v, want count=3 outcome=ok", got)
 	}
 	if got := itemCounts["failed"]; got.Count != 1 || got.Outcome != "ok" {
 		t.Errorf("items[failed] = %+v, want count=1 outcome=ok", got)
+	}
+	if got := itemCounts["processed"]; got.Fields["run_id"] != finish.Fields["run_id"] {
+		t.Errorf("items[processed].run_id = %q, want %q", got.Fields["run_id"], finish.Fields["run_id"])
+	}
+	if got := itemCounts["failed"]; got.Fields["run_id"] != finish.Fields["run_id"] {
+		t.Errorf("items[failed].run_id = %q, want %q", got.Fields["run_id"], finish.Fields["run_id"])
+	}
+}
+
+func TestRunScheduledAssignsUniqueRunIDPerExecution(t *testing.T) {
+	t.Parallel()
+
+	obs := &fakeObserver{}
+	reconcile := &fakeReconciler{result: "ok"}
+	runner := NewRunner(nil, obs)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = runner.RunScheduled(ctx, Schedule{
+			Task:     NewSubscriberTask(reconcile),
+			Interval: 10 * time.Millisecond,
+		})
+	}()
+	deadline := time.Now().Add(300 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		runIDs := map[string]struct{}{}
+		for _, evt := range obs.all() {
+			if evt.Name != events.NameBackgroundJob {
+				continue
+			}
+			if evt.Fields["run_id"] != "" {
+				runIDs[evt.Fields["run_id"]] = struct{}{}
+			}
+		}
+		if len(runIDs) >= 2 {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	cancel()
+	<-done
+
+	runIDs := map[string]struct{}{}
+	for _, evt := range obs.all() {
+		if evt.Name != events.NameBackgroundJob {
+			continue
+		}
+		runID := evt.Fields["run_id"]
+		if runID == "" {
+			t.Fatalf("background_job event missing run_id: %+v", evt)
+		}
+		runIDs[runID] = struct{}{}
+	}
+	if len(runIDs) < 2 {
+		t.Fatalf("unique run_ids = %d, want at least 2; events=%+v", len(runIDs), obs.all())
 	}
 }

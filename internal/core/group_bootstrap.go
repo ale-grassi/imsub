@@ -125,6 +125,19 @@ func (s *GroupBootstrapService) bootstrapAttempt(ctx context.Context, group Mana
 		return groupBootstrapCounts{}, fmt.Errorf("dump members via invite: %w", err)
 	}
 
+	// Load the creator once per group. The inner loop below runs per-member,
+	// and eligibility checks only need the creator's ID + BlocklistSyncEnabled,
+	// both constant across the dump. If the creator row is missing we treat
+	// every non-god member as ineligible but surface the data-integrity
+	// anomaly via a Warn log so ops can notice.
+	creator, creatorFound, err := s.store.Creator(ctx, group.CreatorID)
+	if err != nil {
+		return groupBootstrapCounts{}, fmt.Errorf("load creator: %w", err)
+	}
+	if !creatorFound {
+		s.logger.Warn("group bootstrap creator missing", "chat_id", group.ChatID, "creator_id", group.CreatorID)
+	}
+
 	now := s.now()
 	counts := groupBootstrapCounts{}
 	for _, member := range membersDump {
@@ -132,9 +145,19 @@ func (s *GroupBootstrapService) bootstrapAttempt(ctx context.Context, group Mana
 			continue
 		}
 
-		eligible, err := s.isEligibleTrackedMember(ctx, group.CreatorID, member.TelegramUserID)
-		if err != nil {
-			return counts, fmt.Errorf("classify member %d: %w", member.TelegramUserID, err)
+		// God users are always eligible, even when the creator row is missing:
+		// otherwise a stale/orphaned creator would cause a god user to be kicked
+		// under GroupPolicyKick. This mirrors memberPolicySweep, which also
+		// short-circuits god checks before the creator load.
+		var eligible bool
+		switch {
+		case s.god != nil && s.god.IsGodTelegramUser(member.TelegramUserID):
+			eligible = true
+		case creatorFound:
+			eligible, err = IsEligibleTrackedMember(ctx, s.store, s.god, creator, member.TelegramUserID, "")
+			if err != nil {
+				return counts, fmt.Errorf("classify member %d: %w", member.TelegramUserID, err)
+			}
 		}
 		if eligible {
 			if err := s.store.AddTrackedGroupMember(ctx, group.ChatID, member.TelegramUserID, SourceMTProtoBootstrap, now); err != nil {
@@ -167,21 +190,6 @@ func (s *GroupBootstrapService) bootstrapAttempt(ctx context.Context, group Mana
 		counts.kicked++
 	}
 	return counts, nil
-}
-
-func (s *GroupBootstrapService) isEligibleTrackedMember(ctx context.Context, creatorID string, telegramUserID int64) (bool, error) {
-	creator, found, err := s.store.Creator(ctx, creatorID)
-	if err != nil {
-		return false, fmt.Errorf("load creator: %w", err)
-	}
-	if !found {
-		return false, nil
-	}
-	eligible, err := IsEligibleTrackedMember(ctx, s.store, s.god, creator, telegramUserID, "")
-	if err != nil {
-		return false, fmt.Errorf("check member eligibility: %w", err)
-	}
-	return eligible, nil
 }
 
 func (s *GroupBootstrapService) cleanupMTProtoUser(ctx context.Context, chatID int64) error {

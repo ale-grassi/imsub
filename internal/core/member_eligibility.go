@@ -73,6 +73,10 @@ func IsEligibleTrackedMember(ctx context.Context, store MemberEligibilityStore, 
 // success moves telegramUserID from untracked to tracked with the given source.
 // Returns (promoted, err). A missing creator row is surfaced as ErrCreatorMissing
 // with promoted=false so callers can decide whether to alert.
+//
+// Callers iterating many members under the same group should prefer
+// PromoteExistingMemberIfEligibleWithCreator to avoid re-fetching the creator
+// per member.
 func PromoteExistingMemberIfEligible(
 	ctx context.Context,
 	store PromoteExistingMemberStore,
@@ -91,6 +95,30 @@ func PromoteExistingMemberIfEligible(
 	}
 	if !found {
 		return false, fmt.Errorf("%w: creator_id=%s chat_id=%d", ErrCreatorMissing, group.CreatorID, group.ChatID)
+	}
+	return PromoteExistingMemberIfEligibleWithCreator(ctx, store, god, group, creator, telegramUserID, source, now)
+}
+
+// PromoteExistingMemberIfEligibleWithCreator is a hot-loop variant of
+// PromoteExistingMemberIfEligible for callers that have already resolved the
+// creator (e.g., when iterating many untracked members under the same group).
+// It skips the per-call Creator lookup and uses the provided creator verbatim.
+//
+// The store surface is still PromoteExistingMemberStore because Add/Remove
+// tracked+untracked membership are required for the promotion write path; the
+// Creator method on that interface is simply not exercised here.
+func PromoteExistingMemberIfEligibleWithCreator(
+	ctx context.Context,
+	store PromoteExistingMemberStore,
+	god *GodAccessChecker,
+	group ManagedGroup,
+	creator Creator,
+	telegramUserID int64,
+	source string,
+	now time.Time,
+) (bool, error) {
+	if store == nil {
+		return false, nil
 	}
 	eligible, err := IsEligibleTrackedMember(ctx, store, god, creator, telegramUserID, "")
 	if err != nil {

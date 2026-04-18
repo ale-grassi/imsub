@@ -7,6 +7,7 @@ import (
 	"maps"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"imsub/internal/events"
@@ -45,6 +46,7 @@ type Schedule struct {
 type Runner struct {
 	logger *slog.Logger
 	events events.EventSink
+	runSeq atomic.Uint64
 }
 
 // NewRunner creates a background job runner.
@@ -92,9 +94,17 @@ func (r *Runner) runTask(ctx context.Context, schedule Schedule) {
 		return
 	}
 
+	start := time.Now()
+	runID := r.nextRunID(start.UnixNano())
+	startedAtUnixMS := strconv.FormatInt(start.UnixMilli(), 10)
+
 	r.emit(ctx, events.Event{
-		Name:   events.NameBackgroundJobStarted,
-		Fields: map[string]string{"job": task.Name()},
+		Name: events.NameBackgroundJobStarted,
+		Fields: map[string]string{
+			"job":                task.Name(),
+			"run_id":             runID,
+			"started_at_unix_ms": startedAtUnixMS,
+		},
 	})
 
 	runCtx := ctx
@@ -102,9 +112,9 @@ func (r *Runner) runTask(ctx context.Context, schedule Schedule) {
 	if schedule.Timeout > 0 {
 		runCtx, cancel = context.WithTimeout(ctx, schedule.Timeout)
 	}
-	start := time.Now()
 	err := task.Run(runCtx)
-	duration := time.Since(start)
+	finishedAt := time.Now()
+	duration := finishedAt.Sub(start)
 	if cancel != nil {
 		cancel()
 	}
@@ -120,7 +130,12 @@ func (r *Runner) runTask(ctx context.Context, schedule Schedule) {
 		r.logger.Warn("background task failed", "task", task.Name(), "error", err, "result", result)
 	}
 
-	fields := map[string]string{"job": task.Name()}
+	fields := map[string]string{
+		"job":                 task.Name(),
+		"run_id":              runID,
+		"started_at_unix_ms":  startedAtUnixMS,
+		"finished_at_unix_ms": strconv.FormatInt(finishedAt.UnixMilli(), 10),
+	}
 	var items map[string]int
 	if reporter, ok := task.(Reporter); ok {
 		items = reporter.Report()
@@ -140,7 +155,7 @@ func (r *Runner) runTask(ctx context.Context, schedule Schedule) {
 		r.emit(ctx, events.Event{
 			Name:    events.NameBackgroundJobItems,
 			Outcome: result,
-			Fields:  map[string]string{"job": task.Name(), "kind": kind},
+			Fields:  map[string]string{"job": task.Name(), "kind": kind, "run_id": runID},
 			Count:   n,
 		})
 	}
@@ -158,6 +173,16 @@ func taskName(task Task) string {
 		return "unknown"
 	}
 	return task.Name()
+}
+
+// nextRunID returns a process-unique identifier for a single background job
+// execution. The ID embeds the start time at nanosecond precision plus an
+// in-process atomic counter for uniqueness (disambiguating runs that start in
+// the same ns, and keeping IDs sortable by start time). The canonical start
+// timestamp is also emitted as started_at_unix_ms on the event so dashboards
+// do not need to parse the ID.
+func (r *Runner) nextRunID(nowUnixNano int64) string {
+	return strconv.FormatInt(nowUnixNano, 10) + "-" + strconv.FormatUint(r.runSeq.Add(1), 10)
 }
 
 // runCounts is a goroutine-safe per-run counter bag shared via pointer between

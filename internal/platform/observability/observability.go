@@ -220,7 +220,7 @@ func New() *Metrics {
 		backgroundJobState: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: "imsub_background_job_state",
-				Help: "Current state of a background job: 1=running, 2=ok, 3=failed, 4=partial_failure, 5=timeout.",
+				Help: "Last known state of a background job: 1=running, 2=ok, 3=failed, 4=partial_failure, 5=timeout.",
 			},
 			[]string{"job"},
 		),
@@ -1016,7 +1016,7 @@ func (m *Metrics) BackgroundJob(job, result string, d time.Duration) {
 	m.backgroundJobTime.WithLabelValues(httputil.LabelOrUnknown(job)).Observe(d.Seconds())
 }
 
-// BackgroundJobStarted marks a background job as currently running for the State Timeline panel.
+// BackgroundJobStarted marks the last known background job state as currently running.
 func (m *Metrics) BackgroundJobStarted(job string) {
 	if m == nil {
 		return
@@ -1024,7 +1024,7 @@ func (m *Metrics) BackgroundJobStarted(job string) {
 	m.backgroundJobState.WithLabelValues(httputil.LabelOrUnknown(job)).Set(backgroundJobStateCode("running"))
 }
 
-// BackgroundJobFinished records a completed background job execution and updates the state gauge.
+// BackgroundJobFinished records a completed background job execution and updates the last-known-state gauge.
 func (m *Metrics) BackgroundJobFinished(job, result string, d time.Duration) {
 	if m == nil {
 		return

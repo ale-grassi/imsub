@@ -4454,7 +4454,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 211
+        "y": 230
       },
       "id": 800,
       "panels": [],
@@ -4470,7 +4470,7 @@
         "h": 8,
         "w": 18,
         "x": 0,
-        "y": 212
+        "y": 231
       },
       "id": 801,
       "options": {
@@ -4534,7 +4534,7 @@
         "h": 8,
         "w": 6,
         "x": 18,
-        "y": 212
+        "y": 231
       },
       "id": 802,
       "interval": "1m",
@@ -4579,11 +4579,11 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 220
+        "y": 211
       },
       "id": 900,
       "panels": [],
-      "title": "Background Jobs Timeline",
+      "title": "Background Jobs",
       "type": "row"
     },
     {
@@ -4591,7 +4591,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Gantt-style timeline of background job executions. State encoding: 1=running, 2=ok, 3=failed, 4=partial_failure, 5=timeout.",
+      "description": "Last known state per background job. This is a health panel, not an execution timeline. State encoding: 1=running, 2=ok, 3=failed, 4=partial_failure, 5=timeout.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -4648,9 +4648,9 @@
       },
       "gridPos": {
         "h": 10,
-        "w": 24,
+        "w": 8,
         "x": 0,
-        "y": 221
+        "y": 212
       },
       "id": 901,
       "options": {
@@ -4677,7 +4677,177 @@
           "refId": "A"
         }
       ],
-      "title": "Background Jobs Timeline",
+      "title": "Background Job Health",
+      "type": "state-timeline"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "${logs_datasource}"
+      },
+      "description": "Execution bars built from background_job completion logs, using explicit start and finish timestamps for each job run.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 0,
+            "spanNulls": false
+          },
+          "mappings": [
+            {
+              "options": {
+                "failed": {
+                  "color": "red",
+                  "index": 0,
+                  "text": "Failed"
+                },
+                "ok": {
+                  "color": "green",
+                  "index": 1,
+                  "text": "OK"
+                },
+                "partial_failure": {
+                  "color": "yellow",
+                  "index": 2,
+                  "text": "Partial"
+                },
+                "timeout": {
+                  "color": "orange",
+                  "index": 3,
+                  "text": "Timeout"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 16,
+        "x": 8,
+        "y": 212
+      },
+      "id": 904,
+      "options": {
+        "alignValue": "left",
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "mergeValues": false,
+        "rowHeight": 0.9,
+        "showValue": "auto",
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "${logs_datasource}"
+          },
+          "editorMode": "code",
+          "expr": "fly.app.name: $app AND event_name: background_job",
+          "metrics": [
+            {
+              "id": "1",
+              "settings": {
+                "limit": "1000"
+              },
+              "type": "logs"
+            }
+          ],
+          "query": "fly.app.name:\"$app\" AND event_name:\"background_job\"",
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "Background Job Runs",
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {
+            "mode": "columns"
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "number",
+                "targetField": "started_at_unix_ms"
+              },
+              {
+                "destinationType": "number",
+                "targetField": "finished_at_unix_ms"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [
+              {
+                "destinationType": "time",
+                "targetField": "started_at_unix_ms"
+              },
+              {
+                "destinationType": "time",
+                "targetField": "finished_at_unix_ms"
+              }
+            ],
+            "fields": {}
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Line": true,
+              "Time": true,
+              "count": true,
+              "duration_ms": true,
+              "event_name": true,
+              "id": true,
+              "labels": true
+            },
+            "indexByName": {
+              "started_at_unix_ms": 0,
+              "finished_at_unix_ms": 1,
+              "job": 2,
+              "outcome": 3,
+              "run_id": 4
+            },
+            "renameByName": {
+              "finished_at_unix_ms": "End time",
+              "job": "Job",
+              "outcome": "State",
+              "run_id": "Run ID",
+              "started_at_unix_ms": "Start time"
+            }
+          }
+        }
+      ],
       "type": "state-timeline"
     },
     {
@@ -4710,7 +4880,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 231
+        "y": 222
       },
       "id": 902,
       "options": {
@@ -4752,7 +4922,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 231
+        "y": 222
       },
       "id": 903,
       "options": {
@@ -4787,7 +4957,7 @@
           "refId": "A"
         }
       ],
-      "title": "Background Job Runs (details)",
+      "title": "Background Job Event Log",
       "type": "logs"
     }
   ],

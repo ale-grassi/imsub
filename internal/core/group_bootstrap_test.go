@@ -295,3 +295,32 @@ func TestGroupBootstrapLeaveFailureTriggersCleanupKick(t *testing.T) {
 		t.Fatalf("cleanup reasons = %v, want [%q]", groupOps.reasons, KickReasonMTProtoCleanup)
 	}
 }
+
+// TestGroupBootstrapGodMemberEligibleWhenCreatorMissing guards against a
+// regression where a missing creator row caused god users under a kick-policy
+// group to be kicked: the creatorFound guard skipped IsEligibleTrackedMember
+// entirely, so the god fast-path inside it never fired. God users must stay
+// eligible regardless of creator existence so orphaned creator rows cannot
+// eject them.
+func TestGroupBootstrapGodMemberEligibleWhenCreatorMissing(t *testing.T) {
+	t.Parallel()
+
+	store := &bootstrapStoreStub{}
+	groupOps := &bootstrapGroupOpsStub{}
+	mt := &bootstrapMTProtoStub{
+		selfID: 999,
+		dumps:  [][]mtproto.Member{{{TelegramUserID: 42, Role: mtproto.MemberRoleMember}}},
+	}
+	svc := NewGroupBootstrapService(store, groupOps, mt, NewGodAccessChecker(42), nil, nil)
+
+	if err := svc.BootstrapGroup(t.Context(), ManagedGroup{ChatID: 100, CreatorID: "missing-creator", Policy: GroupPolicyKick}); err != nil {
+		t.Fatalf("BootstrapGroup() error = %v, want nil", err)
+	}
+
+	if len(groupOps.kicks) != 0 {
+		t.Fatalf("god user was kicked: kicks = %v, want none", groupOps.kicks)
+	}
+	if got := store.trackedAdds; len(got) != 1 || got[0] != 42 {
+		t.Fatalf("tracked adds = %v, want [42] (god user promoted)", got)
+	}
+}
