@@ -69,10 +69,10 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
+        "type": "victoriametrics-logs-datasource",
+        "uid": "${logs_datasource}"
       },
-      "description": "Rolling 24-hour unique Telegram users with direct bot activity.",
+      "description": "Unique Telegram users with direct bot activity over the selected dashboard time range (distinct user_id from telegram_command events).",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -116,11 +116,13 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "imsub_telegram_daily_active_users",
+          "expr": "fly.app.name:\"$app\" event_name:\"telegram_command\" | unpack_json from _msg | stats count_uniq(user_id) as active_users",
+          "query": "fly.app.name:\"$app\" event_name:\"telegram_command\" | unpack_json from _msg | stats count_uniq(user_id) as active_users",
+          "queryType": "instant",
           "refId": "A"
         }
       ],
-      "title": "DAU (24h)",
+      "title": "Active Users",
       "type": "stat"
     },
     {
@@ -157,7 +159,7 @@
       "id": 102,
       "options": {
         "colorMode": "value",
-        "graphMode": "none",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
@@ -213,7 +215,7 @@
       "id": 103,
       "options": {
         "colorMode": "value",
-        "graphMode": "none",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
@@ -269,7 +271,7 @@
       "id": 104,
       "options": {
         "colorMode": "value",
-        "graphMode": "none",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
@@ -325,7 +327,7 @@
       "id": 105,
       "options": {
         "colorMode": "value",
-        "graphMode": "none",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
@@ -385,7 +387,7 @@
       "id": 106,
       "options": {
         "colorMode": "value",
-        "graphMode": "none",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
@@ -4658,11 +4660,11 @@
         "legend": {
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": false
         },
         "mergeValues": false,
-        "rowHeight": 0.9,
-        "showValue": "auto",
+        "rowHeight": 0.75,
+        "showValue": "never",
         "tooltip": {
           "mode": "single",
           "sort": "none"
@@ -4685,52 +4687,11 @@
         "type": "victoriametrics-logs-datasource",
         "uid": "${logs_datasource}"
       },
-      "description": "Execution bars built from background_job completion logs, using explicit start and finish timestamps for each job run.",
+      "description": "Parsed background_job events extracted from the JSON log line. This panel verifies that Grafana is correctly decoding the log payload before building richer visualizations.",
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
           "custom": {
-            "fillOpacity": 80,
-            "lineWidth": 0,
-            "spanNulls": false
-          },
-          "mappings": [
-            {
-              "options": {
-                "failed": {
-                  "color": "red",
-                  "index": 0,
-                  "text": "Failed"
-                },
-                "ok": {
-                  "color": "green",
-                  "index": 1,
-                  "text": "OK"
-                },
-                "partial_failure": {
-                  "color": "yellow",
-                  "index": 2,
-                  "text": "Partial"
-                },
-                "timeout": {
-                  "color": "orange",
-                  "index": 3,
-                  "text": "Timeout"
-                }
-              },
-              "type": "value"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "transparent",
-                "value": null
-              }
-            ]
+            "align": "left"
           }
         },
         "overrides": []
@@ -4743,19 +4704,21 @@
       },
       "id": 904,
       "options": {
-        "alignValue": "left",
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
+        "cellHeight": "sm",
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
         },
-        "mergeValues": false,
-        "rowHeight": 0.9,
-        "showValue": "auto",
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Start time"
+          }
+        ]
       },
       "targets": [
         {
@@ -4764,7 +4727,7 @@
             "uid": "${logs_datasource}"
           },
           "editorMode": "code",
-          "expr": "fly.app.name: $app AND event_name: background_job",
+          "expr": "fly.app.name:\"$app\" \"background_job\" | unpack_json from _msg | filter event_name:\"background_job\" | sort by (_time) desc",
           "metrics": [
             {
               "id": "1",
@@ -4774,19 +4737,13 @@
               "type": "logs"
             }
           ],
-          "query": "fly.app.name:\"$app\" AND event_name:\"background_job\"",
+          "query": "fly.app.name:\"$app\" \"background_job\" | unpack_json from _msg | filter event_name:\"background_job\" | sort by (_time) desc",
           "queryType": "instant",
           "refId": "A"
         }
       ],
       "title": "Background Job Runs",
       "transformations": [
-        {
-          "id": "labelsToFields",
-          "options": {
-            "mode": "columns"
-          }
-        },
         {
           "id": "convertFieldType",
           "options": {
@@ -4825,11 +4782,23 @@
             "excludeByName": {
               "Line": true,
               "Time": true,
+              "_stream_id": true,
               "count": true,
+              "detected_level": true,
               "duration_ms": true,
+              "event.provider": true,
               "event_name": true,
+              "fly.app.instance": true,
+              "fly.app.name": true,
+              "fly.app.process_group": true,
+              "fly.region": true,
+              "fly.zone": true,
               "id": true,
-              "labels": true
+              "labels": true,
+              "level": true,
+              "log.level": true,
+              "msg": true,
+              "time": true
             },
             "indexByName": {
               "started_at_unix_ms": 0,
@@ -4848,14 +4817,14 @@
           }
         }
       ],
-      "type": "state-timeline"
+      "type": "table"
     },
     {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Per-run work reported by background jobs (kind-level counts).",
+      "description": "Per-run work reported by background jobs (kind-level counts) across all jobs in the selected time range.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -4878,7 +4847,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 8,
         "x": 0,
         "y": 222
       },
@@ -4898,18 +4867,136 @@
           "sort": "desc"
         }
       },
-      "repeat": "job",
-      "repeatDirection": "v",
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(increase(imsub_background_job_items_total{job=\"$job\"}[$__rate_interval])) by (kind)",
-          "legendFormat": "{{kind}}",
+          "expr": "sum(increase(imsub_background_job_items_total{job=~\"enforce_group_grace_policy|enforce_group_kick_policy|process_subscription_end_grace|process_member_cleanup_jobs\"}[$__rate_interval])) by (job, kind)",
+          "legendFormat": "{{job}} / {{kind}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Background Job Work: $job",
+      "title": "Enforcement Job Work",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Per-run work reported by reconciliation and audit jobs in the selected time range.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 222
+      },
+      "id": 905,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(increase(imsub_background_job_items_total{job=~\"integrity_audit|reconcile_subscribers|reconcile_eventsubs\"}[$__rate_interval])) by (job, kind)",
+          "legendFormat": "{{job}} / {{kind}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Reconciliation Job Work",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Execution counts for maintenance and snapshot jobs over the selected time range.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            }
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 222
+      },
+      "id": 906,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull",
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(increase(imsub_background_jobs_total{job=~\"backup_redis|creator_metrics_snapshot|sync_product_metrics_snapshot|privacy_retention\"}[$__rate_interval])) by (job, result)",
+          "legendFormat": "{{job}} / {{result}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Maintenance Job Runs",
       "type": "timeseries"
     },
     {
@@ -4917,12 +5004,12 @@
         "type": "victoriametrics-logs-datasource",
         "uid": "${logs_datasource}"
       },
-      "description": "Per-run log lines for background jobs (start and finish events, with items_* fields).",
+      "description": "Completed background-job event lines, including run_id and item fields. If this panel is empty after import, select the Grafana Logs datasource in the dashboard's Logs variable.",
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 222
+        "w": 24,
+        "x": 0,
+        "y": 230
       },
       "id": 903,
       "options": {
@@ -4942,7 +5029,7 @@
             "uid": "${logs_datasource}"
           },
           "editorMode": "code",
-          "expr": "fly.app.name: $app AND (event_name: background_job OR event_name: background_job_started)",
+          "expr": "fly.app.name:\"$app\" \"background_job\" | unpack_json from _msg | filter event_name:\"background_job\" | format \"[<job>] <outcome> in <duration_ms>ms (run=<run_id>)\" as _msg | sort by (_time) desc",
           "metrics": [
             {
               "id": "1",
@@ -4952,7 +5039,7 @@
               "type": "logs"
             }
           ],
-          "query": "fly.app.name:\"$app\" AND (event_name:\"background_job\" OR event_name:\"background_job_started\")",
+          "query": "fly.app.name:\"$app\" \"background_job\" | unpack_json from _msg | filter event_name:\"background_job\" | format \"[<job>] <outcome> in <duration_ms>ms (run=<run_id>)\" as _msg | sort by (_time) desc",
           "queryType": "instant",
           "refId": "A"
         }

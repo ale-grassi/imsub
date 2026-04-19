@@ -200,12 +200,16 @@ func (c *Bot) recordTelegramCommand(ctx context.Context, telegramUserID int64, c
 	if c == nil || c.events == nil {
 		return
 	}
+	fields := map[string]string{
+		"command":   strings.TrimSpace(command),
+		"chat_type": normalizeTelegramChatType(chatType),
+	}
+	if telegramUserID != 0 {
+		fields["user_id"] = strconv.FormatInt(telegramUserID, 10)
+	}
 	c.events.Emit(ctx, events.Event{
-		Name: events.NameTelegramCommand,
-		Fields: map[string]string{
-			"command":   strings.TrimSpace(command),
-			"chat_type": normalizeTelegramChatType(chatType),
-		},
+		Name:   events.NameTelegramCommand,
+		Fields: fields,
 	})
 }
 
