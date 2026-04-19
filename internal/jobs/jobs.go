@@ -74,6 +74,15 @@ func (r *Runner) RunScheduled(ctx context.Context, schedule Schedule) error {
 		}
 	}
 
+	r.emit(ctx, events.Event{
+		Name: events.NameBackgroundJobSchedule,
+		Fields: map[string]string{
+			"job":              taskName(schedule.Task),
+			"interval_seconds": strconv.FormatFloat(schedule.Interval.Seconds(), 'f', -1, 64),
+			"timeout_seconds":  strconv.FormatFloat(schedule.Timeout.Seconds(), 'f', -1, 64),
+		},
+	})
+
 	r.runTask(ctx, schedule)
 
 	ticker := time.NewTicker(schedule.Interval)

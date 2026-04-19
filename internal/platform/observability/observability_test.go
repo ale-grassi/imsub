@@ -20,7 +20,10 @@ func TestNilSafety(t *testing.T) {
 	m.EventSubMessage("notification", "channel.subscribe", "ok")
 	m.TwitchEventSubNotification("creator-1", "notification", "channel.subscribe", "notification_subscribe")
 	m.TelegramWebhookResult("ok")
+	m.BackgroundJobSchedule("audit", "60", "30")
 	m.BackgroundJob("audit", "ok", time.Millisecond)
+	m.BackgroundJobStarted("audit", "1713489600000")
+	m.BackgroundJobFinished("audit", "ok", time.Millisecond, "1713489601000")
 	m.RedisBackup("ok", time.Millisecond, 3, 128)
 	m.ResetExecution("viewer", "ok")
 	m.ResetGroupTargets("tracked", 2)
@@ -71,7 +74,10 @@ func TestMetricsExposure(t *testing.T) {
 	m.EventSubMessage("notification", "channel.subscribe", "ok")
 	m.TwitchEventSubNotification("creator-1", "notification", "channel.subscribe", "notification_subscribe")
 	m.TelegramWebhookResult("ok")
+	m.BackgroundJobSchedule("integrity_audit", "1200", "900")
 	m.BackgroundJob("integrity_audit", "ok", 120*time.Millisecond)
+	m.BackgroundJobStarted("integrity_audit", "1713489600000")
+	m.BackgroundJobFinished("integrity_audit", "ok", 120*time.Millisecond, "1713489601000")
 	m.RedisBackup("ok", 140*time.Millisecond, 7, 1024)
 	m.ResetExecution("viewer", "ok")
 	m.ResetGroupTargets("tracked", 2)
@@ -120,6 +126,10 @@ func TestMetricsExposure(t *testing.T) {
 		"imsub_twitch_eventsub_notifications_total",
 		"imsub_telegram_webhook_updates_total",
 		"imsub_background_jobs_total",
+		"imsub_background_job_schedule_interval_seconds",
+		"imsub_background_job_schedule_timeout_seconds",
+		"imsub_background_job_last_start_timestamp_seconds",
+		"imsub_background_job_last_finish_timestamp_seconds",
 		"imsub_redis_backup_runs_total",
 		"imsub_redis_backup_duration_seconds",
 		"imsub_redis_backup_exported_keys",
@@ -168,8 +178,16 @@ func TestBackgroundJobStateAndItems(t *testing.T) {
 
 	m := New()
 	m.Emit(context.Background(), events.Event{
+		Name: events.NameBackgroundJobSchedule,
+		Fields: map[string]string{
+			"job":              "demo",
+			"interval_seconds": "300",
+			"timeout_seconds":  "60",
+		},
+	})
+	m.Emit(context.Background(), events.Event{
 		Name:   events.NameBackgroundJobStarted,
-		Fields: map[string]string{"job": "demo"},
+		Fields: map[string]string{"job": "demo", "started_at_unix_ms": "1713489600000"},
 	})
 
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
@@ -182,7 +200,7 @@ func TestBackgroundJobStateAndItems(t *testing.T) {
 	m.Emit(context.Background(), events.Event{
 		Name:     events.NameBackgroundJob,
 		Outcome:  "ok",
-		Fields:   map[string]string{"job": "demo"},
+		Fields:   map[string]string{"job": "demo", "finished_at_unix_ms": "1713489601000"},
 		Duration: 10 * time.Millisecond,
 	})
 	m.Emit(context.Background(), events.Event{
@@ -197,6 +215,10 @@ func TestBackgroundJobStateAndItems(t *testing.T) {
 	body := rec.Body.String()
 	for _, needle := range []string{
 		`imsub_background_job_state{job="demo"} 2`,
+		`imsub_background_job_schedule_interval_seconds{job="demo"} 300`,
+		`imsub_background_job_schedule_timeout_seconds{job="demo"} 60`,
+		`imsub_background_job_last_start_timestamp_seconds{job="demo"} 1.7134896e+09`,
+		`imsub_background_job_last_finish_timestamp_seconds{job="demo"} 1.713489601e+09`,
 		`imsub_background_job_items_total{job="demo",kind="processed",result="ok"} 3`,
 	} {
 		if !strings.Contains(body, needle) {

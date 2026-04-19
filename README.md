@@ -365,37 +365,15 @@ In the devcontainer, `pre-commit` is installed in the image and the git hook is 
 
 Prometheus metrics are exposed at `GET /metrics` when `IMSUB_METRICS_ENABLED=true` (default). The path is configurable via `IMSUB_METRICS_PATH`.
 
-Key metrics include:
+The app exposes Prometheus metrics for:
 
-| Metric | Type | Description |
-|--------|------|-------------|
-| `imsub_http_requests_total` | Counter | Total HTTP requests |
-| `imsub_http_request_duration_seconds` | Histogram | HTTP request latency |
-| `imsub_http_requests_in_flight` | Gauge | Currently active HTTP requests |
-| `imsub_oauth_callbacks_total` | Counter | OAuth callback invocations |
-| `imsub_eventsub_messages_total` | Counter | EventSub messages processed |
-| `imsub_telegram_webhook_updates_total` | Counter | Telegram webhook updates received |
-| `imsub_telegram_daily_active_users` | Gauge | Rolling 24h unique Telegram users with direct bot activity |
-| `imsub_linked_viewer_accounts` | Gauge | Current linked viewer accounts |
-| `imsub_linked_creator_accounts` | Gauge | Current linked creator accounts |
-| `imsub_managed_groups` | Gauge | Current managed Telegram groups |
-| `imsub_background_jobs_total` | Counter | Background job executions |
-| `imsub_background_job_duration_seconds` | Histogram | Background job latency |
-| `imsub_creator_token_refresh_total` | Counter | Creator token refresh attempts |
-| `imsub_creator_auth_state_transitions_total` | Counter | Creator auth state transitions |
-| `imsub_creators_reconnect_required` | Gauge | Creators currently marked for reconnect |
-| `imsub_reset_executions_total` | Counter | Reset executions by scope and result |
-| `imsub_group_registrations_total` | Counter | Group registration attempts |
-| `imsub_group_unregistrations_total` | Counter | Group unregistration attempts |
-| `imsub_viewer_oauth_total` | Counter | Viewer OAuth completion results |
-| `imsub_creator_oauth_total` | Counter | Creator OAuth completion results |
-| `imsub_viewer_access_total` | Counter | Viewer access workflow results |
-| `imsub_reconciliation_repairs_total` | Counter | Integrity and repair counts |
-| `imsub_telegram_commands_total` | Counter | Telegram slash command usage by command and chat type |
-| `imsub_telegram_command_response_duration_seconds` | Histogram | Telegram command latency to first successful bot response, or handler error before one is sent |
-| `imsub_telegram_api_errors_total` | Counter | Telegram API call failures by method and normalized reason |
-| `imsub_telegram_kick_actions_total` | Counter | Telegram kick actions by reason and result |
-| `imsub_telegram_mtproto_bootstrap_total` | Counter | Initial MTProto bootstrap sync attempts by outcome |
+- HTTP traffic and latency
+- OAuth, EventSub, and Telegram workflow outcomes
+- linked-account and managed-group product state
+- background job execution counts, durations, schedule metadata, and work summaries
+- creator maintenance, reconciliation, reset, and moderation workflows
+
+For the full set of series, inspect the `/metrics` endpoint directly or use the committed Grafana dashboard below as the primary reference.
 
 Fly.io's managed Prometheus can scrape this endpoint for Grafana dashboards.
 

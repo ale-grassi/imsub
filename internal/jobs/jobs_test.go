@@ -364,8 +364,8 @@ func TestRunScheduledRecordsObserverResult(t *testing.T) {
 	if evt.Name != events.NameBackgroundJob {
 		t.Errorf("Emit() name = %q, want %q", evt.Name, events.NameBackgroundJob)
 	}
-	if evt.Fields["job"] != "reconcile_subscribers" {
-		t.Errorf("Emit() job = %q, want \"reconcile_subscribers\"", evt.Fields["job"])
+	if evt.Fields["job"] != taskNameReconcileSubs {
+		t.Errorf("Emit() job = %q, want %q", evt.Fields["job"], taskNameReconcileSubs)
 	}
 	if evt.Outcome != "partial_failure" {
 		t.Errorf("Emit() outcome = %q, want \"partial_failure\"", evt.Outcome)
@@ -1095,7 +1095,14 @@ func TestRunScheduledWrapsTimeout(t *testing.T) {
 
 	deadline := time.Now().Add(500 * time.Millisecond)
 	for time.Now().Before(deadline) {
-		if calls, _ := obs.snapshot(); calls >= 2 {
+		foundFinish := false
+		for _, evt := range obs.all() {
+			if evt.Name == events.NameBackgroundJob {
+				foundFinish = true
+				break
+			}
+		}
+		if foundFinish {
 			break
 		}
 		time.Sleep(5 * time.Millisecond)
@@ -1138,7 +1145,7 @@ func TestRunScheduledEmitsStartEvent(t *testing.T) {
 	}()
 	deadline := time.Now().Add(300 * time.Millisecond)
 	for time.Now().Before(deadline) {
-		if calls, _ := obs.snapshot(); calls >= 2 {
+		if calls, _ := obs.snapshot(); calls >= 3 {
 			break
 		}
 		time.Sleep(5 * time.Millisecond)
@@ -1147,21 +1154,74 @@ func TestRunScheduledEmitsStartEvent(t *testing.T) {
 	<-done
 
 	evts := obs.all()
-	if len(evts) < 2 {
-		t.Fatalf("events = %d, want >= 2", len(evts))
+	if len(evts) < 3 {
+		t.Fatalf("events = %d, want >= 3", len(evts))
 	}
-	if evts[0].Name != events.NameBackgroundJobStarted {
-		t.Errorf("events[0].Name = %q, want %q", evts[0].Name, events.NameBackgroundJobStarted)
+	if evts[0].Name != events.NameBackgroundJobSchedule {
+		t.Errorf("events[0].Name = %q, want %q", evts[0].Name, events.NameBackgroundJobSchedule)
 	}
-	if evts[1].Name != events.NameBackgroundJob {
-		t.Errorf("events[1].Name = %q, want %q", evts[1].Name, events.NameBackgroundJob)
+	if evts[1].Name != events.NameBackgroundJobStarted {
+		t.Errorf("events[1].Name = %q, want %q", evts[1].Name, events.NameBackgroundJobStarted)
 	}
-	assertRunIDPresent(t, evts[0])
-	if evts[0].Fields["run_id"] != evts[1].Fields["run_id"] {
-		t.Fatalf("start/finish run_id mismatch: start=%q finish=%q", evts[0].Fields["run_id"], evts[1].Fields["run_id"])
+	if evts[2].Name != events.NameBackgroundJob {
+		t.Errorf("events[2].Name = %q, want %q", evts[2].Name, events.NameBackgroundJob)
 	}
-	assertRunTimestamps(t, evts[0], true, false)
-	assertRunTimestamps(t, evts[1], true, true)
+	if evts[0].Fields["job"] == "" || evts[0].Fields["interval_seconds"] == "" {
+		t.Fatalf("schedule event missing fields: %+v", evts[0])
+	}
+	assertRunIDPresent(t, evts[1])
+	if evts[1].Fields["run_id"] != evts[2].Fields["run_id"] {
+		t.Fatalf("start/finish run_id mismatch: start=%q finish=%q", evts[1].Fields["run_id"], evts[2].Fields["run_id"])
+	}
+	assertRunTimestamps(t, evts[1], true, false)
+	assertRunTimestamps(t, evts[2], true, true)
+}
+
+func TestRunScheduledEmitsScheduleEvent(t *testing.T) {
+	t.Parallel()
+
+	obs := &fakeObserver{}
+	reconcile := &fakeReconciler{result: "ok"}
+	runner := NewRunner(nil, obs)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = runner.RunScheduled(ctx, Schedule{
+			Task:         NewSubscriberTask(reconcile),
+			InitialDelay: 20 * time.Millisecond,
+			Interval:     5 * time.Minute,
+			Timeout:      30 * time.Second,
+		})
+	}()
+
+	deadline := time.Now().Add(300 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if len(obs.all()) >= 1 {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	cancel()
+	<-done
+
+	evts := obs.all()
+	if len(evts) == 0 {
+		t.Fatal("no events emitted")
+	}
+	if evts[0].Name != events.NameBackgroundJobSchedule {
+		t.Fatalf("events[0].Name = %q, want %q", evts[0].Name, events.NameBackgroundJobSchedule)
+	}
+	if evts[0].Fields["job"] != taskNameReconcileSubs {
+		t.Fatalf("schedule job = %q, want %q", evts[0].Fields["job"], taskNameReconcileSubs)
+	}
+	if evts[0].Fields["interval_seconds"] != "300" {
+		t.Fatalf("schedule interval_seconds = %q, want %q", evts[0].Fields["interval_seconds"], "300")
+	}
+	if evts[0].Fields["timeout_seconds"] != "30" {
+		t.Fatalf("schedule timeout_seconds = %q, want %q", evts[0].Fields["timeout_seconds"], "30")
+	}
 }
 
 type reporterTask struct {

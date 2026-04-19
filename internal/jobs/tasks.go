@@ -15,6 +15,7 @@ const (
 	taskResultFailed         = "failed"
 	taskResultPartialFailure = "partial_failure"
 	taskResultTimeout        = "timeout"
+	taskNameReconcileSubs    = "reconcile_subscribers"
 )
 
 type subscriberReconciler interface {
@@ -86,7 +87,7 @@ func NewSubscriberTask(r subscriberReconciler) Task {
 	return subscriberTask{reconciler: r}
 }
 
-func (t subscriberTask) Name() string { return "reconcile_subscribers" }
+func (t subscriberTask) Name() string { return taskNameReconcileSubs }
 
 func (t subscriberTask) Run(ctx context.Context) error {
 	if t.reconciler == nil {

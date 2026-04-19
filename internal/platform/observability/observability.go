@@ -23,64 +23,71 @@ const (
 
 // Metrics holds all Prometheus collectors used by the application.
 type Metrics struct {
-	registry             *prometheus.Registry
-	requestsTotal        *prometheus.CounterVec
-	requestDuration      *prometheus.HistogramVec
-	requestsInFlight     prometheus.Gauge
-	telegramDailyActive  prometheus.Gauge
-	linkedViewers        prometheus.Gauge
-	linkedCreators       prometheus.Gauge
-	managedGroups        prometheus.Gauge
-	creatorInfo          *prometheus.GaugeVec
-	creatorManagedGroups *prometheus.GaugeVec
-	creatorSubscribers   *prometheus.GaugeVec
-	creatorBlockedUsers  *prometheus.GaugeVec
-	creatorTracked       *prometheus.GaugeVec
-	creatorUntracked     *prometheus.GaugeVec
-	creatorReconnectReq  *prometheus.GaugeVec
-	oauthStartsTotal     *prometheus.CounterVec
-	oauthCallbacksTotal  *prometheus.CounterVec
-	eventsubTotal        *prometheus.CounterVec
-	twitchEventSubTotal  *prometheus.CounterVec
-	telegramWebhook      *prometheus.CounterVec
-	backgroundJobsTotal  *prometheus.CounterVec
-	backgroundJobTime    *prometheus.HistogramVec
-	backgroundJobState   *prometheus.GaugeVec
-	backgroundJobItems   *prometheus.CounterVec
-	redisBackupRuns      *prometheus.CounterVec
-	redisBackupTime      *prometheus.HistogramVec
-	redisBackupKeys      prometheus.Gauge
-	redisBackupBytes     prometheus.Gauge
-	creatorTokenRefresh  *prometheus.CounterVec
-	creatorBlocklistSync *prometheus.CounterVec
-	creatorBlockEnforce  *prometheus.CounterVec
-	creatorAuthChange    *prometheus.CounterVec
-	creatorsReconnect    prometheus.Gauge
-	creatorReconnectDM   *prometheus.CounterVec
-	resetExecutions      *prometheus.CounterVec
-	resetGroupTargets    *prometheus.CounterVec
-	groupRegistrations   *prometheus.CounterVec
-	groupUnregistrations *prometheus.CounterVec
-	creatorActivation    *prometheus.CounterVec
-	subscriptionEnd      *prometheus.CounterVec
-	reconcileRepairs     *prometheus.CounterVec
-	viewerOAuth          *prometheus.CounterVec
-	creatorOAuth         *prometheus.CounterVec
-	creatorStatus        *prometheus.CounterVec
-	viewerAccess         *prometheus.CounterVec
-	viewerJoinTargets    *prometheus.CounterVec
-	viewerInviteLinks    *prometheus.CounterVec
-	telegramCommands     *prometheus.CounterVec
-	telegramCommandTime  *prometheus.HistogramVec
-	telegramCallbacks    *prometheus.CounterVec
-	telegramCallbackTime *prometheus.HistogramVec
-	telegramAPIErrors    *prometheus.CounterVec
-	telegramKickActions  *prometheus.CounterVec
-	telegramMTProtoBoot  *prometheus.CounterVec
-	startupPhaseDuration *prometheus.HistogramVec
-	startupTotalDuration *prometheus.HistogramVec
-	startupReady         prometheus.Gauge
-	startupReadyAt       prometheus.Gauge
+	registry                *prometheus.Registry
+	requestsTotal           *prometheus.CounterVec
+	requestDuration         *prometheus.HistogramVec
+	requestsInFlight        prometheus.Gauge
+	telegramDailyActive     prometheus.Gauge
+	linkedViewers           prometheus.Gauge
+	linkedCreators          prometheus.Gauge
+	managedGroups           prometheus.Gauge
+	creatorInfo             *prometheus.GaugeVec
+	creatorManagedGroups    *prometheus.GaugeVec
+	creatorSubscribers      *prometheus.GaugeVec
+	creatorBlockedUsers     *prometheus.GaugeVec
+	creatorTracked          *prometheus.GaugeVec
+	creatorUntracked        *prometheus.GaugeVec
+	creatorReconnectReq     *prometheus.GaugeVec
+	oauthStartsTotal        *prometheus.CounterVec
+	oauthCallbacksTotal     *prometheus.CounterVec
+	eventsubTotal           *prometheus.CounterVec
+	twitchEventSubTotal     *prometheus.CounterVec
+	telegramWebhook         *prometheus.CounterVec
+	backgroundJobsTotal     *prometheus.CounterVec
+	backgroundJobTime       *prometheus.HistogramVec
+	backgroundJobState      *prometheus.GaugeVec
+	backgroundJobItems      *prometheus.CounterVec
+	backgroundJobInterval   *prometheus.GaugeVec
+	backgroundJobTimeout    *prometheus.GaugeVec
+	backgroundJobLastStart  *prometheus.GaugeVec
+	backgroundJobLastFinish *prometheus.GaugeVec
+	redisBackupRuns         *prometheus.CounterVec
+	redisBackupTime         *prometheus.HistogramVec
+	redisBackupKeys         prometheus.Gauge
+	redisBackupBytes        prometheus.Gauge
+	creatorTokenRefresh     *prometheus.CounterVec
+	creatorBlocklistSync    *prometheus.CounterVec
+	creatorBlockEnforce     *prometheus.CounterVec
+	creatorAuthChange       *prometheus.CounterVec
+	creatorsReconnect       prometheus.Gauge
+	creatorReconnectDM      *prometheus.CounterVec
+	resetExecutions         *prometheus.CounterVec
+	resetGroupTargets       *prometheus.CounterVec
+	groupRegistrations      *prometheus.CounterVec
+	groupUnregistrations    *prometheus.CounterVec
+	creatorActivation       *prometheus.CounterVec
+	subscriptionEnd         *prometheus.CounterVec
+	reconcileRepairs        *prometheus.CounterVec
+	viewerOAuth             *prometheus.CounterVec
+	creatorOAuth            *prometheus.CounterVec
+	creatorStatus           *prometheus.CounterVec
+	viewerAccess            *prometheus.CounterVec
+	viewerJoinTargets       *prometheus.CounterVec
+	viewerInviteLinks       *prometheus.CounterVec
+	telegramCommands        *prometheus.CounterVec
+	telegramCommandTime     *prometheus.HistogramVec
+	telegramCallbacks       *prometheus.CounterVec
+	telegramCallbackTime    *prometheus.HistogramVec
+	telegramAPIErrors       *prometheus.CounterVec
+	telegramKickActions     *prometheus.CounterVec
+	telegramMTProtoBoot     *prometheus.CounterVec
+	startupPhaseDuration    *prometheus.HistogramVec
+	startupTotalDuration    *prometheus.HistogramVec
+	startupReady            prometheus.Gauge
+	startupReadyAt          prometheus.Gauge
+	startupPhaseLast        *prometheus.GaugeVec
+	startupTotalLast        *prometheus.GaugeVec
+	startupCount            *prometheus.CounterVec
 }
 
 // New creates and registers all Prometheus metrics.
@@ -234,6 +241,34 @@ func New() *Metrics {
 				Help: "Per-run item counts reported by background jobs (e.g. kicked, repaired, processed).",
 			},
 			[]string{"job", "kind", "result"},
+		),
+		backgroundJobInterval: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "imsub_background_job_schedule_interval_seconds",
+				Help: "Configured interval in seconds for a scheduled background job.",
+			},
+			[]string{"job"},
+		),
+		backgroundJobTimeout: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "imsub_background_job_schedule_timeout_seconds",
+				Help: "Configured timeout in seconds for a scheduled background job.",
+			},
+			[]string{"job"},
+		),
+		backgroundJobLastStart: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "imsub_background_job_last_start_timestamp_seconds",
+				Help: "Unix timestamp in seconds of the most recent observed background job start.",
+			},
+			[]string{"job"},
+		),
+		backgroundJobLastFinish: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "imsub_background_job_last_finish_timestamp_seconds",
+				Help: "Unix timestamp in seconds of the most recent observed background job completion.",
+			},
+			[]string{"job"},
 		),
 		redisBackupRuns: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
@@ -463,6 +498,18 @@ func New() *Metrics {
 			Name: "imsub_startup_ready_timestamp_seconds",
 			Help: "Unix timestamp of the moment startup completed (0 until ready).",
 		}),
+		startupPhaseLast: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "imsub_startup_last_phase_duration_seconds",
+			Help: "Last observed duration for each startup phase, retained until the next run.",
+		}, []string{"phase", "result"}),
+		startupTotalLast: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "imsub_startup_last_total_duration_seconds",
+			Help: "Last observed end-to-end startup duration, retained until the next run.",
+		}, []string{"result"}),
+		startupCount: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "imsub_startup_count_total",
+			Help: "Total number of startup attempts by result. Counts every process boot that reaches the readiness step.",
+		}, []string{"result"}),
 	}
 
 	m.registry.MustRegister(
@@ -489,6 +536,10 @@ func New() *Metrics {
 		m.backgroundJobTime,
 		m.backgroundJobState,
 		m.backgroundJobItems,
+		m.backgroundJobInterval,
+		m.backgroundJobTimeout,
+		m.backgroundJobLastStart,
+		m.backgroundJobLastFinish,
 		m.redisBackupRuns,
 		m.redisBackupTime,
 		m.redisBackupKeys,
@@ -523,6 +574,9 @@ func New() *Metrics {
 		m.startupTotalDuration,
 		m.startupReady,
 		m.startupReadyAt,
+		m.startupPhaseLast,
+		m.startupTotalLast,
+		m.startupCount,
 	)
 
 	return m
@@ -863,22 +917,29 @@ func (m *Metrics) TelegramKickAction(reason, result string) {
 }
 
 // StartupPhase records the duration and result of a synchronous startup phase.
+// It updates the histogram for long-term percentile analysis and a sticky gauge
+// with the last observed value for point-in-time inspection.
 func (m *Metrics) StartupPhase(phase, result string, d time.Duration) {
 	if m == nil {
 		return
 	}
-	m.startupPhaseDuration.WithLabelValues(
-		httputil.LabelOrUnknown(phase),
-		httputil.LabelOrUnknown(result),
-	).Observe(d.Seconds())
+	phaseLabel := httputil.LabelOrUnknown(phase)
+	resultLabel := httputil.LabelOrUnknown(result)
+	m.startupPhaseDuration.WithLabelValues(phaseLabel, resultLabel).Observe(d.Seconds())
+	m.startupPhaseLast.WithLabelValues(phaseLabel, resultLabel).Set(d.Seconds())
 }
 
 // StartupReady marks the process as ready and records total startup duration.
+// Maintains a histogram (for distributions) and a sticky gauge + counter so
+// dashboards remain informative between process starts.
 func (m *Metrics) StartupReady(result string, total time.Duration, readyAt time.Time) {
 	if m == nil {
 		return
 	}
-	m.startupTotalDuration.WithLabelValues(httputil.LabelOrUnknown(result)).Observe(total.Seconds())
+	resultLabel := httputil.LabelOrUnknown(result)
+	m.startupTotalDuration.WithLabelValues(resultLabel).Observe(total.Seconds())
+	m.startupTotalLast.WithLabelValues(resultLabel).Set(total.Seconds())
+	m.startupCount.WithLabelValues(resultLabel).Inc()
 	if result == "ok" {
 		m.startupReady.Set(1)
 		m.startupReadyAt.Set(float64(readyAt.Unix()))
@@ -929,10 +990,12 @@ func (m *Metrics) Emit(_ context.Context, evt events.Event) {
 		m.CreatorsReconnectRequired(evt.Count)
 	case events.NameCreatorReconnectNotice:
 		m.CreatorReconnectNotification(evt.Fields["creator_id"], evt.Outcome)
+	case events.NameBackgroundJobSchedule:
+		m.BackgroundJobSchedule(evt.Fields["job"], evt.Fields["interval_seconds"], evt.Fields["timeout_seconds"])
 	case events.NameBackgroundJob:
-		m.BackgroundJobFinished(evt.Fields["job"], evt.Outcome, evt.Duration)
+		m.BackgroundJobFinished(evt.Fields["job"], evt.Outcome, evt.Duration, evt.Fields["finished_at_unix_ms"])
 	case events.NameBackgroundJobStarted:
-		m.BackgroundJobStarted(evt.Fields["job"])
+		m.BackgroundJobStarted(evt.Fields["job"], evt.Fields["started_at_unix_ms"])
 	case events.NameBackgroundJobItems:
 		m.BackgroundJobItems(evt.Fields["job"], evt.Fields["kind"], evt.Outcome, evt.Count)
 	case events.NameReconciliationRepair:
@@ -1071,21 +1134,43 @@ func (m *Metrics) BackgroundJob(job, result string, d time.Duration) {
 	m.backgroundJobTime.WithLabelValues(httputil.LabelOrUnknown(job)).Observe(d.Seconds())
 }
 
-// BackgroundJobStarted marks the last known background job state as currently running.
-func (m *Metrics) BackgroundJobStarted(job string) {
+// BackgroundJobSchedule stores the configured schedule metadata for a background job.
+func (m *Metrics) BackgroundJobSchedule(job, intervalSeconds, timeoutSeconds string) {
 	if m == nil {
 		return
 	}
-	m.backgroundJobState.WithLabelValues(httputil.LabelOrUnknown(job)).Set(backgroundJobStateCode("running"))
+	jobLabel := httputil.LabelOrUnknown(job)
+	if interval, err := strconv.ParseFloat(intervalSeconds, 64); err == nil {
+		m.backgroundJobInterval.WithLabelValues(jobLabel).Set(interval)
+	}
+	if timeout, err := strconv.ParseFloat(timeoutSeconds, 64); err == nil {
+		m.backgroundJobTimeout.WithLabelValues(jobLabel).Set(timeout)
+	}
+}
+
+// BackgroundJobStarted marks the last known background job state as currently running.
+func (m *Metrics) BackgroundJobStarted(job, startedAtUnixMS string) {
+	if m == nil {
+		return
+	}
+	jobLabel := httputil.LabelOrUnknown(job)
+	m.backgroundJobState.WithLabelValues(jobLabel).Set(backgroundJobStateCode("running"))
+	if startedAt, err := strconv.ParseFloat(startedAtUnixMS, 64); err == nil {
+		m.backgroundJobLastStart.WithLabelValues(jobLabel).Set(startedAt / 1000)
+	}
 }
 
 // BackgroundJobFinished records a completed background job execution and updates the last-known-state gauge.
-func (m *Metrics) BackgroundJobFinished(job, result string, d time.Duration) {
+func (m *Metrics) BackgroundJobFinished(job, result string, d time.Duration, finishedAtUnixMS string) {
 	if m == nil {
 		return
 	}
+	jobLabel := httputil.LabelOrUnknown(job)
 	m.BackgroundJob(job, result, d)
-	m.backgroundJobState.WithLabelValues(httputil.LabelOrUnknown(job)).Set(backgroundJobStateCode(result))
+	m.backgroundJobState.WithLabelValues(jobLabel).Set(backgroundJobStateCode(result))
+	if finishedAt, err := strconv.ParseFloat(finishedAtUnixMS, 64); err == nil {
+		m.backgroundJobLastFinish.WithLabelValues(jobLabel).Set(finishedAt / 1000)
+	}
 }
 
 // BackgroundJobItems increments a per-kind counter for the given background job run.

@@ -62,6 +62,429 @@
         "x": 0,
         "y": 0
       },
+      "id": 50,
+      "panels": [],
+      "title": "SLO Overview",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "1 = service passed startup readiness checks; 0 = not ready.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "id": 51,
+      "options": {
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "imsub_startup_ready",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Startup Ready",
+      "type": "gauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Telegram commands processed per minute (5m rate).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "id": 52,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": true,
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(imsub_telegram_commands_total[5m])) * 60 or vector(0)",
+          "instant": false,
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Commands / min",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "95th percentile command\u2192first-response latency (5m).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "id": 53,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": true,
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(imsub_telegram_command_response_duration_seconds_bucket{result=\"ok\"}[5m])))",
+          "instant": false,
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Command p95 Latency",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "HTTP 5xx responses per minute (5m rate).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "id": 54,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": true,
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(imsub_http_requests_total{status=~\"5..\"}[5m])) * 60 or vector(0)",
+          "instant": false,
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "HTTP 5xx / min",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Distinct creators with metric snapshots.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "id": 55,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": true,
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "count(imsub_creator_info)",
+          "instant": false,
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Active Creators",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Non-OK background job runs in the last hour.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "id": 56,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": true,
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(imsub_background_jobs_total{result=~\"failed|timeout|partial_failure\"}[1h])) or vector(0)",
+          "instant": false,
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Failed Job Runs (1h)",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 12
+      },
       "id": 100,
       "panels": [],
       "title": "Executive Snapshot",
@@ -96,7 +519,7 @@
         "h": 5,
         "w": 4,
         "x": 0,
-        "y": 1
+        "y": 13
       },
       "id": 101,
       "options": {
@@ -154,7 +577,7 @@
         "h": 5,
         "w": 4,
         "x": 4,
-        "y": 1
+        "y": 13
       },
       "id": 102,
       "options": {
@@ -169,6 +592,7 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": true,
         "textMode": "auto"
       },
       "targets": [
@@ -210,7 +634,7 @@
         "h": 5,
         "w": 4,
         "x": 8,
-        "y": 1
+        "y": 13
       },
       "id": 103,
       "options": {
@@ -225,6 +649,7 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": true,
         "textMode": "auto"
       },
       "targets": [
@@ -266,7 +691,7 @@
         "h": 5,
         "w": 4,
         "x": 12,
-        "y": 1
+        "y": 13
       },
       "id": 104,
       "options": {
@@ -281,6 +706,7 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": true,
         "textMode": "auto"
       },
       "targets": [
@@ -322,7 +748,7 @@
         "h": 5,
         "w": 4,
         "x": 16,
-        "y": 1
+        "y": 13
       },
       "id": 105,
       "options": {
@@ -337,6 +763,7 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": true,
         "textMode": "auto"
       },
       "targets": [
@@ -382,7 +809,7 @@
         "h": 5,
         "w": 4,
         "x": 20,
-        "y": 1
+        "y": 13
       },
       "id": 106,
       "options": {
@@ -397,6 +824,7 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": true,
         "textMode": "auto"
       },
       "targets": [
@@ -415,7 +843,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 6
+        "y": 18
       },
       "id": 200,
       "panels": [],
@@ -452,7 +880,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 7
+        "y": 19
       },
       "id": 201,
       "options": {
@@ -473,7 +901,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(increase(imsub_telegram_commands_total[$__rate_interval])) by (command)",
+          "expr": "sum(increase(imsub_telegram_commands_total{command=~\"$command\"}[$__rate_interval])) by (command)",
           "legendFormat": "{{command}}",
           "range": true,
           "refId": "A"
@@ -493,6 +921,12 @@
           "color": {
             "mode": "palette-classic"
           },
+          "links": [
+            {
+              "title": "Filter dashboard by this command",
+              "url": "/d/${__dashboard.uid}?${__url_time_range}&var-command=${__field.labels.command}"
+            }
+          ],
           "mappings": [],
           "unit": "short"
         },
@@ -502,42 +936,43 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 7
+        "y": 19
       },
       "id": 202,
       "options": {
+        "barWidth": 0.8,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
         "legend": {
           "calcs": [
             "lastNotNull"
           ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
         },
-        "pieType": "donut",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "stacking": "none",
         "tooltip": {
           "mode": "single",
           "sort": "none"
-        }
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
       },
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(increase(imsub_telegram_commands_total[$__range])) by (command, chat_type)",
+          "expr": "topk(15, sum(increase(imsub_telegram_commands_total{command=~\"$command\"}[$__range])) by (command, chat_type))",
           "legendFormat": "{{command}} / {{chat_type}}",
-          "range": true,
+          "range": false,
+          "instant": true,
           "refId": "A"
         }
       ],
       "title": "Command Mix",
-      "type": "piechart"
+      "type": "barchart"
     },
     {
       "datasource": {
@@ -569,7 +1004,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 15
+        "y": 27
       },
       "id": 203,
       "options": {
@@ -604,37 +1039,19 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "95th percentile latency from command receipt to the first successful bot response.",
+      "description": "Distribution of Telegram command response latency. Each cell = number of commands whose response fell into that latency bucket during that time window. Hotter color = more commands. Y axis is the bucket upper bound (<= le).",
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
           "custom": {
-            "axisPlacement": "auto",
-            "drawStyle": "line",
-            "fillOpacity": 8,
-            "lineWidth": 2,
-            "showPoints": "never"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 1
-              },
-              {
-                "color": "red",
-                "value": 3
-              }
-            ]
-          },
-          "unit": "s"
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
         },
         "overrides": []
       },
@@ -642,35 +1059,62 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 15
+        "y": 27
       },
       "id": 204,
       "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "cellValues": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "color": {
+          "exponent": 0.5,
+          "fill": "dark-orange",
+          "mode": "scheme",
+          "reverse": false,
+          "scale": "exponential",
+          "scheme": "Spectral",
+          "steps": 64
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-09
+        },
         "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "show": true
+        },
+        "rowsFrame": {
+          "layout": "auto"
         },
         "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
+          "mode": "single",
+          "showColorScale": false,
+          "yHistogram": true
+        },
+        "yAxis": {
+          "axisPlacement": "left",
+          "reverse": false,
+          "unit": "s"
         }
       },
       "targets": [
         {
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(imsub_telegram_command_response_duration_seconds_bucket{result=\"ok\"}[$__rate_interval])) by (le, command))",
-          "legendFormat": "{{command}}",
+          "expr": "sum(increase(imsub_telegram_command_response_duration_seconds_bucket{result=\"ok\",command=~\"$command\"}[$__rate_interval])) by (le)",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
           "range": true,
-          "refId": "A"
+          "refId": "A",
+          "interval": "10m"
         }
       ],
-      "title": "Command Response p95",
-      "type": "timeseries"
+      "title": "Command Response Latency",
+      "type": "heatmap",
+      "interval": "10m"
     },
     {
       "datasource": {
@@ -692,19 +1136,12 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 15
+        "y": 27
       },
       "id": 205,
       "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true
-        },
-        "pieType": "donut",
+        "displayMode": "gradient",
+        "orientation": "horizontal",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -712,22 +1149,21 @@
           "fields": "",
           "values": false
         },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+        "showUnfilled": true,
+        "valueMode": "color"
       },
       "targets": [
         {
           "editorMode": "code",
           "expr": "sum(increase(imsub_viewer_access_total[$__range])) by (result)",
           "legendFormat": "{{result}}",
-          "range": true,
+          "range": false,
+          "instant": true,
           "refId": "A"
         }
       ],
       "title": "Access Outcome Share",
-      "type": "piechart"
+      "type": "bargauge"
     },
     {
       "collapsed": false,
@@ -735,7 +1171,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 23
+        "y": 35
       },
       "id": 300,
       "panels": [],
@@ -768,7 +1204,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 24
+        "y": 36
       },
       "id": 301,
       "options": {
@@ -832,7 +1268,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 24
+        "y": 36
       },
       "id": 302,
       "options": {
@@ -892,12 +1328,12 @@
         "h": 5,
         "w": 6,
         "x": 0,
-        "y": 32
+        "y": 44
       },
       "id": 303,
       "options": {
         "colorMode": "value",
-        "graphMode": "none",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
@@ -907,6 +1343,7 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": true,
         "textMode": "auto"
       },
       "targets": [
@@ -948,12 +1385,12 @@
         "h": 5,
         "w": 6,
         "x": 6,
-        "y": 32
+        "y": 44
       },
       "id": 304,
       "options": {
         "colorMode": "value",
-        "graphMode": "none",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
@@ -963,6 +1400,7 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": true,
         "textMode": "auto"
       },
       "targets": [
@@ -1004,12 +1442,12 @@
         "h": 5,
         "w": 6,
         "x": 12,
-        "y": 32
+        "y": 44
       },
       "id": 305,
       "options": {
         "colorMode": "value",
-        "graphMode": "none",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
@@ -1019,6 +1457,7 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": true,
         "textMode": "auto"
       },
       "targets": [
@@ -1068,12 +1507,12 @@
         "h": 5,
         "w": 6,
         "x": 18,
-        "y": 32
+        "y": 44
       },
       "id": 306,
       "options": {
         "colorMode": "value",
-        "graphMode": "none",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
@@ -1083,6 +1522,7 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": true,
         "textMode": "auto"
       },
       "targets": [
@@ -1101,7 +1541,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 37
+        "y": 49
       },
       "id": 400,
       "panels": [],
@@ -1134,7 +1574,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 38
+        "y": 50
       },
       "id": 401,
       "options": {
@@ -1190,7 +1630,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 38
+        "y": 50
       },
       "id": 402,
       "options": {
@@ -1246,7 +1686,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 38
+        "y": 50
       },
       "id": 403,
       "options": {
@@ -1281,22 +1721,48 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Background subscriber reconciliation results.",
+      "description": "Background subscriber reconciliation results over time.",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
           "custom": {
-            "axisPlacement": "auto",
-            "drawStyle": "line",
-            "fillOpacity": 12,
-            "lineWidth": 2,
-            "showPoints": "never",
-            "stacking": {
-              "group": "A",
-              "mode": "normal"
+            "fillOpacity": 80,
+            "lineWidth": 0,
+            "spanNulls": false
+          },
+          "mappings": [
+            {
+              "options": {
+                "failed": {
+                  "color": "red",
+                  "index": 1
+                },
+                "ok": {
+                  "color": "green",
+                  "index": 0
+                },
+                "partial_failure": {
+                  "color": "orange",
+                  "index": 2
+                },
+                "timeout": {
+                  "color": "yellow",
+                  "index": 3
+                }
+              },
+              "type": "value"
             }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
           },
           "unit": "short"
         },
@@ -1306,35 +1772,35 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 46
+        "y": 58
       },
       "id": 404,
       "options": {
+        "alignValue": "center",
         "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "table",
+          "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
         },
+        "mergeValues": true,
+        "rowHeight": 0.9,
+        "showValue": "auto",
         "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
+          "mode": "single",
+          "sort": "none"
         }
       },
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(increase(imsub_background_jobs_total{job=\"reconcile_subscribers\"}[$__rate_interval])) by (result)",
+          "expr": "sum(increase(imsub_background_jobs_total{job=\"reconcile_subscribers\"}[$__rate_interval])) by (result) > 0",
           "legendFormat": "{{result}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Subscriber Reconciliation Runs",
-      "type": "timeseries"
+      "title": "Subscriber Reconciliation Outcomes",
+      "type": "state-timeline"
     },
     {
       "datasource": {
@@ -1345,14 +1811,27 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
-          "custom": {
-            "axisPlacement": "auto",
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "lineWidth": 2,
-            "showPoints": "never"
+          "decimals": 0,
+          "mappings": [],
+          "noValue": "0",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
           },
           "unit": "short"
         },
@@ -1362,35 +1841,35 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 46
+        "y": 58
       },
       "id": 405,
       "options": {
-        "legend": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
           "calcs": [
-            "lastNotNull",
-            "max"
+            "lastNotNull"
           ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "fields": "",
+          "values": false
         },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
+        "textMode": "value"
       },
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(increase(imsub_background_jobs_total{result!=\"ok\"}[$__rate_interval])) by (job, result)",
-          "legendFormat": "{{job}} / {{result}}",
-          "range": true,
+          "expr": "sum(increase(imsub_background_jobs_total{result!=\"ok\",job=~\"$job\"}[${__range_s}s])) or vector(0)",
+          "instant": true,
+          "legendFormat": "non-success",
+          "range": false,
           "refId": "A"
         }
       ],
-      "title": "Job Non-Success Count",
-      "type": "timeseries"
+      "title": "Non-Success Runs In Range",
+      "type": "stat"
     },
     {
       "datasource": {
@@ -1403,6 +1882,12 @@
           "color": {
             "mode": "palette-classic"
           },
+          "links": [
+            {
+              "title": "Filter dashboard by this job",
+              "url": "/d/${__dashboard.uid}?${__url_time_range}&var-job=${__field.labels.job}"
+            }
+          ],
           "mappings": [],
           "unit": "short"
         },
@@ -1412,42 +1897,43 @@
         "h": 8,
         "w": 6,
         "x": 0,
-        "y": 54
+        "y": 66
       },
       "id": 406,
       "options": {
+        "barWidth": 0.8,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
         "legend": {
           "calcs": [
             "lastNotNull"
           ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
         },
-        "pieType": "donut",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "stacking": "none",
         "tooltip": {
           "mode": "single",
           "sort": "none"
-        }
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
       },
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(increase(imsub_background_jobs_total[$__range])) by (job)",
+          "expr": "sort_desc(sum(increase(imsub_background_jobs_total{job=~\"$job\"}[$__range])) by (job))",
           "legendFormat": "{{job}}",
-          "range": true,
+          "range": false,
+          "instant": true,
           "refId": "A"
         }
       ],
       "title": "Job Volume Share",
-      "type": "piechart"
+      "type": "barchart"
     },
     {
       "datasource": {
@@ -1479,7 +1965,7 @@
         "h": 8,
         "w": 6,
         "x": 6,
-        "y": 54
+        "y": 66
       },
       "id": 407,
       "options": {
@@ -1539,7 +2025,7 @@
         "h": 8,
         "w": 6,
         "x": 12,
-        "y": 54
+        "y": 66
       },
       "id": 408,
       "options": {
@@ -1595,7 +2081,7 @@
         "h": 8,
         "w": 6,
         "x": 18,
-        "y": 54
+        "y": 66
       },
       "id": 409,
       "options": {
@@ -1631,7 +2117,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 62
+        "y": 74
       },
       "id": 414,
       "panels": [],
@@ -1664,7 +2150,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 63
+        "y": 75
       },
       "id": 415,
       "options": {
@@ -1720,7 +2206,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 63
+        "y": 75
       },
       "id": 416,
       "options": {
@@ -1776,7 +2262,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 63
+        "y": 75
       },
       "id": 417,
       "options": {
@@ -1812,7 +2298,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 71
+        "y": 83
       },
       "id": 820,
       "panels": [],
@@ -1846,12 +2332,12 @@
         "h": 5,
         "w": 6,
         "x": 0,
-        "y": 72
+        "y": 84
       },
       "id": 821,
       "options": {
         "colorMode": "value",
-        "graphMode": "none",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
@@ -1861,6 +2347,7 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": true,
         "textMode": "auto"
       },
       "targets": [
@@ -1903,12 +2390,12 @@
         "h": 5,
         "w": 6,
         "x": 6,
-        "y": 72
+        "y": 84
       },
       "id": 822,
       "options": {
         "colorMode": "value",
-        "graphMode": "none",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
@@ -1918,6 +2405,7 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": true,
         "textMode": "auto"
       },
       "targets": [
@@ -1960,12 +2448,12 @@
         "h": 5,
         "w": 6,
         "x": 12,
-        "y": 72
+        "y": 84
       },
       "id": 823,
       "options": {
         "colorMode": "value",
-        "graphMode": "none",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
@@ -1975,6 +2463,7 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": true,
         "textMode": "auto"
       },
       "targets": [
@@ -2017,12 +2506,12 @@
         "h": 5,
         "w": 6,
         "x": 18,
-        "y": 72
+        "y": 84
       },
       "id": 824,
       "options": {
         "colorMode": "value",
-        "graphMode": "none",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
@@ -2032,6 +2521,7 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": true,
         "textMode": "auto"
       },
       "targets": [
@@ -2072,7 +2562,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 77
+        "y": 89
       },
       "id": 825,
       "options": {
@@ -2128,7 +2618,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 77
+        "y": 89
       },
       "id": 826,
       "options": {
@@ -2175,7 +2665,13 @@
               "type": "auto"
             },
             "inspect": false
-          }
+          },
+          "links": [
+            {
+              "title": "Open Creator Dashboard for this creator",
+              "url": "/d/imsub-creator?${__url_time_range}&var-creator_id=${__data.fields.creator_id}"
+            }
+          ]
         },
         "overrides": []
       },
@@ -2183,7 +2679,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 85
+        "y": 97
       },
       "id": 827,
       "options": {
@@ -2223,7 +2719,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 93
+        "y": 105
       },
       "id": 500,
       "panels": [],
@@ -2256,7 +2752,7 @@
         "h": 8,
         "w": 6,
         "x": 0,
-        "y": 94
+        "y": 106
       },
       "id": 501,
       "options": {
@@ -2323,7 +2819,7 @@
         "h": 8,
         "w": 6,
         "x": 6,
-        "y": 94
+        "y": 106
       },
       "id": 410,
       "options": {
@@ -2373,19 +2869,12 @@
         "h": 8,
         "w": 6,
         "x": 12,
-        "y": 94
+        "y": 106
       },
       "id": 502,
       "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true
-        },
-        "pieType": "donut",
+        "displayMode": "gradient",
+        "orientation": "horizontal",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -2393,22 +2882,21 @@
           "fields": "",
           "values": false
         },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+        "showUnfilled": true,
+        "valueMode": "color"
       },
       "targets": [
         {
           "editorMode": "code",
           "expr": "sum(increase(imsub_group_registrations_total[$__range])) by (outcome)",
           "legendFormat": "{{outcome}}",
-          "range": true,
+          "range": false,
+          "instant": true,
           "refId": "A"
         }
       ],
       "title": "Registration Outcomes",
-      "type": "piechart"
+      "type": "bargauge"
     },
     {
       "datasource": {
@@ -2430,19 +2918,12 @@
         "h": 8,
         "w": 6,
         "x": 18,
-        "y": 94
+        "y": 106
       },
       "id": 503,
       "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true
-        },
-        "pieType": "donut",
+        "displayMode": "gradient",
+        "orientation": "horizontal",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -2450,22 +2931,21 @@
           "fields": "",
           "values": false
         },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+        "showUnfilled": true,
+        "valueMode": "color"
       },
       "targets": [
         {
           "editorMode": "code",
           "expr": "sum(increase(imsub_group_unregistrations_total[$__range])) by (outcome)",
           "legendFormat": "{{outcome}}",
-          "range": true,
+          "range": false,
+          "instant": true,
           "refId": "A"
         }
       ],
       "title": "Unregistration Outcomes",
-      "type": "piechart"
+      "type": "bargauge"
     },
     {
       "datasource": {
@@ -2497,7 +2977,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 102
+        "y": 114
       },
       "id": 504,
       "options": {
@@ -2547,19 +3027,12 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 110
+        "y": 122
       },
       "id": 505,
       "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true
-        },
-        "pieType": "donut",
+        "displayMode": "gradient",
+        "orientation": "horizontal",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -2567,22 +3040,21 @@
           "fields": "",
           "values": false
         },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+        "showUnfilled": true,
+        "valueMode": "color"
       },
       "targets": [
         {
           "editorMode": "code",
           "expr": "sum(increase(imsub_telegram_kick_actions_total[$__range])) by (result)",
           "legendFormat": "{{result}}",
-          "range": true,
+          "range": false,
+          "instant": true,
           "refId": "A"
         }
       ],
       "title": "Kick Outcome Share",
-      "type": "piechart"
+      "type": "bargauge"
     },
     {
       "datasource": {
@@ -2595,6 +3067,12 @@
           "color": {
             "mode": "palette-classic"
           },
+          "links": [
+            {
+              "title": "Open Kick Failures Only panel",
+              "url": "/d/${__dashboard.uid}?${__url_time_range}&viewPanel=507"
+            }
+          ],
           "mappings": [],
           "unit": "short"
         },
@@ -2604,42 +3082,43 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 110
+        "y": 122
       },
       "id": 506,
       "options": {
+        "barWidth": 0.8,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
         "legend": {
           "calcs": [
             "lastNotNull"
           ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
         },
-        "pieType": "donut",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "stacking": "none",
         "tooltip": {
           "mode": "single",
           "sort": "none"
-        }
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
       },
       "targets": [
         {
           "editorMode": "code",
-          "expr": "sum(increase(imsub_telegram_kick_actions_total[$__range])) by (reason)",
+          "expr": "sort_desc(sum(increase(imsub_telegram_kick_actions_total[$__range])) by (reason))",
           "legendFormat": "{{reason}}",
-          "range": true,
+          "range": false,
+          "instant": true,
           "refId": "A"
         }
       ],
       "title": "Kick Reasons",
-      "type": "piechart"
+      "type": "barchart"
     },
     {
       "datasource": {
@@ -2667,7 +3146,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 110
+        "y": 122
       },
       "id": 507,
       "options": {
@@ -2703,7 +3182,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 118
+        "y": 130
       },
       "id": 600,
       "panels": [],
@@ -2740,7 +3219,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 119
+        "y": 131
       },
       "id": 601,
       "options": {
@@ -2775,37 +3254,19 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "95th percentile request latency by route.",
+      "description": "HTTP request latency distribution. Each cell = number of requests in that latency bucket during the time window.",
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
           "custom": {
-            "axisPlacement": "auto",
-            "drawStyle": "line",
-            "fillOpacity": 12,
-            "lineWidth": 2,
-            "showPoints": "never"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 0.25
-              },
-              {
-                "color": "red",
-                "value": 1
-              }
-            ]
-          },
-          "unit": "s"
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          }
         },
         "overrides": []
       },
@@ -2813,35 +3274,62 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 119
+        "y": 131
       },
       "id": 602,
       "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "cellValues": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "color": {
+          "exponent": 0.5,
+          "fill": "dark-orange",
+          "mode": "scheme",
+          "reverse": false,
+          "scale": "exponential",
+          "scheme": "Spectral",
+          "steps": 64
+        },
+        "exemplars": {
+          "color": "rgba(255,0,255,0.7)"
+        },
+        "filterValues": {
+          "le": 1e-09
+        },
         "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "show": true
+        },
+        "rowsFrame": {
+          "layout": "auto"
         },
         "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
+          "mode": "single",
+          "showColorScale": false,
+          "yHistogram": true
+        },
+        "yAxis": {
+          "axisPlacement": "left",
+          "reverse": false,
+          "unit": "s"
         }
       },
       "targets": [
         {
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(imsub_http_request_duration_seconds_bucket[$__rate_interval])) by (le, route))",
-          "legendFormat": "{{route}}",
+          "expr": "sum(increase(imsub_http_request_duration_seconds_bucket[$__rate_interval])) by (le)",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
           "range": true,
-          "refId": "A"
+          "refId": "A",
+          "interval": "10m"
         }
       ],
-      "title": "HTTP p95 Latency by Route",
-      "type": "timeseries"
+      "title": "HTTP Latency Distribution",
+      "type": "heatmap",
+      "interval": "10m"
     },
     {
       "datasource": {
@@ -2882,13 +3370,10 @@
         "h": 8,
         "w": 6,
         "x": 0,
-        "y": 127
+        "y": 139
       },
       "id": 603,
       "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
           "calcs": [
@@ -2897,7 +3382,8 @@
           "fields": "",
           "values": false
         },
-        "textMode": "value"
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
       },
       "targets": [
         {
@@ -2907,7 +3393,7 @@
         }
       ],
       "title": "HTTP 5xx Error Rate",
-      "type": "stat"
+      "type": "gauge"
     },
     {
       "datasource": {
@@ -2946,12 +3432,12 @@
         "h": 8,
         "w": 6,
         "x": 6,
-        "y": 127
+        "y": 139
       },
       "id": 604,
       "options": {
         "colorMode": "value",
-        "graphMode": "none",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
@@ -2961,6 +3447,7 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": true,
         "textMode": "auto"
       },
       "targets": [
@@ -3003,7 +3490,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 127
+        "y": 139
       },
       "id": 605,
       "options": {
@@ -3081,7 +3568,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 135
+        "y": 147
       },
       "id": 606,
       "options": {
@@ -3221,7 +3708,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 135
+        "y": 147
       },
       "id": 607,
       "options": {
@@ -3254,7 +3741,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 145
+        "y": 157
       },
       "id": 700,
       "panels": [],
@@ -3316,7 +3803,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 146
+        "y": 158
       },
       "id": 701,
       "options": {
@@ -3428,7 +3915,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 146
+        "y": 158
       },
       "id": 702,
       "options": {
@@ -3555,7 +4042,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 154
+        "y": 166
       },
       "id": 703,
       "options": {
@@ -3624,7 +4111,7 @@
         "h": 8,
         "w": 6,
         "x": 12,
-        "y": 154
+        "y": 166
       },
       "id": 704,
       "options": {
@@ -3680,7 +4167,7 @@
         "h": 8,
         "w": 6,
         "x": 18,
-        "y": 154
+        "y": 166
       },
       "id": 705,
       "options": {
@@ -3744,7 +4231,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 162
+        "y": 174
       },
       "id": 706,
       "options": {
@@ -3846,7 +4333,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 162
+        "y": 174
       },
       "id": 707,
       "options": {
@@ -3912,7 +4399,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 162
+        "y": 174
       },
       "id": 708,
       "options": {
@@ -3956,7 +4443,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 170
+        "y": 182
       },
       "id": 803,
       "panels": [],
@@ -3992,12 +4479,12 @@
         "h": 5,
         "w": 6,
         "x": 0,
-        "y": 171
+        "y": 183
       },
       "id": 804,
       "options": {
         "colorMode": "value",
-        "graphMode": "none",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
@@ -4007,6 +4494,7 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": true,
         "textMode": "auto"
       },
       "targets": [
@@ -4048,12 +4536,12 @@
         "h": 5,
         "w": 6,
         "x": 6,
-        "y": 171
+        "y": 183
       },
       "id": 805,
       "options": {
         "colorMode": "value",
-        "graphMode": "none",
+        "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
@@ -4063,6 +4551,7 @@
           "fields": "",
           "values": false
         },
+        "showPercentChange": true,
         "textMode": "auto"
       },
       "targets": [
@@ -4101,7 +4590,7 @@
         "h": 5,
         "w": 12,
         "x": 12,
-        "y": 171
+        "y": 183
       },
       "id": 806,
       "options": {
@@ -4136,18 +4625,18 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "p95 backup duration by result.",
+      "description": "Redis backup duration distribution. Each cell = number of backup runs in that duration bucket during the time window.",
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
           "custom": {
-            "axisPlacement": "auto",
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "lineWidth": 2,
-            "showPoints": "never"
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            }
           },
           "unit": "s"
         },
@@ -4157,35 +4646,46 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 176
+        "y": 188
       },
       "id": 807,
       "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+        "calculate": false,
+        "cellGap": 1,
+        "cellValues": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "color": {
+          "exponent": 0.5,
+          "fill": "dark-orange",
+          "mode": "scheme",
+          "scale": "exponential",
+          "scheme": "Spectral",
+          "steps": 64
         },
         "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
+          "mode": "single",
+          "yHistogram": true
+        },
+        "yAxis": {
+          "unit": "s"
         }
       },
       "targets": [
         {
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(imsub_redis_backup_duration_seconds_bucket[$__rate_interval])) by (le, result))",
-          "legendFormat": "{{result}}",
+          "expr": "sum(increase(imsub_redis_backup_duration_seconds_bucket[$__rate_interval])) by (le)",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
           "range": true,
-          "refId": "A"
+          "refId": "A",
+          "interval": "10m"
         }
       ],
-      "title": "Backup Duration p95",
-      "type": "timeseries"
+      "title": "Backup Duration Distribution",
+      "type": "heatmap",
+      "interval": "10m"
     },
     {
       "datasource": {
@@ -4217,7 +4717,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 176
+        "y": 188
       },
       "id": 808,
       "options": {
@@ -4253,7 +4753,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 184
+        "y": 196
       },
       "id": 809,
       "panels": [],
@@ -4290,7 +4790,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 185
+        "y": 197
       },
       "id": 810,
       "options": {
@@ -4340,19 +4840,164 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 185
+        "y": 197
       },
       "id": 811,
       "options": {
+        "barWidth": 0.8,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
         "legend": {
           "calcs": [
             "lastNotNull"
           ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
         },
-        "pieType": "donut",
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "topk(15, sum(increase(imsub_telegram_callbacks_total[$__range])) by (domain, verb))",
+          "legendFormat": "{{domain}} / {{verb}}",
+          "range": false,
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Callback Mix",
+      "type": "barchart"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Telegram callback response latency. Each cell = number of callbacks whose response fell into that latency bucket during the time window.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "scaleDistribution": {
+              "type": "linear"
+            }
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 205
+      },
+      "id": 812,
+      "options": {
+        "calculate": false,
+        "cellGap": 1,
+        "cellValues": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "color": {
+          "exponent": 0.5,
+          "fill": "dark-orange",
+          "mode": "scheme",
+          "scale": "exponential",
+          "scheme": "Spectral",
+          "steps": 64
+        },
+        "tooltip": {
+          "mode": "single",
+          "yHistogram": true
+        },
+        "yAxis": {
+          "unit": "s"
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "sum(increase(imsub_telegram_callback_response_duration_seconds_bucket{result=\"ok\"}[$__rate_interval])) by (le)",
+          "format": "heatmap",
+          "legendFormat": "{{le}}",
+          "range": true,
+          "refId": "A",
+          "interval": "10m"
+        }
+      ],
+      "title": "Callback Response Latency",
+      "type": "heatmap",
+      "interval": "10m"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 213
+      },
+      "id": 950,
+      "panels": [],
+      "title": "Startup Readiness",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "1 = service currently ready; 0 = not ready. Updated on each successful startup.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 214
+      },
+      "id": 951,
+      "options": {
+        "orientation": "auto",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -4360,41 +5005,237 @@
           "fields": "",
           "values": false
         },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
       },
+      "pluginVersion": "11.0.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "editorMode": "code",
-          "expr": "sum(increase(imsub_telegram_callbacks_total[$__range])) by (domain, verb)",
-          "legendFormat": "{{domain}} / {{verb}}",
-          "range": true,
+          "expr": "imsub_startup_ready",
+          "instant": true,
           "refId": "A"
         }
       ],
-      "title": "Callback Mix",
-      "type": "piechart"
+      "title": "Current Readiness",
+      "type": "gauge"
     },
     {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "95th percentile latency from callback receipt to the first completed callback response path.",
+      "description": "Wall-clock time from process boot to readiness, most recent ok startup.",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
-          "custom": {
-            "axisPlacement": "auto",
-            "drawStyle": "line",
-            "fillOpacity": 8,
-            "lineWidth": 2,
-            "showPoints": "never"
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 10
+              },
+              {
+                "color": "red",
+                "value": 20
+              }
+            ]
           },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 4,
+        "y": 214
+      },
+      "id": 952,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": true,
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max(imsub_startup_last_total_duration_seconds{result=\"ok\"}) or vector(0)",
+          "instant": false,
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Last Startup Duration",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Seconds since the current process became ready.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 8,
+        "y": 214
+      },
+      "id": 953,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": true,
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "time() - (imsub_startup_ready_timestamp_seconds > 0)",
+          "instant": false,
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Uptime",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Process starts that completed their readiness step in the last 24h. A rising number means restarts.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 12,
+        "y": 214
+      },
+      "id": 954,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": true,
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(imsub_startup_count_total[24h])) or vector(0)",
+          "instant": false,
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Startups (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Startups whose readiness step reported a non-ok result.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -4412,22 +5253,256 @@
               }
             ]
           },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 16,
+        "y": 214
+      },
+      "id": 955,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": true,
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(imsub_startup_count_total{result!=\"ok\"}[24h])) or vector(0)",
+          "instant": false,
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Failed Starts (24h)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Wall-clock timestamp of the current ready state.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "dateTimeAsIso"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 20,
+        "y": 214
+      },
+      "id": 956,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": true,
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "imsub_startup_ready_timestamp_seconds * 1000",
+          "instant": false,
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Ready Since",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Per-phase duration from the most recent ok startup. Horizontal bars sorted by duration.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          },
           "unit": "s"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 8,
-        "w": 24,
+        "w": 12,
         "x": 0,
-        "y": 193
+        "y": 219
       },
-      "id": 812,
+      "id": 957,
+      "options": {
+        "displayMode": "gradient",
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sort_desc(imsub_startup_last_phase_duration_seconds{result=\"ok\"})",
+          "instant": true,
+          "legendFormat": "{{phase}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Last Startup \u2014 Phase Breakdown",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Count of startup completions bucketed by result. Taller bars = more restarts in that window; red = failed starts.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 0,
+            "showPoints": "never",
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            }
+          },
+          "mappings": [],
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "ok.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*failed.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 219
+      },
+      "id": 958,
       "options": {
         "legend": {
           "calcs": [
-            "lastNotNull",
-            "max"
+            "sum"
           ],
           "displayMode": "table",
           "placement": "bottom",
@@ -4440,15 +5515,929 @@
       },
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum(rate(imsub_telegram_callback_response_duration_seconds_bucket{result=\"ok\"}[$__rate_interval])) by (le, domain, verb))",
-          "legendFormat": "{{domain}} / {{verb}}",
+          "expr": "sum by (result) (increase(imsub_startup_count_total[$__rate_interval]))",
+          "legendFormat": "{{result}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Callback Response p95",
+      "title": "Startup Events (count by result)",
       "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 227,
+        "w": 24,
+        "h": 1
+      },
+      "id": 900,
+      "panels": [],
+      "title": "Background Jobs",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Fleet triage across the selected time range. Click a job to focus the dashboard, then use the repeated job row below for exact run history, duration trends, work summary, and run logs.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Job"
+            },
+            "properties": [
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "title": "Filter dashboard by this job",
+                    "url": "/d/${__dashboard.uid}?${__url_time_range}&var-job=${__data.fields.Job}"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "State"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "1": {
+                        "color": "blue",
+                        "index": 0,
+                        "text": "running"
+                      },
+                      "2": {
+                        "color": "green",
+                        "index": 1,
+                        "text": "ok"
+                      },
+                      "3": {
+                        "color": "red",
+                        "index": 2,
+                        "text": "failed"
+                      },
+                      "4": {
+                        "color": "orange",
+                        "index": 3,
+                        "text": "partial"
+                      },
+                      "5": {
+                        "color": "yellow",
+                        "index": 4,
+                        "text": "timeout"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "Last Finish Age|Overdue By|p95 Duration"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Success %"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 228,
+        "w": 24,
+        "h": 10
+      },
+      "id": 901,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Overdue By"
+          }
+        ]
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "expr": "max by (job) (imsub_background_job_state{job=~\"$job\"})",
+          "refId": "State"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "expr": "clamp_min(time() - max by (job) (imsub_background_job_last_finish_timestamp_seconds{job=~\"$job\"}), 0)",
+          "refId": "LastFinish"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "expr": "clamp_min(time() - max by (job) (imsub_background_job_last_finish_timestamp_seconds{job=~\"$job\"}) - max by (job) (imsub_background_job_schedule_interval_seconds{job=~\"$job\"}), 0)",
+          "refId": "Overdue"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "expr": "sum by (job) (increase(imsub_background_jobs_total{job=~\"$job\"}[${__range_s}s]))",
+          "refId": "Runs"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "expr": "sum by (job) (increase(imsub_background_jobs_total{job=~\"$job\",result=~\"failed|timeout|partial_failure\"}[${__range_s}s]))",
+          "refId": "Failures"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "expr": "sum by (job) (increase(imsub_background_jobs_total{job=~\"$job\",result=\"ok\"}[${__range_s}s])) / clamp_min(sum by (job) (increase(imsub_background_jobs_total{job=~\"$job\"}[${__range_s}s])), 1)",
+          "refId": "Success"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "expr": "histogram_quantile(0.95, sum by (le, job) (increase(imsub_background_job_duration_seconds_bucket{job=~\"$job\"}[${__range_s}s])))",
+          "refId": "P95"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true
+            },
+            "indexByName": {
+              "job": 0,
+              "Value #State": 1,
+              "Value #LastFinish": 2,
+              "Value #Overdue": 3,
+              "Value #Runs": 4,
+              "Value #Failures": 5,
+              "Value #Success": 6,
+              "Value #P95": 7
+            },
+            "renameByName": {
+              "job": "Job",
+              "Value #State": "State",
+              "Value #LastFinish": "Last Finish Age",
+              "Value #Overdue": "Overdue By",
+              "Value #Runs": "Runs In Range",
+              "Value #Failures": "Failures / Timeouts",
+              "Value #Success": "Success %",
+              "Value #P95": "p95 Duration"
+            }
+          }
+        }
+      ],
+      "title": "Job Fleet Overview",
+      "type": "table"
+    },
+    {
+      "type": "text",
+      "id": 920,
+      "title": "",
+      "transparent": true,
+      "gridPos": {
+        "x": 0,
+        "y": 238,
+        "w": 24,
+        "h": 2
+      },
+      "options": {
+        "mode": "html",
+        "content": "**Background Jobs** &nbsp; Top table is for fleet triage. The repeated row below is the diagnostic path for one job: run results in the selected time range, duration trends, work counters, and structured run logs."
+      }
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "x": 0,
+        "y": 240,
+        "w": 24,
+        "h": 1
+      },
+      "id": 905,
+      "panels": [],
+      "repeat": "job",
+      "title": "Job Detail: $job",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Current state plus schedule-based timing context for the selected job.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": false,
+            "inspect": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "State"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "options": {
+                      "1": {
+                        "color": "blue",
+                        "index": 0,
+                        "text": "running"
+                      },
+                      "2": {
+                        "color": "green",
+                        "index": 1,
+                        "text": "ok"
+                      },
+                      "3": {
+                        "color": "red",
+                        "index": 2,
+                        "text": "failed"
+                      },
+                      "4": {
+                        "color": "orange",
+                        "index": 3,
+                        "text": "partial"
+                      },
+                      "5": {
+                        "color": "yellow",
+                        "index": 4,
+                        "text": "timeout"
+                      }
+                    },
+                    "type": "value"
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "Interval|Timeout|Age|Overdue"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 241,
+        "w": 24,
+        "h": 5
+      },
+      "id": 906,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "showHeader": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (job) (imsub_background_job_state{job=\"$job\"})",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "State"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (job) (imsub_background_job_schedule_interval_seconds{job=\"$job\"})",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "Interval"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (job) (imsub_background_job_schedule_timeout_seconds{job=\"$job\"})",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "Timeout"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "clamp_min(time() - max by (job) (imsub_background_job_last_finish_timestamp_seconds{job=\"$job\"}), 0)",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "LastFinish"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "clamp_min(time() - max by (job) (imsub_background_job_last_finish_timestamp_seconds{job=\"$job\"}) - max by (job) (imsub_background_job_schedule_interval_seconds{job=\"$job\"}), 0)",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "Overdue"
+        }
+      ],
+      "title": "Job Status: $job",
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true
+            },
+            "indexByName": {
+              "job": 0,
+              "Value #State": 1,
+              "Value #Interval": 2,
+              "Value #Timeout": 3,
+              "Value #LastFinish": 4,
+              "Value #Overdue": 5
+            },
+            "renameByName": {
+              "job": "Job",
+              "Value #State": "State",
+              "Value #Interval": "Expected Interval",
+              "Value #Timeout": "Timeout",
+              "Value #LastFinish": "Last Finish Age",
+              "Value #Overdue": "Overdue By"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Every run result in the selected time range, grouped into dashboard buckets. Use the run log panel for exact per-run timestamps and IDs.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 246,
+        "w": 12,
+        "h": 8
+      },
+      "id": 908,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (result) (increase(imsub_background_jobs_total{job=\"$job\",result=~\"$result\"}[$__interval]))",
+          "legendFormat": "{{result}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Run Results In Selected Time Range: $job",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Duration trends for the selected job over the selected time range.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            }
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 246,
+        "w": 12,
+        "h": 8
+      },
+      "id": 909,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "increase(imsub_background_job_duration_seconds_sum{job=\"$job\"}[$__interval]) / clamp_min(increase(imsub_background_job_duration_seconds_count{job=\"$job\"}[$__interval]), 1)",
+          "legendFormat": "avg duration",
+          "range": true,
+          "refId": "Avg"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(imsub_background_job_duration_seconds_bucket{job=\"$job\"}[$__interval])))",
+          "legendFormat": "p95 duration",
+          "range": true,
+          "refId": "P95"
+        }
+      ],
+      "title": "Duration Trends: $job",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "What the selected job reported doing across the selected time range. This is intentionally range-based, not just the last run.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "5m Rate"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "cps"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 254,
+        "w": 12,
+        "h": 10
+      },
+      "id": 910,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Range Count"
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (kind, result) (increase(imsub_background_job_items_total{job=\"$job\",result=~\"$result\"}[${__range_s}s]))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "Total"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (kind, result) (rate(imsub_background_job_items_total{job=\"$job\",result=~\"$result\"}[5m]))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "Rate"
+        }
+      ],
+      "title": "Work Summary In Selected Time Range: $job",
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true
+            },
+            "indexByName": {
+              "kind": 0,
+              "result": 1,
+              "Value #Total": 2,
+              "Value #Rate": 3
+            },
+            "renameByName": {
+              "Value #Total": "Range Count",
+              "Value #Rate": "5m Rate"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "${logs_datasource}"
+      },
+      "description": "Exact run-level records for the selected job. This panel is the authoritative view for every completed run in the selected time range.",
+      "gridPos": {
+        "x": 12,
+        "y": 254,
+        "w": 12,
+        "h": 10
+      },
+      "id": 911,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": true,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "${logs_datasource}"
+          },
+          "editorMode": "code",
+          "expr": "fly.app.name:\"$app\" | unpack_json from _msg | filter event_name:\"background_job\" and job:\"$job\" | format \"<job> <outcome> duration=<duration_ms>ms run=<run_id> started=<started_at_unix_ms> finished=<finished_at_unix_ms>\" as _msg | sort by (_time) desc",
+          "metrics": [
+            {
+              "id": "1",
+              "settings": {
+                "limit": "1000"
+              },
+              "type": "logs"
+            }
+          ],
+          "query": "fly.app.name:\"$app\" | unpack_json from _msg | filter event_name:\"background_job\" and job:\"$job\" | sort by (_time) desc",
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "Run Log: $job",
+      "type": "logs"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "x": 0,
+        "y": 264,
+        "w": 24,
+        "h": 1
+      },
+      "id": 912,
+      "panels": [],
+      "title": "Fleet Cadence Debug",
+      "type": "row"
+    },
+    {
+      "id": 913,
+      "type": "status-history",
+      "title": "Job Cadence Debug",
+      "description": "Fleet-level bucket view kept as a secondary diagnostic. Mixed cadences make this panel unsuitable as the primary health view.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 265,
+        "w": 24,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 1
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "dark-red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colWidth": 0.9,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "rowHeight": 0.9,
+        "showValue": "never",
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (job) (increase(imsub_background_jobs_total{job=~\"$job\"}[$__interval]))",
+          "legendFormat": "{{job}}",
+          "range": true,
+          "refId": "A"
+        }
+      ]
     },
     {
       "collapsed": false,
@@ -4456,9 +6445,9 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 230
+        "y": 273
       },
-      "id": 800,
+      "id": 840,
       "panels": [],
       "title": "Logs",
       "type": "row"
@@ -4468,13 +6457,209 @@
         "type": "victoriametrics-logs-datasource",
         "uid": "${logs_datasource}"
       },
-      "gridPos": {
-        "h": 8,
-        "w": 18,
-        "x": 0,
-        "y": 231
+      "description": "Error + fatal log events over the dashboard time range.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
       },
-      "id": 801,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 274
+      },
+      "id": 841,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": true,
+        "textMode": "auto"
+      },
+      "pluginVersion": "11.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "${logs_datasource}"
+          },
+          "editorMode": "code",
+          "expr": "fly.app.name:\"$app\" | unpack_json from _msg | filter level:(ERROR OR FATAL OR error OR fatal) | stats count() as errors",
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ],
+          "query": "fly.app.name:\"$app\" | unpack_json from _msg | filter level:(ERROR OR FATAL OR error OR fatal) | stats count() as errors",
+          "queryType": "statsRange",
+          "refId": "A"
+        }
+      ],
+      "title": "Errors (range)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "${logs_datasource}"
+      },
+      "description": "Log volume bucketed by severity level (bars, stacked).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisPlacement": "auto",
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "lineWidth": 1,
+            "showPoints": "never",
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            }
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*error.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*warn.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": ".*fatal.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 18,
+        "x": 6,
+        "y": 274
+      },
+      "id": 842,
+      "interval": "1m",
+      "maxDataPoints": 200,
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-logs-datasource",
+            "uid": "${logs_datasource}"
+          },
+          "editorMode": "code",
+          "expr": "fly.app.name:\"$app\" | unpack_json from _msg | stats by (level) count() as logs",
+          "metrics": [
+            {
+              "id": "1",
+              "type": "count"
+            }
+          ],
+          "query": "fly.app.name:\"$app\" | unpack_json from _msg | stats by (level) count() as logs",
+          "queryType": "statsRange",
+          "refId": "A"
+        }
+      ],
+      "title": "Log Volume by Level",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "victoriametrics-logs-datasource",
+        "uid": "${logs_datasource}"
+      },
+      "description": "All logs for the selected app (tail).",
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 279
+      },
+      "id": 843,
       "options": {
         "dedupStrategy": "none",
         "enableLogDetails": true,
@@ -4492,7 +6677,7 @@
             "uid": "${logs_datasource}"
           },
           "editorMode": "code",
-          "expr": "fly.app.name: $app",
+          "expr": "fly.app.name:\"$app\" | unpack_json from _msg | format \"<level> <msg>\" as _msg | sort by (_time) desc",
           "metrics": [
             {
               "id": "1",
@@ -4502,7 +6687,7 @@
               "type": "logs"
             }
           ],
-          "query": "fly.app.name:\"$app\"",
+          "query": "fly.app.name:\"$app\" | unpack_json from _msg | format \"<level> <msg>\" as _msg | sort by (_time) desc",
           "queryType": "instant",
           "refId": "A"
         }
@@ -4515,503 +6700,14 @@
         "type": "victoriametrics-logs-datasource",
         "uid": "${logs_datasource}"
       },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisPlacement": "auto",
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "lineWidth": 1,
-            "pointSize": 5,
-            "showPoints": "auto"
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 18,
-        "y": 231
-      },
-      "id": 802,
-      "interval": "1m",
-      "maxDataPoints": 200,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-logs-datasource",
-            "uid": "${logs_datasource}"
-          },
-          "editorMode": "code",
-          "expr": "fly.app.name: $app | stats count() as logs",
-          "metrics": [
-            {
-              "id": "1",
-              "type": "count"
-            }
-          ],
-          "query": "fly.app.name:\"$app\"",
-          "queryType": "statsRange",
-          "refId": "A"
-        }
-      ],
-      "title": "Log Volume",
-      "type": "timeseries"
-    },
-    {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 211
-      },
-      "id": 900,
-      "panels": [],
-      "title": "Background Jobs",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "description": "Last known state per background job. This is a health panel, not an execution timeline. State encoding: 1=running, 2=ok, 3=failed, 4=partial_failure, 5=timeout.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "fillOpacity": 80,
-            "lineWidth": 0,
-            "spanNulls": true
-          },
-          "mappings": [
-            {
-              "options": {
-                "1": {
-                  "color": "blue",
-                  "index": 0,
-                  "text": "Running"
-                },
-                "2": {
-                  "color": "green",
-                  "index": 1,
-                  "text": "OK"
-                },
-                "3": {
-                  "color": "red",
-                  "index": 2,
-                  "text": "Failed"
-                },
-                "4": {
-                  "color": "yellow",
-                  "index": 3,
-                  "text": "Partial"
-                },
-                "5": {
-                  "color": "orange",
-                  "index": 4,
-                  "text": "Timeout"
-                }
-              },
-              "type": "value"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "transparent",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 8,
-        "x": 0,
-        "y": 212
-      },
-      "id": 901,
-      "options": {
-        "alignValue": "left",
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "mergeValues": false,
-        "rowHeight": 0.75,
-        "showValue": "never",
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "editorMode": "code",
-          "expr": "imsub_background_job_state",
-          "legendFormat": "{{job}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Background Job Health",
-      "type": "state-timeline"
-    },
-    {
-      "datasource": {
-        "type": "victoriametrics-logs-datasource",
-        "uid": "${logs_datasource}"
-      },
-      "description": "Parsed background_job events extracted from the JSON log line. This panel verifies that Grafana is correctly decoding the log payload before building richer visualizations.",
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "align": "left"
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 16,
-        "x": 8,
-        "y": 212
-      },
-      "id": 904,
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true,
-        "sortBy": [
-          {
-            "desc": true,
-            "displayName": "Start time"
-          }
-        ]
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-logs-datasource",
-            "uid": "${logs_datasource}"
-          },
-          "editorMode": "code",
-          "expr": "fly.app.name:\"$app\" \"background_job\" | unpack_json from _msg | filter event_name:\"background_job\" | sort by (_time) desc",
-          "metrics": [
-            {
-              "id": "1",
-              "settings": {
-                "limit": "1000"
-              },
-              "type": "logs"
-            }
-          ],
-          "query": "fly.app.name:\"$app\" \"background_job\" | unpack_json from _msg | filter event_name:\"background_job\" | sort by (_time) desc",
-          "queryType": "instant",
-          "refId": "A"
-        }
-      ],
-      "title": "Background Job Runs",
-      "transformations": [
-        {
-          "id": "convertFieldType",
-          "options": {
-            "conversions": [
-              {
-                "destinationType": "number",
-                "targetField": "started_at_unix_ms"
-              },
-              {
-                "destinationType": "number",
-                "targetField": "finished_at_unix_ms"
-              }
-            ],
-            "fields": {}
-          }
-        },
-        {
-          "id": "convertFieldType",
-          "options": {
-            "conversions": [
-              {
-                "destinationType": "time",
-                "targetField": "started_at_unix_ms"
-              },
-              {
-                "destinationType": "time",
-                "targetField": "finished_at_unix_ms"
-              }
-            ],
-            "fields": {}
-          }
-        },
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Line": true,
-              "Time": true,
-              "_stream_id": true,
-              "count": true,
-              "detected_level": true,
-              "duration_ms": true,
-              "event.provider": true,
-              "event_name": true,
-              "fly.app.instance": true,
-              "fly.app.name": true,
-              "fly.app.process_group": true,
-              "fly.region": true,
-              "fly.zone": true,
-              "id": true,
-              "labels": true,
-              "level": true,
-              "log.level": true,
-              "msg": true,
-              "time": true
-            },
-            "indexByName": {
-              "started_at_unix_ms": 0,
-              "finished_at_unix_ms": 1,
-              "job": 2,
-              "outcome": 3,
-              "run_id": 4
-            },
-            "renameByName": {
-              "finished_at_unix_ms": "End time",
-              "job": "Job",
-              "outcome": "State",
-              "run_id": "Run ID",
-              "started_at_unix_ms": "Start time"
-            }
-          }
-        }
-      ],
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "description": "Per-run work reported by background jobs (kind-level counts) across all jobs in the selected time range.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisPlacement": "auto",
-            "drawStyle": "bars",
-            "fillOpacity": 60,
-            "lineWidth": 1,
-            "showPoints": "never",
-            "stacking": {
-              "group": "A",
-              "mode": "normal"
-            }
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 0,
-        "y": 222
-      },
-      "id": 902,
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "sum"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "editorMode": "code",
-          "expr": "sum(increase(imsub_background_job_items_total{job=~\"enforce_group_grace_policy|enforce_group_kick_policy|process_subscription_end_grace|process_member_cleanup_jobs\"}[$__rate_interval])) by (job, kind)",
-          "legendFormat": "{{job}} / {{kind}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Enforcement Job Work",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "description": "Per-run work reported by reconciliation and audit jobs in the selected time range.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisPlacement": "auto",
-            "drawStyle": "bars",
-            "fillOpacity": 60,
-            "lineWidth": 1,
-            "showPoints": "never",
-            "stacking": {
-              "group": "A",
-              "mode": "normal"
-            }
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 222
-      },
-      "id": 905,
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "sum"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "editorMode": "code",
-          "expr": "sum(increase(imsub_background_job_items_total{job=~\"integrity_audit|reconcile_subscribers|reconcile_eventsubs\"}[$__rate_interval])) by (job, kind)",
-          "legendFormat": "{{job}} / {{kind}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Reconciliation Job Work",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "description": "Execution counts for maintenance and snapshot jobs over the selected time range.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisPlacement": "auto",
-            "drawStyle": "bars",
-            "fillOpacity": 60,
-            "lineWidth": 1,
-            "showPoints": "never",
-            "stacking": {
-              "group": "A",
-              "mode": "normal"
-            }
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 222
-      },
-      "id": 906,
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "sum"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "editorMode": "code",
-          "expr": "sum(increase(imsub_background_jobs_total{job=~\"backup_redis|creator_metrics_snapshot|sync_product_metrics_snapshot|privacy_retention\"}[$__rate_interval])) by (job, result)",
-          "legendFormat": "{{job}} / {{result}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Maintenance Job Runs",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "victoriametrics-logs-datasource",
-        "uid": "${logs_datasource}"
-      },
-      "description": "Completed background-job event lines, including run_id and item fields. If this panel is empty after import, select the Grafana Logs datasource in the dashboard's Logs variable.",
+      "description": "Filtered to level:error, fatal, or warn.",
       "gridPos": {
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 230
+        "y": 288
       },
-      "id": 903,
+      "id": 844,
       "options": {
         "dedupStrategy": "none",
         "enableLogDetails": true,
@@ -5020,7 +6716,7 @@
         "showLabels": false,
         "showTime": true,
         "sortOrder": "Descending",
-        "wrapLogMessage": true
+        "wrapLogMessage": false
       },
       "targets": [
         {
@@ -5029,7 +6725,7 @@
             "uid": "${logs_datasource}"
           },
           "editorMode": "code",
-          "expr": "fly.app.name:\"$app\" \"background_job\" | unpack_json from _msg | filter event_name:\"background_job\" | format \"[<job>] <outcome> in <duration_ms>ms (run=<run_id>)\" as _msg | sort by (_time) desc",
+          "expr": "fly.app.name:\"$app\" | unpack_json from _msg | filter level:(ERROR OR FATAL OR WARN OR error OR fatal OR warn) | format \"<level> <msg>\" as _msg | sort by (_time) desc",
           "metrics": [
             {
               "id": "1",
@@ -5039,12 +6735,12 @@
               "type": "logs"
             }
           ],
-          "query": "fly.app.name:\"$app\" \"background_job\" | unpack_json from _msg | filter event_name:\"background_job\" | format \"[<job>] <outcome> in <duration_ms>ms (run=<run_id>)\" as _msg | sort by (_time) desc",
+          "query": "fly.app.name:\"$app\" | unpack_json from _msg | filter level:(ERROR OR FATAL OR WARN OR error OR fatal OR warn) | format \"<level> <msg>\" as _msg | sort by (_time) desc",
           "queryType": "instant",
           "refId": "A"
         }
       ],
-      "title": "Background Job Event Log",
+      "title": "Errors & Warnings",
       "type": "logs"
     }
   ],
@@ -5140,6 +6836,141 @@
         "skipUrlSync": false,
         "sort": 5,
         "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(imsub_telegram_commands_total, command)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Command",
+        "multi": true,
+        "name": "command",
+        "options": [],
+        "query": {
+          "query": "label_values(imsub_telegram_commands_total, command)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(imsub_background_jobs_total, job)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Job",
+        "multi": true,
+        "name": "job",
+        "options": [],
+        "query": {
+          "query": "label_values(imsub_background_jobs_total, job)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(imsub_creator_info, creator_id)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Creator",
+        "multi": true,
+        "name": "creator",
+        "options": [],
+        "query": {
+          "query": "label_values(imsub_creator_info, creator_id)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(imsub_background_jobs_total, result)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Result",
+        "multi": true,
+        "name": "result",
+        "options": [],
+        "query": {
+          "query": "label_values(imsub_background_jobs_total, result)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(imsub_http_requests_total, route)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Route",
+        "multi": true,
+        "name": "route",
+        "options": [],
+        "query": {
+          "query": "label_values(imsub_http_requests_total, route)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
       }
     ]
   },
@@ -5162,6 +6993,6 @@
   "timezone": "",
   "title": "ImSub Canonical",
   "uid": "imsub-canonical",
-  "version": 2,
+  "version": 13,
   "weekStart": ""
 }
