@@ -4,7 +4,6 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{.DocumentTitle}}</title>
-  {{if .RefreshURL}}<meta http-equiv="refresh" content="1; url={{.RefreshURL}}">{{end}}
   <style>
     :root {
       color-scheme: dark;
@@ -246,41 +245,86 @@
     {{if .Username}}<div class="username">{{.Username}}</div>{{end}}
     {{if .PrimaryLabel}}
     <div class="actions">
-      <a class="btn" href="{{.PrimaryURL}}">{{.PrimaryLabel}}</a>
+      <a id="open-twitch" class="btn" href="{{.PrimaryURL}}">{{.PrimaryLabel}}</a>
       <div class="copy-panel">
-        <button class="copy-btn" type="button" onclick="copyUrl(this)" data-url="{{.PrimaryURL}}" data-copied="{{.CopyDone}}">{{.CopyLabel}}</button>
-        <div id="copy-url" class="copy-box" tabindex="0" role="textbox" aria-readonly="true" onclick="selectUrl(this)">{{.PrimaryURL}}</div>
+        <button id="copy-link" class="copy-btn" type="button" data-copied="{{.CopyDone}}">{{.CopyLabel}}</button>
+        <div id="copy-url" class="copy-box" tabindex="0" role="textbox" aria-readonly="true">{{.PrimaryURL}}</div>
       </div>
     </div>
-    <p id="copy-status" class="copy-status">{{range .CopyIdleParts}}{{if .IsCommand}}<code class="inline-command">{{.Text}}</code>{{else}}{{.Text}}{{end}}{{end}}</p>
+    {{if .CopyIdleParts}}<p id="copy-status" class="copy-status">{{range .CopyIdleParts}}{{if .IsCommand}}<code class="inline-command">{{.Text}}</code>{{else}}{{.Text}}{{end}}{{end}}</p>{{end}}
     {{end}}
     {{if .NextStepParts}}<p class="next-step">{{range .NextStepParts}}{{if .IsCommand}}<code class="inline-command">{{.Text}}</code>{{else}}{{.Text}}{{end}}{{end}}</p>{{end}}
   </div>
   {{if .PrimaryLabel}}
   <script>
-    function selectUrl(el) {
-      el.focus();
-      var selection = window.getSelection();
-      var range = document.createRange();
-      range.selectNodeContents(el);
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
-    function copyUrl(btn) {
-      var status = document.getElementById('copy-status');
-      var box = document.getElementById('copy-url');
-      var text = btn.getAttribute('data-url');
-      function showCopied() {
-        status.textContent = btn.getAttribute('data-copied');
+    (function () {
+      function selectUrl(el) {
+        el.focus();
+        var selection = window.getSelection();
+        var range = document.createRange();
+        range.selectNodeContents(el);
+        selection.removeAllRanges();
+        selection.addRange(range);
       }
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(showCopied);
-        return;
+
+      var ua = navigator.userAgent || "";
+      var hasTelegramWebApp = !!(window.Telegram && window.Telegram.WebApp);
+      var hasTelegramWebviewProxy = !!window.TelegramWebviewProxy;
+      var isAndroid = /Android/i.test(ua);
+      var hasTelegramAndroidToken = /Telegram-Android\/[\d.]+/i.test(ua);
+      var isMiniApp = hasTelegramWebApp;
+      var isTelegramAndroidWebView = isAndroid && !isMiniApp && (hasTelegramAndroidToken || hasTelegramWebviewProxy);
+      var current = new URL(window.location.href);
+      var chromeAttempted = current.searchParams.get('tg_chrome_attempt') === '1';
+      var openTwitchLink = document.getElementById('open-twitch');
+
+      function chromeIntentURL() {
+        var target = new URL(window.location.href);
+        target.searchParams.set('tg_chrome_attempt', '1');
+        var withoutScheme = target.host + target.pathname + target.search + target.hash;
+        var fallbackURL = encodeURIComponent(target.toString());
+        return 'intent://' + withoutScheme +
+          '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' + fallbackURL + ';end';
       }
-      selectUrl(box);
-      document.execCommand('copy');
-      showCopied();
-    }
+
+      var copyButton = document.getElementById('copy-link');
+      var copyURL = document.getElementById('copy-url');
+      var copyStatus = document.getElementById('copy-status');
+
+      if (isTelegramAndroidWebView && !chromeAttempted) {
+        window.setTimeout(function () {
+          window.location.href = chromeIntentURL();
+        }, 150);
+      }
+
+      if (copyButton) {
+        copyButton.addEventListener('click', function () {
+          var text = copyURL ? copyURL.textContent : window.location.href;
+          var copiedText = copyButton.getAttribute('data-copied') || '';
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function () {
+              if (copyStatus) {
+                copyStatus.textContent = copiedText;
+              }
+            });
+            return;
+          }
+          if (copyURL) {
+            selectUrl(copyURL);
+          }
+          document.execCommand('copy');
+          if (copyStatus) {
+            copyStatus.textContent = copiedText;
+          }
+        });
+      }
+
+      if (openTwitchLink && (!isTelegramAndroidWebView || chromeAttempted)) {
+        window.setTimeout(function () {
+          window.location.href = openTwitchLink.href;
+        }, 250);
+      }
+    })();
   </script>
   {{end}}
 </body>

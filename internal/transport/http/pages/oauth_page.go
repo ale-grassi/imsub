@@ -44,7 +44,6 @@ type oauthTemplateData struct {
 	CopyIdleParts []oauthTextPart
 	CopyDone      string
 	NextStepParts []oauthTextPart
-	RefreshURL    string
 }
 
 type oauthTextPart struct {
@@ -108,7 +107,6 @@ func RenderOAuthLaunch(w http.ResponseWriter, page OAuthLaunchPage) {
 		CopyLabel:     page.CopyLabel,
 		CopyIdleParts: formatOAuthText(page.CopyIdle),
 		CopyDone:      page.CopyDone,
-		RefreshURL:    page.OAuthURL,
 	})
 }
 

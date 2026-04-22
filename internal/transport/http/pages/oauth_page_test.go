@@ -82,10 +82,28 @@ func TestRenderOAuthPageLaunch(t *testing.T) {
 	})
 
 	body := rec.Body.String()
-	if !strings.Contains(body, "Continue to Twitch") || !strings.Contains(body, "Copy link") || !strings.Contains(body, "https://example.com/oauth") {
+	if !strings.Contains(body, "Continue to Twitch") || !strings.Contains(body, "Copy link") || !strings.Contains(body, "If Twitch does not open, copy the link.") || !strings.Contains(body, "https://example.com/oauth") {
 		t.Errorf("RenderOAuthLaunch(...).Body = %q, want launch controls and OAuth URL", body)
 	}
+	if strings.Contains(body, "http-equiv=\"refresh\"") {
+		t.Errorf("RenderOAuthLaunch(...).Body = %q, want no auto-redirect meta refresh", body)
+	}
 	if !strings.Contains(body, `id="copy-url" class="copy-box"`) {
-		t.Errorf("RenderOAuthLaunch(...).Body = %q, want selectable URL copy box", body)
+		t.Errorf("RenderOAuthLaunch(...).Body = %q, want original copy UI", body)
+	}
+	if strings.Contains(body, `id="open-external"`) {
+		t.Errorf("RenderOAuthLaunch(...).Body = %q, want no visible extra browser button", body)
+	}
+	if !strings.Contains(body, "intent://") || !strings.Contains(body, "package=com.android.chrome") || !strings.Contains(body, "tg_chrome_attempt") {
+		t.Errorf("RenderOAuthLaunch(...).Body = %q, want hidden Chrome handoff controls", body)
+	}
+	if !strings.Contains(body, `id="copy-link"`) || !strings.Contains(body, `id="copy-status"`) || !strings.Contains(body, "navigator.clipboard.writeText") || !strings.Contains(body, "Link copied.") {
+		t.Errorf("RenderOAuthLaunch(...).Body = %q, want copy-link fallback controls", body)
+	}
+	if !strings.Contains(body, "openTwitchLink.href") {
+		t.Errorf("RenderOAuthLaunch(...).Body = %q, want auto-continue to Twitch after Chrome handoff", body)
+	}
+	if strings.Contains(body, `id="debug-out"`) || strings.Contains(body, ">Debug<") {
+		t.Errorf("RenderOAuthLaunch(...).Body = %q, want temporary debug output removed", body)
 	}
 }
