@@ -1267,7 +1267,7 @@ func TestRegisterTelegramHandlersChatMemberJoinWarnsInRegistrationThreadWhenPoli
 	if got := body["message_thread_id"]; got != float64(321) {
 		t.Fatalf("sendMessage message_thread_id = %v, want 321", got)
 	}
-	if text, _ := body["text"].(string); !strings.Contains(text, `<a href="tg://user?id=703">amico</a> e' entrato senza verifica dell'abbonamento.`) {
+	if text, _ := body["text"].(string); !strings.Contains(text, `Ingresso di <a href="tg://user?id=703">amico</a> senza verifica dell'abbonamento.`) {
 		t.Fatalf("sendMessage text = %q, want warning copy", text)
 	}
 }

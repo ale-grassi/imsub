@@ -292,7 +292,7 @@ other = "⚠️ <b>Group functionality compromised</b>\n\nImSub is missing requi
 other = "➡️ <b>Step 4 of 4</b>\nChoose the group policy.\n\nChoose what should happen when the bot sees an unverified member in this group."
 
 [group_policy_existing_members_html]
-other = "⚠️ <b>%d existing non-admin members detected</b>\nMembers who were already in this group before linking are not verified immediately.\n\n<i>Linked eligible members can be promoted when they open <code>/start</code> or when the bot sees them again. Members who remain unlinked or ineligible stay subject to this policy and may still need to rejoin through the bot.</i>"
+other = "⚠️ <b>%d existing non-admin members detected</b>\nMembers who were already in this group before linking are not verified immediately.\n\n<i>Linked eligible members are verified when they open <code>/start</code> or when the bot sees them again. Members who remain unlinked or ineligible stay subject to this policy and may still need to rejoin through the bot.</i>"
 
 [group_policy_observe_line]
 other = "<b>Current policy:</b> Allow"
@@ -436,7 +436,7 @@ other = "• Current group members are being removed in the background"
 other = "• Failed removals: %d"
 
 [reset_creator_cleanup_queue_failed]
-other = "• Current group members could not be scheduled for removal. Check these groups manually"
+other = "• Current group members could not be scheduled for removal. Check these groups manually."
 
 [reset_no_groups_line]
 other = "No groups"
