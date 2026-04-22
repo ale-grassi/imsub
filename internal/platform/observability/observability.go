@@ -33,6 +33,11 @@ type Metrics struct {
 	managedGroups           prometheus.Gauge
 	creatorInfo             *prometheus.GaugeVec
 	creatorManagedGroups    *prometheus.GaugeVec
+	creatorGroupPolicy      *prometheus.GaugeVec
+	creatorGroupLanguage    *prometheus.GaugeVec
+	creatorGraceSetting     *prometheus.GaugeVec
+	creatorBanSyncEnabled   *prometheus.GaugeVec
+	creatorLastBanSyncAt    *prometheus.GaugeVec
 	creatorSubscribers      *prometheus.GaugeVec
 	creatorBlockedUsers     *prometheus.GaugeVec
 	creatorTracked          *prometheus.GaugeVec
@@ -140,6 +145,41 @@ func New() *Metrics {
 			prometheus.GaugeOpts{
 				Name: "imsub_creator_managed_groups",
 				Help: "Current managed Telegram groups per creator.",
+			},
+			[]string{"creator_id"},
+		),
+		creatorGroupPolicy: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "imsub_creator_group_policy_groups",
+				Help: "Current managed-group count by creator and policy.",
+			},
+			[]string{"creator_id", "policy"},
+		),
+		creatorGroupLanguage: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "imsub_creator_group_language_groups",
+				Help: "Current managed-group count by creator and language.",
+			},
+			[]string{"creator_id", "language"},
+		),
+		creatorGraceSetting: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "imsub_creator_subscription_end_grace",
+				Help: "Current creator subscription-end grace setting.",
+			},
+			[]string{"creator_id", "grace"},
+		),
+		creatorBanSyncEnabled: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "imsub_creator_blocklist_sync_enabled",
+				Help: "Whether creator Twitch blocklist sync is enabled.",
+			},
+			[]string{"creator_id"},
+		),
+		creatorLastBanSyncAt: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Name: "imsub_creator_last_ban_sync_timestamp_seconds",
+				Help: "Unix timestamp in seconds of the creator's last successful Twitch ban sync.",
 			},
 			[]string{"creator_id"},
 		),
@@ -522,6 +562,11 @@ func New() *Metrics {
 		m.managedGroups,
 		m.creatorInfo,
 		m.creatorManagedGroups,
+		m.creatorGroupPolicy,
+		m.creatorGroupLanguage,
+		m.creatorGraceSetting,
+		m.creatorBanSyncEnabled,
+		m.creatorLastBanSyncAt,
 		m.creatorSubscribers,
 		m.creatorBlockedUsers,
 		m.creatorTracked,
@@ -589,6 +634,11 @@ func (m *Metrics) ResetCreatorSnapshotMetrics() {
 	}
 	m.creatorInfo.Reset()
 	m.creatorManagedGroups.Reset()
+	m.creatorGroupPolicy.Reset()
+	m.creatorGroupLanguage.Reset()
+	m.creatorGraceSetting.Reset()
+	m.creatorBanSyncEnabled.Reset()
+	m.creatorLastBanSyncAt.Reset()
 	m.creatorSubscribers.Reset()
 	m.creatorBlockedUsers.Reset()
 	m.creatorTracked.Reset()
@@ -642,6 +692,50 @@ func (m *Metrics) CreatorManagedGroups(creatorID string, count int) {
 		return
 	}
 	m.creatorManagedGroups.WithLabelValues(creatorID).Set(float64(count))
+}
+
+// CreatorGroupPolicyCount sets the current managed-group count by policy for a creator.
+func (m *Metrics) CreatorGroupPolicyCount(creatorID, policy string, count int) {
+	if m == nil || creatorID == "" {
+		return
+	}
+	m.creatorGroupPolicy.WithLabelValues(creatorID, httputil.LabelOrUnknown(policy)).Set(float64(count))
+}
+
+// CreatorGroupLanguageCount sets the current managed-group count by language for a creator.
+func (m *Metrics) CreatorGroupLanguageCount(creatorID, language string, count int) {
+	if m == nil || creatorID == "" {
+		return
+	}
+	m.creatorGroupLanguage.WithLabelValues(creatorID, httputil.LabelOrUnknown(language)).Set(float64(count))
+}
+
+// CreatorSubscriptionEndGrace sets the current subscription-end grace setting for a creator.
+func (m *Metrics) CreatorSubscriptionEndGrace(creatorID, grace string) {
+	if m == nil || creatorID == "" {
+		return
+	}
+	m.creatorGraceSetting.WithLabelValues(creatorID, httputil.LabelOrUnknown(grace)).Set(1)
+}
+
+// CreatorBanSyncEnabled sets whether creator blocklist sync is enabled.
+func (m *Metrics) CreatorBanSyncEnabled(creatorID string, enabled bool) {
+	if m == nil || creatorID == "" {
+		return
+	}
+	value := 0.0
+	if enabled {
+		value = 1
+	}
+	m.creatorBanSyncEnabled.WithLabelValues(creatorID).Set(value)
+}
+
+// CreatorLastBanSyncAt records the last successful creator ban sync timestamp.
+func (m *Metrics) CreatorLastBanSyncAt(creatorID string, at time.Time) {
+	if m == nil || creatorID == "" || at.IsZero() {
+		return
+	}
+	m.creatorLastBanSyncAt.WithLabelValues(creatorID).Set(float64(at.Unix()))
 }
 
 // CreatorSubscribers sets the current subscriber count for a creator.

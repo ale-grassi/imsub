@@ -423,7 +423,7 @@ func Run() error {
 			Task:         creatorMetricsTask,
 			InitialDelay: jitteredDelay(60 * time.Second),
 			Interval:     5 * time.Minute,
-			Timeout:      2 * time.Minute,
+			Timeout:      4 * time.Minute,
 		})
 	})
 	g.Go(func() error {

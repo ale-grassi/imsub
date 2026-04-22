@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"imsub/internal/core"
 )
@@ -21,6 +22,11 @@ type creatorMetricsSink interface {
 	ResetCreatorSnapshotMetrics()
 	CreatorInfo(creatorID, displayName, login string)
 	CreatorManagedGroups(creatorID string, count int)
+	CreatorGroupPolicyCount(creatorID, policy string, count int)
+	CreatorGroupLanguageCount(creatorID, language string, count int)
+	CreatorSubscriptionEndGrace(creatorID, grace string)
+	CreatorBanSyncEnabled(creatorID string, enabled bool)
+	CreatorLastBanSyncAt(creatorID string, at time.Time)
 	CreatorSubscribers(creatorID string, count int)
 	CreatorBlockedUsers(creatorID string, count int)
 	CreatorTrackedMembers(creatorID string, count int)
@@ -62,6 +68,9 @@ func (t creatorMetricsTask) Run(ctx context.Context) error {
 
 	for _, creator := range creators {
 		t.sink.CreatorInfo(creator.ID, creator.TwitchDisplayName, creator.TwitchLogin)
+		t.sink.CreatorSubscriptionEndGrace(creator.ID, string(creator.SubscriptionEndGrace))
+		t.sink.CreatorBanSyncEnabled(creator.ID, creator.BlocklistSyncEnabled)
+		t.sink.CreatorLastBanSyncAt(creator.ID, creator.LastBanSyncAt)
 
 		groups, err := t.store.ListManagedGroupsByCreator(ctx, creator.ID)
 		if err != nil {
@@ -82,6 +91,18 @@ func (t creatorMetricsTask) Run(ctx context.Context) error {
 		}
 
 		t.sink.CreatorManagedGroups(creator.ID, len(groups))
+		policyCounts := make(map[string]int, len(groups))
+		languageCounts := make(map[string]int, len(groups))
+		for _, group := range groups {
+			policyCounts[string(group.Policy)]++
+			languageCounts[group.Language]++
+		}
+		for policy, count := range policyCounts {
+			t.sink.CreatorGroupPolicyCount(creator.ID, policy, count)
+		}
+		for language, count := range languageCounts {
+			t.sink.CreatorGroupLanguageCount(creator.ID, language, count)
+		}
 		t.sink.CreatorSubscribers(creator.ID, int(subscribers))
 		t.sink.CreatorBlockedUsers(creator.ID, int(blockedUsers))
 		t.sink.CreatorReconnectRequired(creator.ID, creator.AuthStatus == core.CreatorAuthReconnectRequired)
@@ -115,7 +136,6 @@ func (t creatorMetricsTask) Run(ctx context.Context) error {
 
 	return nil
 }
-
 func (t creatorMetricsTask) Classify(err error) string {
 	if err != nil {
 		return taskResultFailed

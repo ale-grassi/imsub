@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"testing"
+	"time"
 
 	"imsub/internal/core"
 )
@@ -46,6 +47,11 @@ type creatorSnapshot struct {
 	displayName string
 	login       string
 	managed     int
+	byPolicy    map[string]int
+	byLanguage  map[string]int
+	grace       string
+	banSync     bool
+	lastBanSync time.Time
 	subscribers int
 	blocked     int
 	tracked     int
@@ -90,6 +96,42 @@ func (s *creatorMetricsSinkStub) CreatorManagedGroups(creatorID string, count in
 	s.store(creatorID, snap)
 }
 
+func (s *creatorMetricsSinkStub) CreatorGroupPolicyCount(creatorID, policy string, count int) {
+	snap := s.snapshotFor(creatorID)
+	if snap.byPolicy == nil {
+		snap.byPolicy = map[string]int{}
+	}
+	snap.byPolicy[policy] = count
+	s.store(creatorID, snap)
+}
+
+func (s *creatorMetricsSinkStub) CreatorGroupLanguageCount(creatorID, language string, count int) {
+	snap := s.snapshotFor(creatorID)
+	if snap.byLanguage == nil {
+		snap.byLanguage = map[string]int{}
+	}
+	snap.byLanguage[language] = count
+	s.store(creatorID, snap)
+}
+
+func (s *creatorMetricsSinkStub) CreatorSubscriptionEndGrace(creatorID, grace string) {
+	snap := s.snapshotFor(creatorID)
+	snap.grace = grace
+	s.store(creatorID, snap)
+}
+
+func (s *creatorMetricsSinkStub) CreatorBanSyncEnabled(creatorID string, enabled bool) {
+	snap := s.snapshotFor(creatorID)
+	snap.banSync = enabled
+	s.store(creatorID, snap)
+}
+
+func (s *creatorMetricsSinkStub) CreatorLastBanSyncAt(creatorID string, at time.Time) {
+	snap := s.snapshotFor(creatorID)
+	snap.lastBanSync = at
+	s.store(creatorID, snap)
+}
+
 func (s *creatorMetricsSinkStub) CreatorSubscribers(creatorID string, count int) {
 	snap := s.snapshotFor(creatorID)
 	snap.subscribers = count
@@ -128,14 +170,17 @@ func TestCreatorMetricsTaskAggregatesCreators(t *testing.T) {
 		store: creatorMetricsStoreStub{
 			listCreatorsFn: func(context.Context) ([]core.Creator, error) {
 				return []core.Creator{
-					{ID: "c1", TwitchDisplayName: "Alpha", TwitchLogin: "alpha"},
-					{ID: "c2", TwitchDisplayName: "Beta", TwitchLogin: "beta", AuthStatus: core.CreatorAuthReconnectRequired},
+					{ID: "c1", TwitchDisplayName: "Alpha", TwitchLogin: "alpha", SubscriptionEndGrace: core.SubscriptionEndGrace48h, BlocklistSyncEnabled: true, LastBanSyncAt: time.Unix(1700000000, 0)},
+					{ID: "c2", TwitchDisplayName: "Beta", TwitchLogin: "beta", AuthStatus: core.CreatorAuthReconnectRequired, SubscriptionEndGrace: core.SubscriptionEndGraceOff},
 				}, nil
 			},
 			listManagedGroupsFn: func(_ context.Context, creatorID string) ([]core.ManagedGroup, error) {
 				switch creatorID {
 				case "c1":
-					return []core.ManagedGroup{{ChatID: 101}, {ChatID: 102}}, nil
+					return []core.ManagedGroup{
+						{ChatID: 101, CreatorID: "c1", Policy: core.GroupPolicyObserveWarn, Language: "en"},
+						{ChatID: 102, CreatorID: "c1", Policy: core.GroupPolicyKick, Language: "it"},
+					}, nil
 				case "c2":
 					return nil, nil
 				default:
@@ -182,6 +227,15 @@ func TestCreatorMetricsTaskAggregatesCreators(t *testing.T) {
 	if gotC1.displayName != "Alpha" || gotC1.login != "alpha" || gotC1.managed != 2 || gotC1.subscribers != 11 || gotC1.blocked != 2 || gotC1.tracked != 7 || gotC1.untracked != 3 || gotC1.reconnect {
 		t.Fatalf("c1 snapshot = %+v", gotC1)
 	}
+	if gotC1.byPolicy[string(core.GroupPolicyObserveWarn)] != 1 || gotC1.byPolicy[string(core.GroupPolicyKick)] != 1 {
+		t.Fatalf("c1 policy counts = %+v", gotC1.byPolicy)
+	}
+	if gotC1.byLanguage["en"] != 1 || gotC1.byLanguage["it"] != 1 {
+		t.Fatalf("c1 language counts = %+v", gotC1.byLanguage)
+	}
+	if gotC1.grace != string(core.SubscriptionEndGrace48h) || !gotC1.banSync || gotC1.lastBanSync.IsZero() {
+		t.Fatalf("c1 creator settings = %+v", gotC1)
+	}
 
 	gotC2 := sink.snapshots["c2"]
 	if gotC2.displayName != "Beta" || gotC2.login != "beta" || gotC2.managed != 0 || gotC2.subscribers != 5 || gotC2.blocked != 0 || gotC2.tracked != 0 || gotC2.untracked != 0 || !gotC2.reconnect {
@@ -205,7 +259,7 @@ func TestCreatorMetricsTaskContinuesOnCreatorError(t *testing.T) {
 				if creatorID == "bad" {
 					return nil, errors.New("boom")
 				}
-				return []core.ManagedGroup{{ChatID: 201}}, nil
+				return []core.ManagedGroup{{ChatID: 201, CreatorID: "good", Policy: core.GroupPolicyObserve, Language: "en"}}, nil
 			},
 			subscriberCountFn:     func(context.Context, string) (int64, error) { return 2, nil },
 			blockedUserCountFn:    func(context.Context, string) (int64, error) { return 1, nil },
@@ -224,5 +278,8 @@ func TestCreatorMetricsTaskContinuesOnCreatorError(t *testing.T) {
 	}
 	if got := sink.snapshots["good"]; got.managed != 1 || got.tracked != 3 || got.untracked != 4 {
 		t.Fatalf("good snapshot = %+v", got)
+	}
+	if got := sink.snapshots["good"]; got.byPolicy[string(core.GroupPolicyObserve)] != 1 || got.byLanguage["en"] != 1 {
+		t.Fatalf("good settings snapshot = %+v", got)
 	}
 }

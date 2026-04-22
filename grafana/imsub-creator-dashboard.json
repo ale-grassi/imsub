@@ -51,6 +51,16 @@
           "color": {
             "mode": "thresholds"
           },
+          "mappings": [
+            {
+              "options": {
+                "-1": {
+                  "text": "Never"
+                }
+              },
+              "type": "value"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -382,12 +392,322 @@
       "type": "stat"
     },
     {
+      "id": 20,
+      "title": "Managed Groups by Policy",
+      "type": "bargauge",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "basic",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": false,
+        "sizing": "manual",
+        "text": {
+          "titleSize": 14,
+          "valueSize": 14
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "imsub_creator_group_policy_groups{creator_id=\"$creator_id\"}",
+          "legendFormat": "{{policy}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "title": "Managed Groups by Language",
+      "type": "bargauge",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "basic",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": false,
+        "sizing": "manual",
+        "text": {
+          "titleSize": 14,
+          "valueSize": 14
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "imsub_creator_group_language_groups{creator_id=\"$creator_id\"}",
+          "legendFormat": "{{language}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "title": "Subscription End Grace",
+      "type": "bargauge",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 0,
+        "y": 13
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {
+        "displayMode": "basic",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": false,
+        "sizing": "manual",
+        "text": {
+          "titleSize": 14,
+          "valueSize": 14
+        }
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "imsub_creator_subscription_end_grace{creator_id=\"$creator_id\"}",
+          "legendFormat": "{{grace}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "title": "Ban Sync Enabled",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 8,
+        "y": 13
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "text": "No"
+                },
+                "1": {
+                  "text": "Yes"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "imsub_creator_blocklist_sync_enabled{creator_id=\"$creator_id\"}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "title": "Last Ban Sync Age",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 8,
+        "x": 16,
+        "y": 13
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 3600
+              },
+              {
+                "color": "orange",
+                "value": 21600
+              },
+              {
+                "color": "red",
+                "value": 86400
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "editorMode": "code",
+          "expr": "clamp_min(time() - imsub_creator_last_ban_sync_timestamp_seconds{creator_id=\"$creator_id\"}, 0) or on() vector(-1)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 6
+        "y": 18
       },
       "id": 8,
       "panels": [],
@@ -412,7 +732,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 7
+        "y": 19
       },
       "id": 9,
       "options": {
@@ -465,7 +785,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 7
+        "y": 19
       },
       "id": 10,
       "options": {
@@ -506,7 +826,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 15
+        "y": 27
       },
       "id": 13,
       "panels": [],
@@ -540,7 +860,7 @@
         "h": 5,
         "w": 6,
         "x": 0,
-        "y": 16
+        "y": 28
       },
       "id": 14,
       "options": {
@@ -596,7 +916,7 @@
         "h": 5,
         "w": 6,
         "x": 6,
-        "y": 16
+        "y": 28
       },
       "id": 15,
       "options": {
@@ -652,7 +972,7 @@
         "h": 5,
         "w": 6,
         "x": 12,
-        "y": 16
+        "y": 28
       },
       "id": 16,
       "options": {
@@ -708,7 +1028,7 @@
         "h": 5,
         "w": 6,
         "x": 18,
-        "y": 16
+        "y": 28
       },
       "id": 17,
       "options": {
@@ -762,7 +1082,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 21
+        "y": 33
       },
       "id": 18,
       "options": {
@@ -818,7 +1138,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 21
+        "y": 33
       },
       "id": 19,
       "options": {
@@ -855,7 +1175,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 29
+        "y": 41
       },
       "id": 11,
       "panels": [],
@@ -880,7 +1200,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 30
+        "y": 42
       },
       "id": 12,
       "options": {

@@ -51,6 +51,11 @@ func TestNilSafety(t *testing.T) {
 	m.ManagedGroups(3)
 	m.CreatorInfo("creator-1", "Alpha", "alpha")
 	m.CreatorManagedGroups("creator-1", 2)
+	m.CreatorGroupPolicyCount("creator-1", "kick", 1)
+	m.CreatorGroupLanguageCount("creator-1", "en", 2)
+	m.CreatorSubscriptionEndGrace("creator-1", "48h")
+	m.CreatorBanSyncEnabled("creator-1", true)
+	m.CreatorLastBanSyncAt("creator-1", time.Unix(1700000000, 0))
 	m.CreatorSubscribers("creator-1", 10)
 	m.CreatorBlockedUsers("creator-1", 1)
 	m.CreatorTrackedMembers("creator-1", 4)
@@ -105,6 +110,11 @@ func TestMetricsExposure(t *testing.T) {
 	m.ManagedGroups(3)
 	m.CreatorInfo("creator-1", "Alpha", "alpha")
 	m.CreatorManagedGroups("creator-1", 2)
+	m.CreatorGroupPolicyCount("creator-1", "kick", 1)
+	m.CreatorGroupLanguageCount("creator-1", "en", 2)
+	m.CreatorSubscriptionEndGrace("creator-1", "48h")
+	m.CreatorBanSyncEnabled("creator-1", true)
+	m.CreatorLastBanSyncAt("creator-1", time.Unix(1700000000, 0))
 	m.CreatorSubscribers("creator-1", 10)
 	m.CreatorBlockedUsers("creator-1", 1)
 	m.CreatorTrackedMembers("creator-1", 4)
@@ -160,6 +170,11 @@ func TestMetricsExposure(t *testing.T) {
 		"imsub_managed_groups",
 		"imsub_creator_info",
 		"imsub_creator_managed_groups",
+		"imsub_creator_group_policy_groups",
+		"imsub_creator_group_language_groups",
+		"imsub_creator_subscription_end_grace",
+		"imsub_creator_blocklist_sync_enabled",
+		"imsub_creator_last_ban_sync_timestamp_seconds",
 		"imsub_creator_subscribers",
 		"imsub_creator_blocked_users",
 		"imsub_creator_tracked_members",
