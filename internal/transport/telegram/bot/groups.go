@@ -987,8 +987,8 @@ func buildGroupRegistrationPolicyPromptView(lang string, replyToMessageID int, c
 		opts: client.MessageOptions{
 			ReplyToMessageID: replyToMessageID,
 			Markup: telegoutil.InlineKeyboard(
-				telegoutil.InlineKeyboardRow(telegramui.CallbackButton(i18n.Translate(lang, btnGroupPolicyObserve), groupRegisterPolicyCallback(chatID, threadID, core.GroupPolicyObserve))),
-				telegoutil.InlineKeyboardRow(telegramui.CallbackButton(i18n.Translate(lang, btnGroupPolicyObserveWarn), groupRegisterPolicyCallback(chatID, threadID, core.GroupPolicyObserveWarn))),
+				telegoutil.InlineKeyboardRow(telegramui.IconCallbackButton(i18n.Translate(lang, btnGroupPolicyObserve), groupRegisterPolicyCallback(chatID, threadID, core.GroupPolicyObserve), "5253959125838090076")),
+				telegoutil.InlineKeyboardRow(telegramui.IconCallbackButton(i18n.Translate(lang, btnGroupPolicyObserveWarn), groupRegisterPolicyCallback(chatID, threadID, core.GroupPolicyObserveWarn), "5253959125838090076")),
 				telegoutil.InlineKeyboardRow(telegramui.IconCallbackButton(i18n.Translate(lang, btnGroupPolicyKick), groupRegisterPolicyCallback(chatID, threadID, core.GroupPolicyKick), "5258318620722733379").WithStyle("danger")),
 				telegoutil.InlineKeyboardRow(telegramui.IconCallbackButton(i18n.Translate(lang, btnGroupPolicyGrace), groupRegisterPolicyCallback(chatID, threadID, core.GroupPolicyGraceWeek), "5258123337149717894").WithStyle("danger")),
 			),

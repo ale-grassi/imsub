@@ -118,6 +118,12 @@ func TestBuildGroupRegistrationPolicyPromptView(t *testing.T) {
 	if view.text == "" || view.opts.ReplyToMessageID != 10 || view.opts.Markup == nil {
 		t.Fatalf("buildGroupRegistrationPolicyPromptView() = %+v, want text reply target and markup", view)
 	}
+	if got := view.opts.Markup.InlineKeyboard[0][0].IconCustomEmojiID; got != "5253959125838090076" {
+		t.Fatalf("buildGroupRegistrationPolicyPromptView() first icon = %q, want %q", got, "5253959125838090076")
+	}
+	if got := view.opts.Markup.InlineKeyboard[1][0].IconCustomEmojiID; got != "5253959125838090076" {
+		t.Fatalf("buildGroupRegistrationPolicyPromptView() second icon = %q, want %q", got, "5253959125838090076")
+	}
 }
 
 func TestFormatGroupPolicyLine(t *testing.T) {
