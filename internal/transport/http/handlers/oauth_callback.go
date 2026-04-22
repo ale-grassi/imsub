@@ -15,55 +15,87 @@ var (
 		Status:  http.StatusBadRequest,
 		Title:   "Twitch authorization canceled",
 		Message: "Twitch authorization did not complete.",
-		Hint:    "Return to Telegram and start the connection again.",
+		Steps: []string{
+			"Go back to the Telegram chat with ImSub.",
+			"Start the same connection flow again.",
+			"Approve the Twitch prompt when it opens.",
+		},
+		Hint: "If you closed the browser or denied access, the previous attempt will not finish.",
 	}
 	oauthErrorMissingResponse = oauthErrorPage{
 		Status:  http.StatusBadRequest,
 		Title:   "Missing Twitch response",
 		Message: "The Twitch callback did not include the required details.",
-		Hint:    "Return to Telegram and try the connection again.",
+		Steps: []string{
+			"Go back to the Telegram chat with ImSub.",
+			"Start the same connection flow again.",
+			"Complete the Twitch login in the same browser session.",
+		},
+		Hint: "If you opened an old or partial link, restart the flow from Telegram.",
 	}
 	oauthErrorExpiredLink = oauthErrorPage{
 		Status:  http.StatusBadRequest,
 		Title:   "Twitch link expired",
 		Message: "This Twitch authorization link expired, was already used, or was cleared before Twitch redirected back.",
-		Hint:    "Return to Telegram and request a new link. Authorization links stay valid for 30 minutes and can only be used once.",
+		Steps:   oauthNeutralRecoverySteps,
+		Hint:    "This link can only be used once. Go back to Telegram to start again.",
 	}
 	oauthErrorUnknownLinkType = oauthErrorPage{
 		Status:  http.StatusBadRequest,
 		Title:   "Unknown link type",
 		Message: "This Twitch link could not be recognized.",
-		Hint:    "Return to Telegram and start the connection flow again.",
+		Steps:   oauthNeutralRecoverySteps,
+		Hint:    "If you opened an older link, discard it and restart from Telegram.",
 	}
 	oauthErrorViewerSaveFailed = oauthErrorPage{
 		Status:  http.StatusConflict,
 		Title:   "Could not link account",
 		Message: "Your Twitch account could not be linked right now.",
-		Hint:    "Return to Telegram and try again. If the wrong Twitch account was used, run /reset first.",
+		Steps: []string{
+			"Go back to the Telegram chat with ImSub.",
+			"Use /start to get a new Twitch link.",
+			"If the wrong Twitch account was used, run /reset before trying again.",
+		},
 	}
 	oauthErrorVerificationFailed = oauthErrorPage{
 		Status:  http.StatusBadGateway,
 		Title:   "Verification failed",
 		Message: "ImSub could not finish Twitch verification.",
-		Hint:    "Return to Telegram and try again in a moment.",
+		Steps: []string{
+			"Go back to the Telegram chat with ImSub.",
+			"Use /start to retry in a moment.",
+		},
+		Hint: "If the problem keeps happening, wait a moment and run /start again.",
 	}
 	oauthErrorMissingCreatorScope = oauthErrorPage{
 		Status:  http.StatusForbidden,
 		Title:   "Missing Twitch permission",
 		Message: "The required Twitch creator permission was not granted.",
-		Hint:    "Return to Telegram, start /creator again, and approve the requested access.",
+		Steps: []string{
+			"Go back to the Telegram chat with ImSub.",
+			"Use /creator to start the creator connection again.",
+			"Approve the requested Twitch permissions.",
+		},
 	}
 	oauthErrorCreatorSetupFailed = oauthErrorPage{
 		Status:  http.StatusBadGateway,
 		Title:   "Creator setup failed",
 		Message: "ImSub could not finish creator setup.",
-		Hint:    "Return to Telegram and try /creator again in a moment.",
+		Steps: []string{
+			"Go back to the Telegram chat with ImSub.",
+			"Use /creator to retry the creator connection.",
+		},
+		Hint: "If the problem keeps happening, wait a moment and run /creator again.",
 	}
 	oauthErrorCreatorMismatch = oauthErrorPage{
 		Status:  http.StatusConflict,
 		Title:   "Wrong Twitch creator account",
 		Message: "This reconnect used a different Twitch creator account than the one already linked.",
-		Hint:    "Return to Telegram. If you want to replace the creator account, run /reset first.",
+		Steps: []string{
+			"Go back to the Telegram chat with ImSub.",
+			"Use /creator with the creator account that is already linked.",
+			"If you want to replace the linked creator account, run /reset first.",
+		},
 	}
 )
 

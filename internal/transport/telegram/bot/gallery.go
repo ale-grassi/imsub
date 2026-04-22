@@ -99,7 +99,11 @@ func PreviewScenarios() []PreviewScenario {
 			Group: "Viewer",
 			Title: "Subscription start notification",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(buildSubscriptionStartView(lang, "streamer_one", core.JoinTargets{
+				return previewFromShared(buildSubscriptionStartView(lang, core.UserIdentity{
+					TwitchLogin:       "viewer_one",
+					TwitchDisplayName: "Viewer One",
+				}, "streamer_one", core.JoinTargets{
+					ActiveCreatorNames: []string{"streamer_one"},
 					JoinLinks: []core.JoinLink{
 						{CreatorName: "streamer_one", GroupName: "VIP Lounge", InviteLink: "https://t.me/+vip"},
 					},

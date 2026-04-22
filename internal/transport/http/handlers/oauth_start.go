@@ -23,6 +23,14 @@ const (
 	oauthStartResultOK           = "ok"
 )
 
+// oauthNeutralRecoverySteps are the role-agnostic recovery steps rendered on
+// OAuth error pages where the state payload (and therefore the mode) is not
+// yet resolved or has already been consumed.
+var oauthNeutralRecoverySteps = []string{
+	"Go back to the Telegram chat where you opened this link.",
+	"Restart the same connection flow to get a new link.",
+}
+
 // OAuthStart validates state and renders the Twitch authorization launch page.
 func (c *Controller) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -44,7 +52,8 @@ func (c *Controller) OAuthStart(w http.ResponseWriter, r *http.Request) {
 			Status:  http.StatusBadRequest,
 			Title:   "Missing Twitch link",
 			Message: "This Twitch link is incomplete.",
-			Hint:    "Return to Telegram and request a new link.",
+			Steps:   oauthNeutralRecoverySteps,
+			Hint:    "If you tapped an incomplete or outdated link, restart from Telegram.",
 		})
 		return
 	}
@@ -56,7 +65,8 @@ func (c *Controller) OAuthStart(w http.ResponseWriter, r *http.Request) {
 			Status:  http.StatusBadRequest,
 			Title:   "Twitch authorization link expired",
 			Message: "This Twitch authorization link expired before it was opened.",
-			Hint:    "Return to Telegram and request a new link. Authorization links stay valid for 30 minutes.",
+			Steps:   oauthNeutralRecoverySteps,
+			Hint:    "If the link expired, go back to Telegram and start again.",
 		})
 		return
 	}
@@ -76,7 +86,8 @@ func (c *Controller) OAuthStart(w http.ResponseWriter, r *http.Request) {
 			Status:  http.StatusBadRequest,
 			Title:   "Unknown link type",
 			Message: "This Twitch link could not be recognized.",
-			Hint:    "Return to Telegram and start the connection flow again.",
+			Steps:   oauthNeutralRecoverySteps,
+			Hint:    "Restart from Telegram to get a valid link.",
 		})
 		return
 	}

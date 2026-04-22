@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -84,6 +85,27 @@ func Translate(lang, key string) string {
 		return key
 	}
 	return msg
+}
+
+// AllKeys returns a sorted list of every message key present in the base
+// language catalog. It is intended for tests and tooling that need to
+// enumerate translations (for example, to verify that an authoring rule
+// covers the entire catalog, not just an allow-listed subset).
+func AllKeys() ([]string, error) {
+	catalogs, err := loadCatalogs()
+	if err != nil {
+		return nil, err
+	}
+	base, ok := catalogs[DefaultLanguage]
+	if !ok {
+		return nil, fmt.Errorf("%w %q", errMissingBaseLang, DefaultLanguage)
+	}
+	out := make([]string, 0, len(base))
+	for k := range base {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out, nil
 }
 
 // loadCatalogs reads all embedded locale/*.toml files and returns them

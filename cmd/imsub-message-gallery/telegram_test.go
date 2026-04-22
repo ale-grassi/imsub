@@ -112,13 +112,17 @@ func TestFormatTelegramCardTextWithoutHeader(t *testing.T) {
 	}
 }
 
-func TestLookupTelegramBotTokenFromDotEnv(t *testing.T) {
+func TestLookupTelegramBotTokenPrefersDotEnvDev(t *testing.T) {
 	tempDir := t.TempDir()
 	t.Chdir(tempDir)
 
 	t.Setenv("IMSUB_TELEGRAM_BOT_TOKEN", "")
+	envDevPath := filepath.Join(tempDir, ".env.dev")
+	if err := os.WriteFile(envDevPath, []byte("IMSUB_TELEGRAM_BOT_TOKEN=dev-token\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(%q) error = %v", envDevPath, err)
+	}
 	envPath := filepath.Join(tempDir, ".env")
-	if err := os.WriteFile(envPath, []byte("IMSUB_TELEGRAM_BOT_TOKEN=test-token\n"), 0o600); err != nil {
+	if err := os.WriteFile(envPath, []byte("IMSUB_TELEGRAM_BOT_TOKEN=env-token\n"), 0o600); err != nil {
 		t.Fatalf("WriteFile(%q) error = %v", envPath, err)
 	}
 
@@ -126,7 +130,7 @@ func TestLookupTelegramBotTokenFromDotEnv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("lookupTelegramBotToken() error = %v", err)
 	}
-	if token != "test-token" {
-		t.Fatalf("lookupTelegramBotToken() = %q, want %q", token, "test-token")
+	if token != "dev-token" {
+		t.Fatalf("lookupTelegramBotToken() = %q, want %q", token, "dev-token")
 	}
 }

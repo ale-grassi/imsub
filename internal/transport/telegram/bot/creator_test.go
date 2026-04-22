@@ -29,10 +29,6 @@ func TestBuildCreatorPromptView(t *testing.T) {
 func TestBuildCreatorStatusViewNoGroups(t *testing.T) {
 	t.Parallel()
 
-	if err := i18n.Ensure(); err != nil {
-		t.Fatalf("i18n.Ensure failed: %v", err)
-	}
-
 	view := buildCreatorStatusView("en", "", "imsub_bot", core.Creator{TwitchLogin: "creator"}, core.Status{}, nil)
 	if view.text == "" || view.opts.Markup == nil {
 		t.Fatalf("buildCreatorStatusView() = %+v, want non-empty text and markup", view)
@@ -55,10 +51,6 @@ func TestBuildCreatorStatusViewNoGroups(t *testing.T) {
 func TestBuildCreatorStatusViewWithSingleGroup(t *testing.T) {
 	t.Parallel()
 
-	if err := i18n.Ensure(); err != nil {
-		t.Fatalf("i18n.Ensure failed: %v", err)
-	}
-
 	view := buildCreatorStatusView("en", "", "imsub_bot", core.Creator{TwitchLogin: "creator"}, core.Status{HasBannedUserCount: true, BannedUserCount: 2}, []core.ManagedGroup{{ChatID: 1, GroupName: "VIP"}})
 	if view.text == "" || view.opts.Markup == nil {
 		t.Fatalf("buildCreatorStatusView() = %+v, want non-empty text and markup", view)
@@ -74,10 +66,6 @@ func TestBuildCreatorStatusViewWithSingleGroup(t *testing.T) {
 func TestBuildCreatorStatusViewWithMultipleGroups(t *testing.T) {
 	t.Parallel()
 
-	if err := i18n.Ensure(); err != nil {
-		t.Fatalf("i18n.Ensure failed: %v", err)
-	}
-
 	view := buildCreatorStatusView("en", "", "imsub_bot", core.Creator{TwitchLogin: "creator"}, core.Status{}, []core.ManagedGroup{{ChatID: 1, GroupName: "VIP"}, {ChatID: 2, GroupName: "Patrons"}})
 	if view.text == "" || view.opts.Markup == nil {
 		t.Fatalf("buildCreatorStatusView() = %+v, want non-empty text and markup", view)
@@ -86,10 +74,6 @@ func TestBuildCreatorStatusViewWithMultipleGroups(t *testing.T) {
 
 func TestBuildCreatorStatusViewWithBlocklistEnabled(t *testing.T) {
 	t.Parallel()
-
-	if err := i18n.Ensure(); err != nil {
-		t.Fatalf("i18n.Ensure failed: %v", err)
-	}
 
 	view := buildCreatorStatusView("en", "", "imsub_bot", core.Creator{
 		TwitchLogin:          "creator",
@@ -120,10 +104,6 @@ func TestBuildCreatorStatusViewWithBlocklistEnabled(t *testing.T) {
 func TestBuildCreatorStatusViewWithGraceEnabled(t *testing.T) {
 	t.Parallel()
 
-	if err := i18n.Ensure(); err != nil {
-		t.Fatalf("i18n.Ensure failed: %v", err)
-	}
-
 	view := buildCreatorStatusView("en", "", "imsub_bot", core.Creator{
 		TwitchLogin:          "creator",
 		SubscriptionEndGrace: core.SubscriptionEndGrace48h,
@@ -153,10 +133,6 @@ func TestBuildCreatorStatusViewWithGraceEnabled(t *testing.T) {
 func TestBuildCreatorGracePickerView(t *testing.T) {
 	t.Parallel()
 
-	if err := i18n.Ensure(); err != nil {
-		t.Fatalf("i18n.Ensure failed: %v", err)
-	}
-
 	view := buildCreatorGracePickerView("en", core.Creator{TwitchLogin: "creator", SubscriptionEndGrace: core.SubscriptionEndGrace24h})
 	if !strings.Contains(view.text, "24 hours") {
 		t.Fatalf("buildCreatorGracePickerView() text = %q, want current grace", view.text)
@@ -181,10 +157,6 @@ func TestBuildCreatorManagedGroupsView(t *testing.T) {
 func TestBuildCreatorGroupSettingsView(t *testing.T) {
 	t.Parallel()
 
-	if err := i18n.Ensure(); err != nil {
-		t.Fatalf("i18n.Ensure failed: %v", err)
-	}
-
 	view := buildCreatorGroupSettingsView("en", core.ManagedGroup{ChatID: 1, GroupName: "VIP", Language: "it", Policy: core.GroupPolicyObserveWarn}, creatorMenuCallback(), "notice")
 	if view.text == "" || view.opts.Markup == nil {
 		t.Fatalf("buildCreatorGroupSettingsView() = %+v, want non-empty text and markup", view)
@@ -203,10 +175,6 @@ func TestBuildCreatorGroupSettingsView(t *testing.T) {
 func TestBuildCreatorGroupLanguagePickerView(t *testing.T) {
 	t.Parallel()
 
-	if err := i18n.Ensure(); err != nil {
-		t.Fatalf("i18n.Ensure failed: %v", err)
-	}
-
 	view := buildCreatorGroupLanguagePickerView("en", core.ManagedGroup{ChatID: 1, GroupName: "VIP", Language: "it"})
 	if view.text == "" || view.opts.Markup == nil {
 		t.Fatalf("buildCreatorGroupLanguagePickerView() = %+v, want non-empty text and markup", view)
@@ -221,10 +189,6 @@ func TestBuildCreatorGroupLanguagePickerView(t *testing.T) {
 
 func TestBuildCreatorGroupPolicyPickerView(t *testing.T) {
 	t.Parallel()
-
-	if err := i18n.Ensure(); err != nil {
-		t.Fatalf("i18n.Ensure failed: %v", err)
-	}
 
 	view := buildCreatorGroupPolicyPickerView("en", core.ManagedGroup{ChatID: 1, GroupName: "VIP", Policy: core.GroupPolicyObserve})
 	if view.text == "" || view.opts.Markup == nil {
@@ -243,10 +207,6 @@ func TestBuildCreatorGroupPolicyPickerView(t *testing.T) {
 
 func TestBuildCreatorGroupPolicyConfirmView(t *testing.T) {
 	t.Parallel()
-
-	if err := i18n.Ensure(); err != nil {
-		t.Fatalf("i18n.Ensure failed: %v", err)
-	}
 
 	view := buildCreatorGroupPolicyConfirmView("en", core.ManagedGroup{ChatID: 1, GroupName: "VIP", Policy: core.GroupPolicyObserve}, core.GroupPolicyGraceWeek)
 	if view.text == "" || view.opts.Markup == nil {

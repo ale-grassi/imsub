@@ -11,8 +11,6 @@ import (
 	"imsub/internal/platform/i18n"
 	"imsub/internal/transport/telegram/client"
 	"imsub/internal/transport/telegram/ui"
-
-	tu "github.com/mymmrac/telego/telegoutil"
 )
 
 type sharedView struct {
@@ -36,7 +34,7 @@ func buildMainMenuTextView(lang, key string) sharedView {
 }
 
 func buildViewerErrorView(lang string) sharedView {
-	return buildMainMenuTextView(lang, msgViewerError)
+	return buildTextView(lang, msgViewerError)
 }
 
 func buildViewerGodView(lang string, targets core.JoinTargets) sharedView {
@@ -62,10 +60,7 @@ func buildCreatorStatusErrorView(lang string) sharedView {
 }
 
 func buildCreatorLinkErrorView(lang string) sharedView {
-	return sharedView{
-		text: i18n.Translate(lang, msgErrCreatorLink),
-		opts: client.MessageOptions{Markup: creatorMainMenuMarkup(lang)},
-	}
+	return buildTextView(lang, msgErrCreatorLink)
 }
 
 func buildSubscriptionEndView(lang, broadcasterLogin string) sharedView {
@@ -95,12 +90,20 @@ func buildSubscriptionGraceExpiredView(lang, broadcasterLogin string) sharedView
 	return buildSubscriptionEndView(lang, broadcasterLogin)
 }
 
-func buildSubscriptionStartView(lang, broadcasterLogin string, targets core.JoinTargets) sharedView {
+func buildSubscriptionStartView(lang string, identity core.UserIdentity, broadcasterLogin string, targets core.JoinTargets) sharedView {
 	joinRows := renderJoinButtons(targets, lang)
 	return sharedView{
-		text: fmt.Sprintf(i18n.Translate(lang, msgSubStartReady), html.EscapeString(broadcasterLogin)),
+		text: joinNonEmptySections(
+			textSection{text: joinNonEmptyLines(
+				i18n.Translate(lang, msgSubStartHeading),
+				ui.LinkedStatusAccountHTML(lang, identity.TwitchLogin, identity.TwitchDisplayName),
+			)},
+			textSection{text: fmt.Sprintf(i18n.Translate(lang, msgSubStartBodyHTML), html.EscapeString(broadcasterLogin))},
+			textSection{text: ui.LinkedStatusDetailsHTML(lang, targets.ActiveCreatorNames, len(joinRows) > 0)},
+		),
 		opts: client.MessageOptions{
-			Markup: tu.InlineKeyboard(joinRows...),
+			Markup:         ui.WithMainMenu(lang, viewerMainMenuCallbacks(), joinRows...),
+			DisablePreview: true,
 		},
 	}
 }

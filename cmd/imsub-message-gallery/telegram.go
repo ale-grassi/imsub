@@ -21,6 +21,11 @@ const galleryPreviewCallbackData = "gallery:noop"
 var (
 	errMissingTelegramToken = errors.New("missing IMSUB_TELEGRAM_BOT_TOKEN")
 	errSendScenario         = errors.New("send telegram gallery scenario")
+
+	// Dotenv files consulted by lookupTelegramBotToken, in precedence order
+	// (first match wins). ".env.dev" lets contributors keep a development-only
+	// token that shadows the production ".env".
+	dotenvSearchOrder = []string{".env.dev", ".env"}
 )
 
 type telegramSendResult struct {
@@ -67,15 +72,20 @@ func lookupTelegramBotToken() (string, error) {
 		return token, nil
 	}
 
-	envMap, err := godotenv.Read(".env")
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return "", nil
+	for _, path := range dotenvSearchOrder {
+		envMap, err := godotenv.Read(path)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return "", fmt.Errorf("read %s: %w", path, err)
 		}
-		return "", fmt.Errorf("read .env: %w", err)
+		if token := strings.TrimSpace(envMap["IMSUB_TELEGRAM_BOT_TOKEN"]); token != "" {
+			return token, nil
+		}
 	}
 
-	return strings.TrimSpace(envMap["IMSUB_TELEGRAM_BOT_TOKEN"]), nil
+	return "", nil
 }
 
 func formatTelegramCardText(sectionName string, scenario galleryScenario, card galleryCard, noHeader bool) string {

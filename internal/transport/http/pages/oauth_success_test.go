@@ -31,13 +31,34 @@ func TestRenderOAuthError(t *testing.T) {
 		Title:   "Problem",
 		Message: "Something failed",
 		Hint:    "Return to Telegram.",
+		Steps:   []string{"Go back to Telegram.", "Use /start."},
 	})
 
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("RenderOAuthError(page).StatusCode = %d, want %d", rec.Code, http.StatusBadRequest)
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, "Problem") || !strings.Contains(body, "Something failed") || !strings.Contains(body, "Return to Telegram.") {
-		t.Errorf("RenderOAuthError(page).Body = %q, want body containing title, message, and hint", body)
+	if !strings.Contains(body, "Problem") || !strings.Contains(body, "Something failed") || !strings.Contains(body, "Return to Telegram.") || !strings.Contains(body, "Use /start.") {
+		t.Errorf("RenderOAuthError(page).Body = %q, want body containing title, message, hint, and steps", body)
+	}
+}
+
+func TestRenderOAuthErrorOmitsHintWhenEmpty(t *testing.T) {
+	t.Parallel()
+
+	rec := httptest.NewRecorder()
+	RenderOAuthError(rec, OAuthErrorPage{
+		Status:  http.StatusBadRequest,
+		Title:   "Problem",
+		Message: "Something failed",
+		Steps:   []string{"Go back to Telegram.", "Use /start."},
+	})
+
+	body := rec.Body.String()
+	if strings.Contains(body, `class="hint"`) {
+		t.Errorf("RenderOAuthError(page without hint).Body = %q, want no hint paragraph", body)
+	}
+	if !strings.Contains(body, "Use /start.") {
+		t.Errorf("RenderOAuthError(page without hint).Body = %q, want body containing steps", body)
 	}
 }

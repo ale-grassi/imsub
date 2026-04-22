@@ -5,20 +5,11 @@ import (
 	"testing"
 
 	"imsub/internal/core"
-	"imsub/internal/platform/i18n"
 	"imsub/internal/usecase"
 )
 
-func ensureResetTestI18n(t *testing.T) {
-	t.Helper()
-	if err := i18n.Ensure(); err != nil {
-		t.Fatalf("i18n.Ensure() error = %v", err)
-	}
-}
-
 func TestBuildResetPromptView(t *testing.T) {
 	t.Parallel()
-	ensureResetTestI18n(t)
 
 	view := buildResetPromptView("en", core.ScopeState{
 		HasIdentity: true,
@@ -42,7 +33,6 @@ func TestBuildResetPromptView(t *testing.T) {
 
 func TestBuildResetPromptViewEmpty(t *testing.T) {
 	t.Parallel()
-	ensureResetTestI18n(t)
 
 	view := buildResetPromptView("en", core.ScopeState{}, resetOriginViewer)
 	if view.text == "" {
@@ -59,7 +49,6 @@ func TestBuildResetPromptViewEmpty(t *testing.T) {
 
 func TestBuildResetExecutionView(t *testing.T) {
 	t.Parallel()
-	ensureResetTestI18n(t)
 
 	view := buildResetExecutionView("en", usecase.ResetResult{Scope: usecase.ResetScopeViewer, ViewerLogin: "viewer", GroupCount: 2})
 	if view.text == "" {
@@ -69,7 +58,6 @@ func TestBuildResetExecutionView(t *testing.T) {
 
 func TestBuildResetErrorView(t *testing.T) {
 	t.Parallel()
-	ensureResetTestI18n(t)
 
 	view := buildResetErrorView("en")
 	if view.text == "" || view.opts.Markup == nil {
@@ -79,7 +67,6 @@ func TestBuildResetErrorView(t *testing.T) {
 
 func TestBuildResetExecutionViewCreatorIncludesCleanup(t *testing.T) {
 	t.Parallel()
-	ensureResetTestI18n(t)
 
 	view := buildResetExecutionView("en", usecase.ResetResult{
 		Scope:        usecase.ResetScopeCreator,
@@ -103,7 +90,6 @@ func TestBuildResetExecutionViewCreatorIncludesCleanup(t *testing.T) {
 
 func TestRenderResetViewerGroupsEmpty(t *testing.T) {
 	t.Parallel()
-	ensureResetTestI18n(t)
 
 	got := renderResetViewerGroups("en", nil)
 	if got != "No groups" {
@@ -113,7 +99,6 @@ func TestRenderResetViewerGroupsEmpty(t *testing.T) {
 
 func TestResetViewerConsequenceLine(t *testing.T) {
 	t.Parallel()
-	ensureResetTestI18n(t)
 
 	if got := resetViewerConsequenceLine("en", 0); got != "\n• No subscribers-only groups found, so you will not be removed from any groups" {
 		t.Fatalf("resetViewerConsequenceLine(0) = %q, want zero-group message", got)
@@ -125,7 +110,6 @@ func TestResetViewerConsequenceLine(t *testing.T) {
 
 func TestResetGroupSection(t *testing.T) {
 	t.Parallel()
-	ensureResetTestI18n(t)
 
 	if got := resetGroupSection("en", "Subscribers-only groups", nil); got != "" {
 		t.Fatalf("resetGroupSection(nil) = %q, want empty string", got)

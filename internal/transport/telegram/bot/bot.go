@@ -368,17 +368,6 @@ func creatorStatusMenuCallbacks(hasManageGroups, isActive bool, graceActive, blo
 	return callbacks
 }
 
-func creatorMainMenuCallbacks() telegramui.CreatorMenuCallbacks {
-	return telegramui.CreatorMenuCallbacks{
-		Refresh: creatorRefreshCallback(),
-		Reset:   resetOpenCallback(resetOriginCreator),
-	}
-}
-
-func creatorMainMenuMarkup(lang string) *telego.InlineKeyboardMarkup {
-	return telegramui.CreatorMainMenuMarkup(lang, creatorMainMenuCallbacks())
-}
-
 func (c *Bot) createOAuthState(ctx context.Context, payload core.OAuthStatePayload, ttl time.Duration) (string, error) {
 	state, err := NewSecureToken(24)
 	if err != nil {
@@ -427,6 +416,10 @@ func (c *Bot) RegisterTelegramHandlers() {
 		}
 	}
 
+	// NOTE: the DM/group chat scopes below are part of the public bot contract;
+	// changing them also affects the i18n slash-command wrapping rule (see
+	// i18n_authoring.go). If you relax a privateOnly handler, update
+	// dmSlashCommands and the affected i18n keys accordingly.
 	c.tgHandler.HandleMessage(trackedCommand("linkgroup", "group", c.onRegisterGroup), tghandler.CommandEqual("linkgroup"))
 	c.tgHandler.HandleMessage(trackedCommand("unlinkgroup", "group", c.onUnregisterCommand), tghandler.And(tghandler.CommandEqual("unlinkgroup"), groupOnly))
 	c.tgHandler.HandleMessage(trackedCommand("start", "private", c.onStartCommand), tghandler.And(tghandler.CommandEqual("start"), privateOnly))
@@ -683,7 +676,11 @@ func (c *Bot) HandleSubscriptionStart(ctx context.Context, broadcasterID, broadc
 	if creatorName == "" && len(access.Targets.ActiveCreatorNames) > 0 {
 		creatorName = access.Targets.ActiveCreatorNames[0]
 	}
-	view := buildSubscriptionStartView(lang, creatorName, access.Targets)
+	targets := access.Targets
+	if len(targets.ActiveCreatorNames) == 0 && strings.TrimSpace(creatorName) != "" {
+		targets.ActiveCreatorNames = []string{creatorName}
+	}
+	view := buildSubscriptionStartView(lang, access.Identity, creatorName, targets)
 	if messageID := c.sendMsg(ctx, telegramUserID, view.text, &view.opts); messageID == 0 {
 		return errSubscriptionStartSend
 	}

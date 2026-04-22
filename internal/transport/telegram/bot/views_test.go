@@ -38,31 +38,34 @@ func TestBuildMainMenuTextView(t *testing.T) {
 	}
 }
 
-func TestBuildViewerErrorViewIncludesMainMenu(t *testing.T) {
+func TestBuildViewerErrorViewHasNoButtons(t *testing.T) {
 	t.Parallel()
 	view := buildViewerErrorView("en")
 	if view.text != i18n.Translate("en", msgViewerError) {
 		t.Fatalf("buildViewerErrorView() text = %q, want %q", view.text, i18n.Translate("en", msgViewerError))
 	}
-	if view.opts.Markup == nil {
-		t.Fatalf("buildViewerErrorView() = %+v, want markup", view)
+	if !strings.Contains(view.text, "/start") {
+		t.Fatalf("buildViewerErrorView() text = %q, want /start guidance", view.text)
 	}
-	if got := len(view.opts.Markup.InlineKeyboard); got != 2 {
-		t.Fatalf("buildViewerErrorView() rows = %d, want 2", got)
+	if !strings.Contains(view.text, "/reset") {
+		t.Fatalf("buildViewerErrorView() text = %q, want /reset guidance", view.text)
 	}
-	if got, want := view.opts.Markup.InlineKeyboard[0][0].CallbackData, viewerMainMenuCallbacks().Refresh; got != want {
-		t.Fatalf("buildViewerErrorView() refresh callback = %q, want %q", got, want)
-	}
-	if got, want := view.opts.Markup.InlineKeyboard[1][0].CallbackData, viewerMainMenuCallbacks().Reset; got != want {
-		t.Fatalf("buildViewerErrorView() reset callback = %q, want %q", got, want)
+	if view.opts.Markup != nil {
+		t.Fatalf("buildViewerErrorView() markup = %+v, want nil", view.opts.Markup)
 	}
 }
 
 func TestBuildCreatorLinkErrorView(t *testing.T) {
 	t.Parallel()
 	view := buildCreatorLinkErrorView("en")
-	if view.text == "" || view.opts.Markup == nil {
-		t.Fatalf("buildCreatorLinkErrorView() = %+v, want text and markup", view)
+	if view.text == "" {
+		t.Fatalf("buildCreatorLinkErrorView() = %+v, want text", view)
+	}
+	if !strings.Contains(view.text, "/creator") {
+		t.Fatalf("buildCreatorLinkErrorView() text = %q, want /creator guidance", view.text)
+	}
+	if view.opts.Markup != nil {
+		t.Fatalf("buildCreatorLinkErrorView() markup = %+v, want nil", view.opts.Markup)
 	}
 }
 
@@ -112,7 +115,11 @@ func TestGraceRemainingHoursRoundsUp(t *testing.T) {
 func TestBuildSubscriptionStartViewIncludesJoinButtons(t *testing.T) {
 	t.Parallel()
 
-	view := buildSubscriptionStartView("en", "streamer1", core.JoinTargets{
+	view := buildSubscriptionStartView("en", core.UserIdentity{
+		TwitchLogin:       "viewer_one",
+		TwitchDisplayName: "Viewer One",
+	}, "streamer1", core.JoinTargets{
+		ActiveCreatorNames: []string{"streamer1"},
 		JoinLinks: []core.JoinLink{{
 			CreatorName: "streamer1",
 			GroupName:   "VIP",
@@ -121,6 +128,33 @@ func TestBuildSubscriptionStartViewIncludesJoinButtons(t *testing.T) {
 	})
 	if view.text == "" || view.opts.Markup == nil {
 		t.Fatalf("buildSubscriptionStartView() = %+v, want text and markup", view)
+	}
+	if !strings.Contains(view.text, "New subscription active") {
+		t.Fatalf("buildSubscriptionStartView() text = %q, want notification intro", view.text)
+	}
+	if !strings.Contains(view.text, "<code>Viewer One</code>") {
+		t.Fatalf("buildSubscriptionStartView() text = %q, want viewer account", view.text)
+	}
+	if !strings.Contains(view.text, "Your subscription to <b>streamer1</b> is active.") {
+		t.Fatalf("buildSubscriptionStartView() text = %q, want broadcaster-specific notice", view.text)
+	}
+	if strings.Contains(view.text, "Twitch connected") {
+		t.Fatalf("buildSubscriptionStartView() text = %q, did not expect generic connected heading", view.text)
+	}
+	if !strings.Contains(view.text, "<b>Account:</b>") {
+		t.Fatalf("buildSubscriptionStartView() text = %q, want account line under intro", view.text)
+	}
+	if !strings.Contains(view.text, "If a link expires, tap <b>Refresh</b> to load updated links") {
+		t.Fatalf("buildSubscriptionStartView() text = %q, want linked status guidance", view.text)
+	}
+	if got, want := len(view.opts.Markup.InlineKeyboard), 3; got != want {
+		t.Fatalf("buildSubscriptionStartView() rows = %d, want %d", got, want)
+	}
+	if got, want := view.opts.Markup.InlineKeyboard[1][0].CallbackData, viewerMainMenuCallbacks().Refresh; got != want {
+		t.Fatalf("buildSubscriptionStartView() refresh callback = %q, want %q", got, want)
+	}
+	if got, want := view.opts.Markup.InlineKeyboard[2][0].CallbackData, viewerMainMenuCallbacks().Reset; got != want {
+		t.Fatalf("buildSubscriptionStartView() reset callback = %q, want %q", got, want)
 	}
 }
 

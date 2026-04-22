@@ -4,14 +4,10 @@ import (
 	"testing"
 
 	"imsub/internal/core"
-	"imsub/internal/platform/i18n"
 )
 
 func TestBuildMemberCleanupResultViewSkipsSuccessfulCleanup(t *testing.T) {
 	t.Parallel()
-	if err := i18n.Ensure(); err != nil {
-		t.Fatalf("i18n.Ensure() error = %v", err)
-	}
 
 	view, ok := buildMemberCleanupResultView("en", core.MemberCleanupResult{
 		Kind:           core.MemberCleanupKindGroupUnregistration,
@@ -30,9 +26,6 @@ func TestBuildMemberCleanupResultViewSkipsSuccessfulCleanup(t *testing.T) {
 
 func TestBuildMemberCleanupResultViewKeepsPartialAndFailedNotifications(t *testing.T) {
 	t.Parallel()
-	if err := i18n.Ensure(); err != nil {
-		t.Fatalf("i18n.Ensure() error = %v", err)
-	}
 
 	partialView, ok := buildMemberCleanupResultView("en", core.MemberCleanupResult{
 		Kind:              core.MemberCleanupKindCreatorReset,

@@ -14,7 +14,6 @@ import (
 	"imsub/internal/core"
 	"imsub/internal/events"
 	"imsub/internal/platform/config"
-	"imsub/internal/platform/i18n"
 	"imsub/internal/platform/ratelimit"
 	telegramclient "imsub/internal/transport/telegram/client"
 	telegramgroups "imsub/internal/transport/telegram/groups"
@@ -75,10 +74,6 @@ func (c routeTestCleaner) DeleteEventSubsForCreator(ctx context.Context, creator
 
 func newRouteTestHarnessWithCleaner(t *testing.T, cleaner usecaseGroupUnregistrationCleaner) routeTestHarness {
 	t.Helper()
-
-	if err := i18n.Ensure(); err != nil {
-		t.Fatalf("i18n.Ensure() error = %v", err)
-	}
 
 	caller := &routeTestCaller{}
 	bot, err := telego.NewBot("123456:"+strings.Repeat("a", 35), telego.WithAPICaller(caller))

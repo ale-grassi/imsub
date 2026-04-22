@@ -23,9 +23,11 @@ const (
 	btnBack          = "btn_back"
 	btnResetConfirm  = "btn_reset_confirm"
 
-	msgLinkedStatusNoSubsHTML           = "linked_status_no_subs_html"
-	msgLinkedStatusWithSubsHTML         = "linked_status_with_subs_html"
-	msgLinkedStatusWithSubsNoGroupsHTML = "linked_status_with_subs_no_groups_html"
+	msgLinkedStatusHeadingHTML               = "linked_status_heading_html"
+	msgLinkedStatusAccountHTML               = "linked_status_account_html"
+	msgLinkedStatusNoSubsBodyHTMLNoAccount   = "linked_status_no_subs_body_html_no_account"
+	msgLinkedStatusWithSubsBodyHTMLNoAccount = "linked_status_with_subs_body_html_no_account"
+	msgLinkedStatusNoGroupsBodyHTMLNoAccount = "linked_status_with_subs_no_groups_body_html_no_account"
 
 	refreshButtonEmojiID   = "5258420634785947640"
 	linkButtonEmojiID      = "5257991477358763590"
@@ -135,21 +137,31 @@ func ResetConfirmMarkup(lang, confirmCallback, backCallback string) *telego.Inli
 // LinkedStatusWithJoinStateHTML renders the viewer linked status block for the
 // current join availability.
 func LinkedStatusWithJoinStateHTML(lang, twitchLogin, twitchDisplayName string, activeNames []string, hasJoinButtons bool) string {
-	profileDisplay := TwitchProfileHTML(twitchLogin, twitchDisplayName)
+	return i18n.Translate(lang, msgLinkedStatusHeadingHTML) + "\n" +
+		LinkedStatusAccountHTML(lang, twitchLogin, twitchDisplayName) + "\n\n" +
+		LinkedStatusDetailsHTML(lang, activeNames, hasJoinButtons)
+}
+
+// LinkedStatusAccountHTML renders the reusable account line for viewer status screens.
+func LinkedStatusAccountHTML(lang, twitchLogin, twitchDisplayName string) string {
+	return fmt.Sprintf(i18n.Translate(lang, msgLinkedStatusAccountHTML), TwitchProfileHTML(twitchLogin, twitchDisplayName))
+}
+
+// LinkedStatusDetailsHTML renders the reusable subscription and join-link details without heading/account.
+func LinkedStatusDetailsHTML(lang string, activeNames []string, hasJoinButtons bool) string {
 	if len(activeNames) == 0 {
-		return fmt.Sprintf(i18n.Translate(lang, msgLinkedStatusNoSubsHTML), profileDisplay)
+		return i18n.Translate(lang, msgLinkedStatusNoSubsBodyHTMLNoAccount)
 	}
 	items := make([]string, 0, len(activeNames))
 	for _, name := range activeNames {
 		items = append(items, "• "+html.EscapeString(name))
 	}
-	key := msgLinkedStatusWithSubsHTML
+	key := msgLinkedStatusWithSubsBodyHTMLNoAccount
 	if !hasJoinButtons {
-		key = msgLinkedStatusWithSubsNoGroupsHTML
+		key = msgLinkedStatusNoGroupsBodyHTMLNoAccount
 	}
 	return fmt.Sprintf(
 		i18n.Translate(lang, key),
-		profileDisplay,
 		strings.Join(items, "\n"),
 	)
 }

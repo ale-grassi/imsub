@@ -18,11 +18,12 @@ import (
 )
 
 const (
-	msgLinkPromptHTML = "link_prompt_html"
-	msgViewerError    = "err_viewer_generic"
-	msgSubStartReady  = "sub_start_ready"
-	msgSubEndPartial  = "sub_end_partial"
-	msgSubGraceStart  = "sub_grace_start"
+	msgLinkPromptHTML   = "link_prompt_html"
+	msgViewerError      = "err_viewer_generic"
+	msgSubStartHeading  = "sub_start_heading"
+	msgSubStartBodyHTML = "sub_start_body_html"
+	msgSubEndPartial    = "sub_end_partial"
+	msgSubGraceStart    = "sub_grace_start"
 
 	btnLinkTwitch = "btn_link_twitch"
 	btnJoin       = "btn_join"

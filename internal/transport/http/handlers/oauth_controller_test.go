@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -18,7 +19,8 @@ import (
 )
 
 type oauthFakeStore struct {
-	getOAuthStateFn func(ctx context.Context, state string) (core.OAuthStatePayload, error)
+	getOAuthStateFn    func(ctx context.Context, state string) (core.OAuthStatePayload, error)
+	deleteOAuthStateFn func(ctx context.Context, state string) (core.OAuthStatePayload, error)
 }
 
 func (f *oauthFakeStore) OAuthState(ctx context.Context, state string) (core.OAuthStatePayload, error) {
@@ -28,7 +30,10 @@ func (f *oauthFakeStore) OAuthState(ctx context.Context, state string) (core.OAu
 	return core.OAuthStatePayload{}, nil
 }
 
-func (f *oauthFakeStore) DeleteOAuthState(context.Context, string) (core.OAuthStatePayload, error) {
+func (f *oauthFakeStore) DeleteOAuthState(ctx context.Context, state string) (core.OAuthStatePayload, error) {
+	if f.deleteOAuthStateFn != nil {
+		return f.deleteOAuthStateFn(ctx, state)
+	}
 	return core.OAuthStatePayload{}, nil
 }
 
@@ -82,8 +87,76 @@ func TestOAuthStartMissingState(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), "Missing Twitch link") {
 		t.Errorf("OAuthStart(state=%q).Body = %q, want body containing %q", "", rec.Body.String(), "Missing Twitch link")
 	}
+	if !strings.Contains(rec.Body.String(), "Restart the same connection flow to get a new link.") {
+		t.Errorf("OAuthStart(state=%q).Body = %q, want body containing recovery steps", "", rec.Body.String())
+	}
 	if len(obs.events) != 1 || obs.events[0].Name != events.NameOAuthStart || obs.events[0].Outcome != "missing_state" || obs.events[0].Fields["mode"] != "unknown" {
 		t.Errorf("oauth_start events = %+v, want one unknown missing_state", obs.events)
+	}
+}
+
+func TestTwitchCallbackExpiredLinkRendersNeutralRecoverySteps(t *testing.T) {
+	t.Parallel()
+
+	obs := &oauthFakeObserver{}
+	c := testController(&oauthFakeStore{
+		deleteOAuthStateFn: func(_ context.Context, state string) (core.OAuthStatePayload, error) {
+			if state != "missing" {
+				t.Fatalf("DeleteOAuthState(state=%q) got unexpected state, want %q", state, "missing")
+			}
+			return core.OAuthStatePayload{}, errors.New("missing state")
+		},
+	}, obs, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/auth/callback?state=missing&code=code-1", nil)
+	rec := httptest.NewRecorder()
+
+	c.TwitchCallback(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("TwitchCallback(expired state).StatusCode = %d, want %d", rec.Code, http.StatusBadRequest)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "Twitch link expired") {
+		t.Fatalf("TwitchCallback(expired state).Body = %q, want expired title", body)
+	}
+	if !strings.Contains(body, "Restart the same connection flow to get a new link.") {
+		t.Fatalf("TwitchCallback(expired state).Body = %q, want neutral recovery steps", body)
+	}
+	if len(obs.events) != 1 || obs.events[0].Name != events.NameOAuthCallback || obs.events[0].Outcome != "state_missing" || obs.events[0].Fields["mode"] != "unknown" {
+		t.Errorf("oauth_callback events = %+v, want one unknown state_missing", obs.events)
+	}
+}
+
+func TestTwitchCallbackViewerSaveFailedRendersStartGuidance(t *testing.T) {
+	t.Parallel()
+
+	obs := &oauthFakeObserver{}
+	c := testController(&oauthFakeStore{
+		deleteOAuthStateFn: func(_ context.Context, state string) (core.OAuthStatePayload, error) {
+			if state != "viewer-state" {
+				t.Fatalf("DeleteOAuthState(state=%q) got unexpected state, want %q", state, "viewer-state")
+			}
+			return core.OAuthStatePayload{Mode: core.OAuthModeViewer, Language: "en"}, nil
+		},
+	}, obs, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/auth/callback?state=viewer-state&code=code-1", nil)
+	rec := httptest.NewRecorder()
+
+	c.viewer = func(context.Context, string, core.OAuthStatePayload, string) (string, string, error) {
+		return "viewer_save_failed", "", &core.FlowError{Kind: core.KindSave}
+	}
+	c.creator = func(context.Context, string, core.OAuthStatePayload, string) (string, string, error) {
+		t.Fatal("creator callback should not run for viewer payload")
+		return "", "", nil
+	}
+	c.TwitchCallback(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("TwitchCallback(viewer save failed).StatusCode = %d, want %d", rec.Code, http.StatusConflict)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "Use /start to get a new Twitch link.") {
+		t.Fatalf("TwitchCallback(viewer save failed).Body = %q, want /start guidance", body)
 	}
 }
 

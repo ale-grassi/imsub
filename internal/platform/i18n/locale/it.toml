@@ -1,3 +1,5 @@
+# Slash-command wrapping rule: see internal/transport/telegram/bot/i18n_authoring.go.
+
 [btn_back]
 other = "Indietro"
 
@@ -110,13 +112,13 @@ other = "ℹ️ Gruppo gia' collegato"
 other = "ℹ️ Questo gruppo e' collegato a un altro creator"
 
 [cmd_help]
-other = "Usa /start per collegare l'account viewer, /creator per configurare l'account creator, /linkgroup nel gruppo Telegram e /reset per eliminare i dati collegati."
+other = "Usa /start per collegare l'account viewer, /creator per configurare l'account creator, <code>/linkgroup</code> nel gruppo Telegram e /reset per eliminare i dati collegati."
 
 [cmd_help_both]
-other = "Hai sia l'account viewer collegato sia la configurazione creator attiva. Usa /start per l'accesso viewer, /creator per gestire il creator, /linkgroup nel gruppo, oppure /reset per eliminare i dati collegati."
+other = "Hai sia l'account viewer collegato sia la configurazione creator attiva. Usa /start per l'accesso viewer, /creator per gestire il creator, <code>/linkgroup</code> nel gruppo, oppure /reset per eliminare i dati collegati."
 
 [cmd_help_creator]
-other = "La tua configurazione creator e' attiva. Usa /creator per vedere lo stato, /linkgroup nel gruppo Telegram, oppure /reset per eliminare i dati collegati."
+other = "La tua configurazione creator e' attiva. Usa /creator per vedere lo stato, <code>/linkgroup</code> nel gruppo Telegram, oppure /reset per eliminare i dati collegati."
 
 [cmd_help_viewer]
 other = "Il tuo account viewer e' collegato. Usa /start per aggiornare l'accesso oppure /reset per eliminare i dati collegati."
@@ -146,10 +148,10 @@ other = "⚠️ <b>Cambiare policy del gruppo?</b>\n\n<b>Gruppo:</b> %s\n<b>Poli
 other = "🌐 <b>Cambia lingua del gruppo</b>\n\nScegli la lingua dei messaggi del bot inviati in questo gruppo.\n\n<b>Gruppo:</b> %s\n<b>Lingua attuale:</b> %s"
 
 [creator_register_info]
-other = "🎙️ <b>Configura il tuo account creator</b>\n\n⚠️ <b>Solo creator</b>\nQuesti passaggi servono solo ai creator che vogliono proteggere un gruppo. Se vuoi entrare in un gruppo come subscriber, usa invece /start.\n\n➡️ <b>Step 1 di 4</b>\nCollega il tuo <b>account creator Twitch</b>.\n\n<b>Percorso di setup</b>\n1. Collega account Twitch\n2. Aggiungi il bot al gruppo\n3. Concedi al bot i permessi necessari\n4. Esegui <code>/linkgroup</code> e scegli la policy del gruppo\n\n<b>Nota privacy</b>\nImSub memorizza il tuo ID Telegram, l'account creator Twitch collegato, i token OAuth creator e le impostazioni dei gruppi gestiti per far funzionare il controllo degli accessi. Usa /reset per esportare o eliminare i dati del bot.\n\n<i>Se hai qualsiasi problema, copia il link usando il pulsante qui sotto e incollalo in un browser. I link di autorizzazione restano validi per 30 minuti e possono essere usati una sola volta. Se il problema persiste, incollalo nella modalita' in incognito del browser.</i>"
+other = "🎙️ <b>Configura il tuo account creator</b>\n\n⚠️ <b>Solo creator</b>\nQuesti passaggi servono solo ai creator che vogliono proteggere un gruppo. Se vuoi entrare in un gruppo come subscriber, usa invece /start.\n\n➡️ <b>Step 1 di 4</b>\nCollega il tuo <b>account creator Twitch</b>.\n\n<b>Percorso di setup</b>\n1. Collega account Twitch\n2. Aggiungi il bot al gruppo\n3. Concedi al bot i permessi necessari\n4. Esegui <code>/linkgroup</code> e scegli la policy del gruppo\n\n<b>Nota privacy</b>\nImSub memorizza il tuo ID Telegram, l'account creator Twitch collegato, i token OAuth creator e le impostazioni dei gruppi gestiti per far funzionare il controllo degli accessi. Usa /reset per esportare o eliminare i dati del bot.\n\n<i>Se il pulsante qui sotto non apre Twitch, copia il link e aprilo nel browser. I link di autorizzazione scadono e possono essere usati una sola volta. Se il link e' scaduto o e' gia' stato usato, torna qui e usa /creator per ottenerne uno nuovo. Se Twitch continua a non aprirsi, prova una finestra in incognito.</i>"
 
 [creator_reconnect_info]
-other = "🔄 <b>Ricollega account creator</b>\n\n<b>Ricollega</b> il tuo account creator per continuare a gestire i tuoi gruppi.\n\n<b>Nota privacy</b>\nImSub memorizza il tuo ID Telegram, l'account creator Twitch collegato, i token OAuth creator e le impostazioni dei gruppi gestiti per far funzionare il controllo degli accessi. Usa /reset per esportare o eliminare i dati del bot.\n\n<i>Se hai qualsiasi problema, copia il link usando il pulsante qui sotto e incollalo in un browser. I link di autorizzazione restano validi per 30 minuti e possono essere usati una sola volta. Se il problema persiste, incollalo nella modalita' in incognito del browser.</i>"
+other = "🔄 <b>Ricollega account creator</b>\n\n<b>Ricollega</b> il tuo account creator per continuare a gestire i tuoi gruppi.\n\n<b>Nota privacy</b>\nImSub memorizza il tuo ID Telegram, l'account creator Twitch collegato, i token OAuth creator e le impostazioni dei gruppi gestiti per far funzionare il controllo degli accessi. Usa /reset per esportare o eliminare i dati del bot.\n\n<i>Se il pulsante qui sotto non apre Twitch, copia il link e aprilo nel browser. I link di autorizzazione scadono e possono essere usati una sola volta. Se il link e' scaduto o e' gia' stato usato, torna qui e usa /creator per ottenerne uno nuovo. Se Twitch continua a non aprirsi, prova una finestra in incognito.</i>"
 
 [creator_registered_html]
 other = "✅ <b>Setup completato</b>\n🎙️ <b>Account:</b> %s\n\n%s\n\n<b>Gruppi gestiti</b>\n%s\n\n<i>Usa i pulsanti qui sotto per gestire i gruppi o cambiare le impostazioni di accesso.</i>"
@@ -233,13 +235,13 @@ other = "• Utenti bannati sincronizzati: <b>%d</b>"
 other = "⚠️ <b>Abbonamento scaduto</b>\n\nIl tuo abbonamento a <b>%s</b> e' scaduto.\n\nRinnova entro <b>%d ore</b> per mantenere l'accesso ai gruppi Telegram riservati agli abbonati di questo creator."
 
 [err_creator_link]
-other = "Non sono riuscito a creare il link per collegare il creator. Riprova con /creator."
+other = "Non sono riuscito a creare il link per collegare il creator. Usa /creator per richiedere un link nuovo."
 
 [err_load_status]
 other = "Non sono riuscito a caricare lo stato del tuo account. Tocca Aggiorna tra poco oppure ripeti il comando."
 
 [err_viewer_generic]
-other = "‼️⚠️ Qualcosa e' andato storto. Usa i pulsanti qui sotto per riprovare."
+other = "‼️⚠️ Qualcosa e' andato storto.\n\nRiprova tra poco. Se il problema continua, usa /start per ricominciare oppure /reset per eliminare i dati collegati."
 
 [viewer_god_html]
 other = "👑 <b>Accesso globale attivo</b>\n\nPuoi entrare in tutti i gruppi gestiti senza collegare Twitch.\n\n<b>Creator attivi</b>\n%s"
@@ -290,7 +292,7 @@ other = "⚠️ <b>Funzionalita' del gruppo compromesse</b>\n\nA ImSub mancano i
 other = "➡️ <b>Step 4 di 4</b>\nScegli la policy del gruppo.\n\nScegli cosa deve succedere quando il bot vede un membro non verificato in questo gruppo."
 
 [group_policy_existing_members_html]
-other = "⚠️ <b>Rilevati %d membri non admin gia' presenti</b>\nI membri che erano gia' in questo gruppo prima del collegamento non vengono verificati subito.\n\n<i>I membri collegati e idonei possono essere promossi quando aprono /start o quando il bot li vede di nuovo. I membri che restano scollegati o non idonei restano soggetti a questa policy e potrebbero comunque dover rientrare tramite il bot.</i>"
+other = "⚠️ <b>Rilevati %d membri non admin gia' presenti</b>\nI membri che erano gia' in questo gruppo prima del collegamento non vengono verificati subito.\n\n<i>I membri collegati e idonei possono essere promossi quando aprono <code>/start</code> o quando il bot li vede di nuovo. I membri che restano scollegati o non idonei restano soggetti a questa policy e potrebbero comunque dover rientrare tramite il bot.</i>"
 
 [group_policy_observe_line]
 other = "<b>Policy attuale:</b> Consenti"
@@ -344,16 +346,22 @@ other = "⚠️ Il tuo account creator <b>%s</b> e' gia' collegato al gruppo <b>
 other = "⚠️ Questo gruppo e' gia' collegato a un altro account creator (<b>%s</b>).\n\nOgni gruppo puo' essere collegato a un solo creator. L'altro creator deve prima usare <code>/unlinkgroup</code>."
 
 [link_prompt_html]
-other = "😊 <b>Benvenuto, %s</b>\n\nCollega il tuo <b>account Twitch</b> per vedere quali <b>gruppi Telegram</b> puoi raggiungere.\n\n<b>Per iniziare</b>\n1. Tocca <b>Collega Twitch</b>\n2. Accedi su Twitch e approva l'accesso\n3. Torna qui per vedere i gruppi disponibili\n\n<b>Nota privacy</b>\nImSub memorizza il tuo ID Telegram, l'account Twitch collegato e lo stato di accesso ai gruppi per verificare gli abbonamenti e gestire l'accesso su Telegram. Usa /reset per esportare o eliminare i dati del bot.\n\n<i>Se hai qualsiasi problema, copia il link usando il pulsante qui sotto e incollalo in un browser. I link di autorizzazione restano validi per 30 minuti e possono essere usati una sola volta. Se il problema persiste, incollalo nella modalita' in incognito del browser.</i>"
+other = "😊 <b>Benvenuto, %s</b>\n\nCollega il tuo <b>account Twitch</b> per vedere quali <b>gruppi Telegram</b> puoi raggiungere.\n\n<b>Per iniziare</b>\n1. Tocca <b>Collega Twitch</b>\n2. Accedi su Twitch e approva l'accesso\n3. Torna qui per vedere i gruppi disponibili\n\n<b>Nota privacy</b>\nImSub memorizza il tuo ID Telegram, l'account Twitch collegato e lo stato di accesso ai gruppi per verificare gli abbonamenti e gestire l'accesso su Telegram. Usa /reset per esportare o eliminare i dati del bot.\n\n<i>Se il pulsante qui sotto non apre Twitch, copia il link e aprilo nel browser. I link di autorizzazione scadono e possono essere usati una sola volta. Se il link e' scaduto o e' gia' stato usato, torna qui e usa /start per ottenerne uno nuovo. Se Twitch continua a non aprirsi, prova una finestra in incognito.</i>"
 
-[linked_status_no_subs_html]
-other = "✅ <b>Twitch collegato</b>\n🔗 <b>Account:</b> %s\n\n<b>Nessun abbonamento attivo trovato</b>\nNon hai abbonamenti attivi collegati a gruppi Telegram riservati agli abbonati in questo momento.\n\n<i>Tocca <b>Aggiorna</b> per controllare di nuovo, oppure usa /reset se questo e' l'account Twitch sbagliato.</i>"
+[linked_status_heading_html]
+other = "✅ <b>Twitch collegato</b>"
 
-[linked_status_with_subs_html]
-other = "✅ <b>Twitch collegato</b>\n🔗 <b>Account:</b> %s\n\n<b>Abbonamenti attivi</b>\n%s\n\n<b>Link di accesso</b>\nI link di accesso scadono dopo <b>60 minuti</b>. Se Telegram dice che un link e' scaduto, tocca <b>Aggiorna</b> per generarne uno nuovo.\n\n<i>Tocca <b>Aggiorna</b> per controllare di nuovo, oppure usa /reset se questo e' l'account Twitch sbagliato.</i>"
+[linked_status_account_html]
+other = "🔗 <b>Account:</b> %s"
 
-[linked_status_with_subs_no_groups_html]
-other = "✅ <b>Twitch collegato</b>\n🔗 <b>Account:</b> %s\n\n<b>Nessun nuovo gruppo Telegram disponibile</b>\nHai abbonamenti attivi, ma al momento non ci sono nuovi gruppi Telegram riservati agli abbonati a cui unirti.\n\n<b>Abbonamenti attivi</b>\n%s\n\n<i>Tocca <b>Aggiorna</b> per controllare di nuovo, oppure usa /reset se questo e' l'account Twitch sbagliato.</i>"
+[linked_status_no_subs_body_html_no_account]
+other = "<b>Nessun abbonamento attivo trovato</b>\nNon hai abbonamenti attivi collegati a gruppi Telegram riservati agli abbonati in questo momento.\n\n<i>Tocca <b>Aggiorna</b> per controllare di nuovo, oppure usa /reset se questo e' l'account Twitch sbagliato.</i>"
+
+[linked_status_with_subs_body_html_no_account]
+other = "<b>Abbonamenti attivi</b>\n%s\n\n<i>Se un link scade, tocca <b>Aggiorna</b> per caricare link aggiornati, usa /start per ricominciare, oppure usa /reset se questo e' l'account Twitch sbagliato.</i>"
+
+[linked_status_with_subs_no_groups_body_html_no_account]
+other = "<b>Nessun nuovo gruppo Telegram disponibile</b>\nHai abbonamenti attivi, ma al momento non ci sono nuovi gruppi Telegram riservati agli abbonati a cui unirti.\n\n<b>Abbonamenti attivi</b>\n%s\n\n<i>Tocca <b>Aggiorna</b> per controllare di nuovo, oppure usa /reset se questo e' l'account Twitch sbagliato.</i>"
 
 [reset_choose_scope_html]
 other = "🗑️ <b>Scegli cosa eliminare</b>"
@@ -441,10 +449,13 @@ other = "Mantieni membri"
 other = "Rimuovi membri"
 
 [sub_end_partial]
-other = "⚠️ <b>Abbonamento scaduto</b>\n\nIl tuo abbonamento a <b>%s</b> e' scaduto, quindi sei stato rimosso dai gruppi Telegram riservati agli abbonati di questo creator.\n\n🔄 <b>Di nuovo accesso</b>\n1. Rinnova l'abbonamento su Twitch\n2. Torna qui e usa <code>/start</code>"
+other = "⚠️ <b>Abbonamento scaduto</b>\n\nIl tuo abbonamento a <b>%s</b> e' scaduto, quindi sei stato rimosso dai gruppi Telegram riservati agli abbonati di questo creator.\n\n🔄 <b>Di nuovo accesso</b>\n1. Rinnova l'abbonamento su Twitch\n2. Torna qui e usa /start"
 
-[sub_start_ready]
-other = "🎉 <b>Abbonamento attivo</b>\n\nIl tuo abbonamento a <b>%s</b> e' attivo.\n\n<i>I link di accesso scadono dopo <b>60 minuti</b>. Se un link e' scaduto, tocca <b>Aggiorna</b> oppure usa <code>/start</code> per ottenerne uno nuovo.</i>"
+[sub_start_heading]
+other = "🎉 <b>Nuovo abbonamento attivo</b>"
+
+[sub_start_body_html]
+other = "Il tuo abbonamento a <b>%s</b> e' attivo."
 
 [user_generic_name]
 other = "amico"

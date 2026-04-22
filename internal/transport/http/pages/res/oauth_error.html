@@ -77,6 +77,21 @@
       background: rgba(248, 113, 113, 0.08);
       border: 1px solid rgba(248, 113, 113, 0.2);
     }
+
+    .steps {
+      text-align: left;
+      margin: 0 0 1rem;
+      padding: 0.875rem 1rem 0.875rem 2rem;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #e4e4e7;
+      line-height: 1.6;
+    }
+
+    .steps li + li {
+      margin-top: 0.45rem;
+    }
   </style>
 </head>
 <body>
@@ -86,7 +101,12 @@
     </div>
     <h1>{{.Title}}</h1>
     <p class="subtitle">{{.Message}}</p>
-    <p class="hint">{{.Hint}}</p>
+    {{if .Steps}}
+    <ol class="steps">
+      {{range .Steps}}<li>{{.}}</li>{{end}}
+    </ol>
+    {{end}}
+    {{if .Hint}}<p class="hint">{{.Hint}}</p>{{end}}
   </div>
 </body>
 </html>

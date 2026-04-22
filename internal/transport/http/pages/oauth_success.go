@@ -22,6 +22,7 @@ type OAuthErrorPage struct {
 	Title   string
 	Message string
 	Hint    string
+	Steps   []string
 }
 
 // RenderOAuthSuccess renders the OAuth success HTML response.
@@ -45,10 +46,11 @@ func RenderOAuthSuccess(w http.ResponseWriter, title, message, username string) 
 // RenderOAuthError renders a user-facing OAuth error HTML response.
 func RenderOAuthError(w http.ResponseWriter, page OAuthErrorPage) {
 	var out bytes.Buffer
-	if err := oauthErrorTmpl.Execute(&out, map[string]string{
+	if err := oauthErrorTmpl.Execute(&out, map[string]any{
 		"Title":   page.Title,
 		"Message": page.Message,
 		"Hint":    page.Hint,
+		"Steps":   page.Steps,
 	}); err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
