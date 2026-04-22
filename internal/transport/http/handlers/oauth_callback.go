@@ -10,95 +10,6 @@ import (
 	"imsub/internal/transport/http/pages"
 )
 
-var (
-	oauthErrorDenied = oauthErrorPage{
-		Status:  http.StatusBadRequest,
-		Title:   "Twitch authorization canceled",
-		Message: "Twitch authorization did not complete.",
-		Steps: []string{
-			"Go back to the Telegram chat with ImSub.",
-			"Start the same connection flow again.",
-			"Approve the Twitch prompt when it opens.",
-		},
-		Hint: "If you closed the browser or denied access, the previous attempt will not finish.",
-	}
-	oauthErrorMissingResponse = oauthErrorPage{
-		Status:  http.StatusBadRequest,
-		Title:   "Missing Twitch response",
-		Message: "The Twitch callback did not include the required details.",
-		Steps: []string{
-			"Go back to the Telegram chat with ImSub.",
-			"Start the same connection flow again.",
-			"Complete the Twitch login in the same browser session.",
-		},
-		Hint: "If you opened an old or partial link, restart the flow from Telegram.",
-	}
-	oauthErrorExpiredLink = oauthErrorPage{
-		Status:  http.StatusBadRequest,
-		Title:   "Twitch link expired",
-		Message: "This Twitch authorization link expired, was already used, or was cleared before Twitch redirected back.",
-		Steps:   oauthNeutralRecoverySteps,
-		Hint:    "This link can only be used once. Go back to Telegram to start again.",
-	}
-	oauthErrorUnknownLinkType = oauthErrorPage{
-		Status:  http.StatusBadRequest,
-		Title:   "Unknown link type",
-		Message: "This Twitch link could not be recognized.",
-		Steps:   oauthNeutralRecoverySteps,
-		Hint:    "If you opened an older link, discard it and restart from Telegram.",
-	}
-	oauthErrorViewerSaveFailed = oauthErrorPage{
-		Status:  http.StatusConflict,
-		Title:   "Could not link account",
-		Message: "Your Twitch account could not be linked right now.",
-		Steps: []string{
-			"Go back to the Telegram chat with ImSub.",
-			"Use /start to get a new Twitch link.",
-			"If the wrong Twitch account was used, run /reset before trying again.",
-		},
-	}
-	oauthErrorVerificationFailed = oauthErrorPage{
-		Status:  http.StatusBadGateway,
-		Title:   "Verification failed",
-		Message: "ImSub could not finish Twitch verification.",
-		Steps: []string{
-			"Go back to the Telegram chat with ImSub.",
-			"Use /start to retry in a moment.",
-		},
-		Hint: "If the problem keeps happening, wait a moment and run /start again.",
-	}
-	oauthErrorMissingCreatorScope = oauthErrorPage{
-		Status:  http.StatusForbidden,
-		Title:   "Missing Twitch permission",
-		Message: "The required Twitch creator permission was not granted.",
-		Steps: []string{
-			"Go back to the Telegram chat with ImSub.",
-			"Use /creator to start the creator connection again.",
-			"Approve the requested Twitch permissions.",
-		},
-	}
-	oauthErrorCreatorSetupFailed = oauthErrorPage{
-		Status:  http.StatusBadGateway,
-		Title:   "Creator setup failed",
-		Message: "ImSub could not finish creator setup.",
-		Steps: []string{
-			"Go back to the Telegram chat with ImSub.",
-			"Use /creator to retry the creator connection.",
-		},
-		Hint: "If the problem keeps happening, wait a moment and run /creator again.",
-	}
-	oauthErrorCreatorMismatch = oauthErrorPage{
-		Status:  http.StatusConflict,
-		Title:   "Wrong Twitch creator account",
-		Message: "This reconnect used a different Twitch creator account than the one already linked.",
-		Steps: []string{
-			"Go back to the Telegram chat with ImSub.",
-			"Use /creator with the creator account that is already linked.",
-			"If you want to replace the linked creator account, run /reset first.",
-		},
-	}
-)
-
 // TwitchCallback completes OAuth callback processing for viewer and creator flows.
 func (c *Controller) TwitchCallback(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -115,27 +26,36 @@ func (c *Controller) TwitchCallback(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	}()
+	state := r.URL.Query().Get("state")
+	code := r.URL.Query().Get("code")
+	role := oauthPageRoleUnknown
+	lang := i18n.DefaultLanguage
+	if state != "" {
+		if previewPayload, err := c.store.OAuthState(ctx, state); err == nil {
+			role = oauthPageRoleFromPayload(previewPayload)
+			lang = oauthPageLanguage(previewPayload)
+		}
+	}
 	if errParam := r.URL.Query().Get("error"); errParam != "" {
 		resultLabel = "denied"
-		renderOAuthError(w, oauthErrorDenied)
+		pages.RenderOAuthError(w, oauthAuthIncompletePage(lang, role))
 		return
 	}
 
-	state := r.URL.Query().Get("state")
-	code := r.URL.Query().Get("code")
 	if state == "" || code == "" {
 		resultLabel = "missing_params"
-		renderOAuthError(w, oauthErrorMissingResponse)
+		pages.RenderOAuthError(w, oauthAuthIncompletePage(lang, role))
 		return
 	}
 
 	payload, err := c.store.DeleteOAuthState(ctx, state)
 	if err != nil {
 		resultLabel = "state_missing"
-		renderOAuthError(w, oauthErrorExpiredLink)
+		pages.RenderOAuthError(w, oauthInvalidLinkPage(lang, role))
 		return
 	}
-	lang := i18n.NormalizeLanguage(payload.Language)
+	lang = i18n.NormalizeLanguage(payload.Language)
+	role = oauthPageRoleFromPayload(payload)
 
 	switch payload.Mode {
 	case core.OAuthModeViewer:
@@ -146,18 +66,18 @@ func (c *Controller) TwitchCallback(w http.ResponseWriter, r *http.Request) {
 			var fe *core.FlowError
 			if errors.As(flowErr, &fe) {
 				switch fe.Kind {
-				case core.KindSave:
-					renderOAuthError(w, oauthErrorViewerSaveFailed)
 				case core.KindTokenExchange, core.KindUserInfo, core.KindScopeMissing, core.KindStore, core.KindCreatorMismatch:
-					renderOAuthError(w, oauthErrorVerificationFailed)
+					pages.RenderOAuthError(w, oauthTemporaryFailurePage(lang, role, http.StatusBadGateway))
+				case core.KindSave:
+					pages.RenderOAuthError(w, oauthTemporaryFailurePage(lang, role, http.StatusConflict))
 				}
 			} else {
-				renderOAuthError(w, oauthErrorVerificationFailed)
+				pages.RenderOAuthError(w, oauthTemporaryFailurePage(lang, role, http.StatusBadGateway))
 			}
 			resultLabel = label
 			return
 		}
-		pages.RenderOAuthSuccess(w, "Account linked", "Your Twitch account has been linked successfully.", displayName)
+		pages.RenderOAuthSuccess(w, oauthSuccessPage(lang, role, displayName))
 		resultLabel = label
 	case core.OAuthModeCreator:
 		modeLabel = string(core.OAuthModeCreator)
@@ -168,23 +88,23 @@ func (c *Controller) TwitchCallback(w http.ResponseWriter, r *http.Request) {
 			if errors.As(flowErr, &fe) {
 				switch fe.Kind {
 				case core.KindScopeMissing:
-					renderOAuthError(w, oauthErrorMissingCreatorScope)
+					pages.RenderOAuthError(w, oauthCreatorPermissionPage(lang, role))
 				case core.KindCreatorMismatch:
-					renderOAuthError(w, oauthErrorCreatorMismatch)
+					pages.RenderOAuthError(w, oauthCreatorMismatchPage(lang))
 				case core.KindTokenExchange, core.KindUserInfo, core.KindSave, core.KindStore:
-					renderOAuthError(w, oauthErrorCreatorSetupFailed)
+					pages.RenderOAuthError(w, oauthTemporaryFailurePage(lang, role, http.StatusBadGateway))
 				}
 			} else {
-				renderOAuthError(w, oauthErrorCreatorSetupFailed)
+				pages.RenderOAuthError(w, oauthTemporaryFailurePage(lang, role, http.StatusBadGateway))
 			}
 			resultLabel = label
 			return
 		}
-		pages.RenderOAuthSuccess(w, "Creator registered", "You can now return to Telegram to manage your groups.", creatorName)
+		pages.RenderOAuthSuccess(w, oauthSuccessPage(lang, role, creatorName))
 		resultLabel = label
 	default:
 		modeLabel = string(payload.Mode)
 		resultLabel = "unknown_mode"
-		renderOAuthError(w, oauthErrorUnknownLinkType)
+		pages.RenderOAuthError(w, oauthInvalidLinkPage(lang, oauthPageRoleUnknown))
 	}
 }

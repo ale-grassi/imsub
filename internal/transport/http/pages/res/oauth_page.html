@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.DocumentTitle}}</title>
+  {{if .RefreshURL}}<meta http-equiv="refresh" content="1; url={{.RefreshURL}}">{{end}}
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg-top: rgba(125, 211, 252, 0.14);
+      --bg-start: #11131a;
+      --bg-end: #0d1016;
+      --text: #f4f4f5;
+      --muted: #cbd5e1;
+      --soft: #94a3b8;
+      --card: rgba(255, 255, 255, 0.05);
+      --card-border: rgba(255, 255, 255, 0.10);
+      --accent: #7dd3fc;
+      --accent-soft: rgba(125, 211, 252, 0.14);
+      --button: #9147ff;
+      --button-hover: #7c3aed;
+      --button-text: #ffffff;
+      --secondary-bg: rgba(255, 255, 255, 0.03);
+      --secondary-border: rgba(255, 255, 255, 0.08);
+    }
+
+    body[data-tone="success"] {
+      --bg-top: rgba(74, 222, 128, 0.14);
+      --bg-start: #0e1310;
+      --bg-end: #0d0f0d;
+      --accent: #4ade80;
+      --accent-soft: rgba(74, 222, 128, 0.12);
+    }
+
+    body[data-tone="problem"] {
+      --bg-top: rgba(248, 113, 113, 0.18);
+      --bg-start: #161111;
+      --bg-end: #0d0d0f;
+      --accent: #f87171;
+      --accent-soft: rgba(248, 113, 113, 0.12);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", sans-serif;
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      background:
+        radial-gradient(circle at top, var(--bg-top), transparent 35%),
+        linear-gradient(180deg, var(--bg-start) 0%, var(--bg-end) 100%);
+      color: var(--text);
+    }
+
+    .card {
+      width: 100%;
+      max-width: 420px;
+      padding: 2rem 1.5rem 1.5rem;
+      text-align: center;
+      border-radius: 18px;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+    }
+
+    .icon {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 1.25rem;
+      border-radius: 50%;
+      background: var(--accent-soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .icon svg {
+      width: 24px;
+      height: 24px;
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    h1 {
+      margin: 0 0 0.5rem;
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: #fff;
+    }
+
+    .message {
+      margin: 0;
+      font-size: 0.9375rem;
+      line-height: 1.55;
+      color: var(--muted);
+    }
+
+    .username,
+    .next-step,
+    .copy-status {
+      margin-top: 1rem;
+      font-size: 0.8125rem;
+      line-height: 1.5;
+    }
+
+    .username {
+      display: inline-block;
+      padding: 0.375rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid var(--secondary-border);
+      background: var(--secondary-bg);
+      color: #d9f99d;
+      font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .next-step,
+    .copy-status {
+      color: var(--soft);
+    }
+
+    .inline-command {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.2rem 0.36rem;
+      margin: 0 0.18rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--secondary-border);
+      background: rgba(255, 255, 255, 0.06);
+      color: #ffffff;
+      font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.9em;
+      font-weight: 650;
+      letter-spacing: 0;
+      line-height: 1.2;
+      white-space: nowrap;
+      vertical-align: baseline;
+    }
+
+    .actions {
+      display: grid;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+    }
+
+    .copy-panel {
+      border-radius: 12px;
+      border: 1px solid var(--secondary-border);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.02)),
+        rgba(15, 23, 42, 0.42);
+      text-align: left;
+      overflow: hidden;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .copy-box {
+      width: 100%;
+      min-height: 4.9rem;
+      padding: 0.95rem 0.9rem 1rem;
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.75rem;
+      line-height: 1.6;
+      word-break: break-all;
+      user-select: all;
+      cursor: text;
+    }
+
+    .copy-box:focus-visible {
+      outline: 3px solid rgba(196, 181, 253, 0.95);
+      outline-offset: 3px;
+    }
+
+    .btn,
+    .copy-btn {
+      display: block;
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      text-decoration: none;
+      text-align: center;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn {
+      border: none;
+      background: var(--button);
+      color: var(--button-text);
+    }
+
+    .btn:hover { background: var(--button-hover); }
+
+    .copy-btn {
+      width: 100%;
+      min-width: 0;
+      padding: 0.78rem 0.95rem;
+      border: 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 0;
+      background: rgba(255, 255, 255, 0.075);
+      color: var(--text);
+    }
+
+    .copy-btn:hover { background: rgba(255, 255, 255, 0.07); }
+
+    .btn:focus-visible,
+    .copy-btn:focus-visible {
+      outline: 3px solid rgba(196, 181, 253, 0.95);
+      outline-offset: 3px;
+    }
+
+    .btn:active,
+    .copy-btn:active { transform: scale(0.98); }
+  </style>
+</head>
+<body data-tone="{{.Tone}}">
+  <div class="card" {{if .IsProblem}}role="alert"{{else}}role="status"{{end}} aria-live="polite">
+    <div class="icon" aria-hidden="true">
+      {{if eq .Icon "success"}}
+      <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      {{else if eq .Icon "problem"}}
+      <svg viewBox="0 0 24 24"><path d="M12 8v5"/><path d="M12 16h.01"/><circle cx="12" cy="12" r="9"/></svg>
+      {{else}}
+      <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
+      {{end}}
+    </div>
+    <h1>{{.Title}}</h1>
+    <p class="message">{{range .MessageParts}}{{if .IsCommand}}<code class="inline-command">{{.Text}}</code>{{else}}{{.Text}}{{end}}{{end}}</p>
+    {{if .Username}}<div class="username">{{.Username}}</div>{{end}}
+    {{if .PrimaryLabel}}
+    <div class="actions">
+      <a class="btn" href="{{.PrimaryURL}}">{{.PrimaryLabel}}</a>
+      <div class="copy-panel">
+        <button class="copy-btn" type="button" onclick="copyUrl(this)" data-url="{{.PrimaryURL}}" data-copied="{{.CopyDone}}">{{.CopyLabel}}</button>
+        <div id="copy-url" class="copy-box" tabindex="0" role="textbox" aria-readonly="true" onclick="selectUrl(this)">{{.PrimaryURL}}</div>
+      </div>
+    </div>
+    <p id="copy-status" class="copy-status">{{range .CopyIdleParts}}{{if .IsCommand}}<code class="inline-command">{{.Text}}</code>{{else}}{{.Text}}{{end}}{{end}}</p>
+    {{end}}
+    {{if .NextStepParts}}<p class="next-step">{{range .NextStepParts}}{{if .IsCommand}}<code class="inline-command">{{.Text}}</code>{{else}}{{.Text}}{{end}}{{end}}</p>{{end}}
+  </div>
+  {{if .PrimaryLabel}}
+  <script>
+    function selectUrl(el) {
+      el.focus();
+      var selection = window.getSelection();
+      var range = document.createRange();
+      range.selectNodeContents(el);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    function copyUrl(btn) {
+      var status = document.getElementById('copy-status');
+      var box = document.getElementById('copy-url');
+      var text = btn.getAttribute('data-url');
+      function showCopied() {
+        status.textContent = btn.getAttribute('data-copied');
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(showCopied);
+        return;
+      }
+      selectUrl(box);
+      document.execCommand('copy');
+      showCopied();
+    }
+  </script>
+  {{end}}
+</body>
+</html>

@@ -14,6 +14,7 @@ import (
 	"imsub/internal/core"
 	"imsub/internal/events"
 	"imsub/internal/platform/config"
+	"imsub/internal/platform/i18n"
 
 	"github.com/mymmrac/telego"
 )
@@ -72,6 +73,9 @@ func testController(store controllerStore, sink events.EventSink, updates chan<-
 
 func TestOAuthStartMissingState(t *testing.T) {
 	t.Parallel()
+	if err := i18n.Ensure(); err != nil {
+		t.Fatalf("i18n.Ensure() error = %v", err)
+	}
 
 	obs := &oauthFakeObserver{}
 	c := testController(&oauthFakeStore{}, obs, nil)
@@ -84,11 +88,11 @@ func TestOAuthStartMissingState(t *testing.T) {
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("OAuthStart(state=%q).StatusCode = %d, want %d", "", rec.Code, http.StatusBadRequest)
 	}
-	if !strings.Contains(rec.Body.String(), "Missing Twitch link") {
-		t.Errorf("OAuthStart(state=%q).Body = %q, want body containing %q", "", rec.Body.String(), "Missing Twitch link")
+	if !strings.Contains(rec.Body.String(), "Link unavailable") {
+		t.Errorf("OAuthStart(state=%q).Body = %q, want body containing %q", "", rec.Body.String(), "Link unavailable")
 	}
-	if !strings.Contains(rec.Body.String(), "Restart the same connection flow to get a new link.") {
-		t.Errorf("OAuthStart(state=%q).Body = %q, want body containing recovery steps", "", rec.Body.String())
+	if !strings.Contains(rec.Body.String(), "Return to Telegram and start again.") {
+		t.Errorf("OAuthStart(state=%q).Body = %q, want minimal recovery copy", "", rec.Body.String())
 	}
 	if len(obs.events) != 1 || obs.events[0].Name != events.NameOAuthStart || obs.events[0].Outcome != "missing_state" || obs.events[0].Fields["mode"] != "unknown" {
 		t.Errorf("oauth_start events = %+v, want one unknown missing_state", obs.events)
@@ -97,6 +101,9 @@ func TestOAuthStartMissingState(t *testing.T) {
 
 func TestTwitchCallbackExpiredLinkRendersNeutralRecoverySteps(t *testing.T) {
 	t.Parallel()
+	if err := i18n.Ensure(); err != nil {
+		t.Fatalf("i18n.Ensure() error = %v", err)
+	}
 
 	obs := &oauthFakeObserver{}
 	c := testController(&oauthFakeStore{
@@ -116,11 +123,11 @@ func TestTwitchCallbackExpiredLinkRendersNeutralRecoverySteps(t *testing.T) {
 		t.Fatalf("TwitchCallback(expired state).StatusCode = %d, want %d", rec.Code, http.StatusBadRequest)
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, "Twitch link expired") {
+	if !strings.Contains(body, "Link unavailable") {
 		t.Fatalf("TwitchCallback(expired state).Body = %q, want expired title", body)
 	}
-	if !strings.Contains(body, "Restart the same connection flow to get a new link.") {
-		t.Fatalf("TwitchCallback(expired state).Body = %q, want neutral recovery steps", body)
+	if !strings.Contains(body, "Return to Telegram and start again.") {
+		t.Fatalf("TwitchCallback(expired state).Body = %q, want minimal recovery copy", body)
 	}
 	if len(obs.events) != 1 || obs.events[0].Name != events.NameOAuthCallback || obs.events[0].Outcome != "state_missing" || obs.events[0].Fields["mode"] != "unknown" {
 		t.Errorf("oauth_callback events = %+v, want one unknown state_missing", obs.events)
@@ -129,6 +136,9 @@ func TestTwitchCallbackExpiredLinkRendersNeutralRecoverySteps(t *testing.T) {
 
 func TestTwitchCallbackViewerSaveFailedRendersStartGuidance(t *testing.T) {
 	t.Parallel()
+	if err := i18n.Ensure(); err != nil {
+		t.Fatalf("i18n.Ensure() error = %v", err)
+	}
 
 	obs := &oauthFakeObserver{}
 	c := testController(&oauthFakeStore{
@@ -155,13 +165,16 @@ func TestTwitchCallbackViewerSaveFailedRendersStartGuidance(t *testing.T) {
 		t.Fatalf("TwitchCallback(viewer save failed).StatusCode = %d, want %d", rec.Code, http.StatusConflict)
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, "Use /start to get a new Twitch link.") {
+	if !strings.Contains(body, "Return to Telegram and try again with ") || !strings.Contains(body, `<code class="inline-command">/start</code>`) {
 		t.Fatalf("TwitchCallback(viewer save failed).Body = %q, want /start guidance", body)
 	}
 }
 
 func TestOAuthStartCreatorScope(t *testing.T) {
 	t.Parallel()
+	if err := i18n.Ensure(); err != nil {
+		t.Fatalf("i18n.Ensure() error = %v", err)
+	}
 
 	obs := &oauthFakeObserver{}
 	c := testController(&oauthFakeStore{
@@ -188,8 +201,47 @@ func TestOAuthStartCreatorScope(t *testing.T) {
 	if !strings.Contains(body, "moderation%3Aread") {
 		t.Errorf("OAuthStart(state=%q).Body = %q, want body containing moderation scope", "state-1", body)
 	}
+	if !strings.Contains(body, "Connect Creator Account") {
+		t.Errorf("OAuthStart(state=%q).Body = %q, want body containing creator-specific title", "state-1", body)
+	}
 	if len(obs.events) != 1 || obs.events[0].Name != events.NameOAuthStart || obs.events[0].Outcome != "ok" || obs.events[0].Fields["mode"] != "creator" {
 		t.Errorf("oauth_start events = %+v, want one creator ok", obs.events)
+	}
+}
+
+func TestTwitchCallbackCreatorScopeMissingReturnsForbidden(t *testing.T) {
+	t.Parallel()
+	if err := i18n.Ensure(); err != nil {
+		t.Fatalf("i18n.Ensure() error = %v", err)
+	}
+
+	obs := &oauthFakeObserver{}
+	c := testController(&oauthFakeStore{
+		deleteOAuthStateFn: func(_ context.Context, state string) (core.OAuthStatePayload, error) {
+			if state != "creator-state" {
+				t.Fatalf("DeleteOAuthState(state=%q) got unexpected state, want %q", state, "creator-state")
+			}
+			return core.OAuthStatePayload{Mode: core.OAuthModeCreator, Language: "en"}, nil
+		},
+	}, obs, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/auth/callback?state=creator-state&code=code-1", nil)
+	rec := httptest.NewRecorder()
+
+	c.viewer = func(context.Context, string, core.OAuthStatePayload, string) (string, string, error) {
+		t.Fatal("viewer callback should not run for creator payload")
+		return "", "", nil
+	}
+	c.creator = func(context.Context, string, core.OAuthStatePayload, string) (string, string, error) {
+		return "creator_scope_missing", "", &core.FlowError{Kind: core.KindScopeMissing}
+	}
+	c.TwitchCallback(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("TwitchCallback(creator scope missing).StatusCode = %d, want %d", rec.Code, http.StatusForbidden)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "approve the Twitch permissions") || !strings.Contains(body, `<code class="inline-command">/creator</code>`) {
+		t.Fatalf("TwitchCallback(creator scope missing).Body = %q, want creator permission guidance", body)
 	}
 }
 

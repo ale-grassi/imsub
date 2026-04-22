@@ -228,6 +228,102 @@ other = "<b>%d</b>"
 [creator_subscribers_cached]
 other = "• Abbonati attivi: %s"
 
+[web_oauth_launch_viewer_title]
+other = "Collega Twitch"
+
+[web_oauth_launch_viewer_message]
+other = "Collega il tuo account Twitch per controllare l'accesso su Telegram."
+
+[web_oauth_launch_creator_title]
+other = "Collega account creator"
+
+[web_oauth_launch_creator_message]
+other = "Collega il tuo account creator Twitch così ImSub può verificare gli abbonati e proteggere i tuoi gruppi."
+
+[web_oauth_launch_creator_reconnect_title]
+other = "Ricollega account creator"
+
+[web_oauth_launch_creator_reconnect_message]
+other = "Ricollega il tuo account creator Twitch per continuare a gestire i gruppi protetti."
+
+[web_oauth_launch_button]
+other = "Continua su Twitch"
+
+[web_oauth_launch_copy_button]
+other = "Copia link"
+
+[web_oauth_launch_copy_idle]
+other = "Se Twitch non si apre, copia il link."
+
+[web_oauth_launch_copy_done]
+other = "Link copiato."
+
+[web_oauth_success_viewer_title]
+other = "Account collegato"
+
+[web_oauth_success_viewer_message]
+other = "Il tuo account Twitch ora è collegato."
+
+[web_oauth_success_viewer_next]
+other = "Torna su Telegram per vedere i tuoi gruppi."
+
+[web_oauth_success_creator_title]
+other = "Account creator collegato"
+
+[web_oauth_success_creator_message]
+other = "Il tuo account creator è pronto."
+
+[web_oauth_success_creator_next]
+other = "Torna su Telegram per continuare il setup e gestire i gruppi."
+
+[web_oauth_success_creator_reconnect_title]
+other = "Account creator ricollegato"
+
+[web_oauth_success_creator_reconnect_message]
+other = "Il tuo account creator è di nuovo collegato."
+
+[web_oauth_success_creator_reconnect_next]
+other = "Torna su Telegram per continuare a gestire i tuoi gruppi."
+
+[web_oauth_invalid_link_title]
+other = "Link non disponibile"
+
+[web_oauth_invalid_link_message]
+other = "Questo link Twitch è scaduto, già usato o non valido."
+
+[web_oauth_auth_incomplete_title]
+other = "Collegamento non completato"
+
+[web_oauth_auth_incomplete_message]
+other = "Twitch non ha completato il collegamento."
+
+[web_oauth_temporary_failure_title]
+other = "Riprova tra poco"
+
+[web_oauth_temporary_failure_message]
+other = "ImSub non è riuscito a completare il collegamento in questo momento."
+
+[web_oauth_creator_mismatch_title]
+other = "Account creator errato"
+
+[web_oauth_creator_mismatch_message]
+other = "Questo account Telegram è già collegato a un altro account creator Twitch."
+
+[web_oauth_problem_next_generic]
+other = "Torna su Telegram e ricomincia."
+
+[web_oauth_problem_next_command]
+other = "Torna su Telegram e usa di nuovo %s."
+
+[web_oauth_problem_next_retry_command]
+other = "Torna su Telegram e riprova tra poco con %s."
+
+[web_oauth_problem_next_creator_permissions]
+other = "Torna su Telegram, usa di nuovo %s e approva i permessi Twitch."
+
+[web_oauth_creator_mismatch_next]
+other = "Torna su Telegram, usa %s con l'account creator già collegato oppure usa prima %s per sostituirlo."
+
 [creator_banned_users_cached]
 other = "• Utenti bannati sincronizzati: <b>%d</b>"
 
