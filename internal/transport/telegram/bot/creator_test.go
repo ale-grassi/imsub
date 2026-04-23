@@ -157,18 +157,36 @@ func TestBuildCreatorManagedGroupsView(t *testing.T) {
 func TestBuildCreatorGroupSettingsView(t *testing.T) {
 	t.Parallel()
 
-	view := buildCreatorGroupSettingsView("en", core.ManagedGroup{ChatID: 1, GroupName: "VIP", Language: "it", Policy: core.GroupPolicyObserveWarn}, creatorMenuCallback(), "notice")
+	view := buildCreatorGroupSettingsView("en", core.ManagedGroup{ChatID: 1, GroupName: "VIP", Language: "it", Policy: core.GroupPolicyObserveWarn, MemberTagSyncEnabled: true}, creatorMenuCallback(), "notice")
 	if view.text == "" || view.opts.Markup == nil {
 		t.Fatalf("buildCreatorGroupSettingsView() = %+v, want non-empty text and markup", view)
 	}
-	if !strings.Contains(view.text, "notice") || !strings.Contains(view.text, "Allow, but warn") || !strings.Contains(view.text, "Italiano") {
-		t.Fatalf("buildCreatorGroupSettingsView() text = %q, want notice and current policy/language", view.text)
+	if !strings.Contains(view.text, "notice") || !strings.Contains(view.text, "Allow, but warn") || !strings.Contains(view.text, "Italiano") || !strings.Contains(view.text, "Enabled") {
+		t.Fatalf("buildCreatorGroupSettingsView() text = %q, want notice and current policy/language/tag state", view.text)
 	}
 	if got := view.opts.Markup.InlineKeyboard[0][0].IconCustomEmojiID; got != "5258318620722733379" {
 		t.Fatalf("buildCreatorGroupSettingsView() change policy icon = %q, want %q", got, "5258318620722733379")
 	}
 	if got := view.opts.Markup.InlineKeyboard[1][0].CallbackData; got != creatorGroupLanguageOpenCallback(1) {
 		t.Fatalf("buildCreatorGroupSettingsView() language callback = %q, want %q", got, creatorGroupLanguageOpenCallback(1))
+	}
+	if got := view.opts.Markup.InlineKeyboard[2][0].CallbackData; got != creatorGroupMemberTagsOpenCallback(1) {
+		t.Fatalf("buildCreatorGroupSettingsView() member tags callback = %q, want %q", got, creatorGroupMemberTagsOpenCallback(1))
+	}
+}
+
+func TestBuildCreatorGroupMemberTagsConfirmView(t *testing.T) {
+	t.Parallel()
+
+	view := buildCreatorGroupMemberTagsConfirmView("en", core.ManagedGroup{ChatID: 1, GroupName: "VIP", MemberTagSyncEnabled: false}, "")
+	if view.text == "" || view.opts.Markup == nil {
+		t.Fatalf("buildCreatorGroupMemberTagsConfirmView() = %+v, want non-empty text and markup", view)
+	}
+	if !strings.Contains(view.text, "overwrite existing member tags") {
+		t.Fatalf("buildCreatorGroupMemberTagsConfirmView() text = %q, want overwrite warning", view.text)
+	}
+	if got := view.opts.Markup.InlineKeyboard[0][0].CallbackData; got != creatorGroupMemberTagsExecuteCallback(1, "on") {
+		t.Fatalf("buildCreatorGroupMemberTagsConfirmView() callback = %q, want %q", got, creatorGroupMemberTagsExecuteCallback(1, "on"))
 	}
 }
 

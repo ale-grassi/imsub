@@ -823,6 +823,47 @@ func TestRegisterTelegramHandlersApprovesJoinRequest(t *testing.T) {
 	h.caller.assertExactMethods(t, "approveChatJoinRequest")
 }
 
+func TestRegisterTelegramHandlersApprovesJoinRequestAndSetsTrackedMemberTag(t *testing.T) {
+	t.Parallel()
+
+	h := newRouteTestHarness(t)
+	h.controller.memberTagSync = core.NewMemberTagSyncService(h.store, h.controller.telegramGroups, nil, nil)
+	h.store.setManagedGroup(core.ManagedGroup{
+		ChatID:               -1011,
+		CreatorID:            "creator-1",
+		GroupName:            "VIP",
+		MemberTagSyncEnabled: true,
+	})
+	h.store.setViewerIdentity(core.UserIdentity{
+		TelegramUserID:    99,
+		TwitchDisplayName: "Viewer Display",
+	})
+
+	h.handleUpdate(t, telego.Update{
+		UpdateID: 4001,
+		ChatJoinRequest: &telego.ChatJoinRequest{
+			Chat: telego.Chat{ID: -1011},
+			From: telego.User{ID: 99},
+			InviteLink: &telego.ChatInviteLink{
+				Name: "imsub-99-creator",
+			},
+		},
+	})
+
+	h.caller.assertExactMethods(t, "approveChatJoinRequest", "setChatMemberTag")
+	var body struct {
+		ChatID int64  `json:"chat_id"`
+		UserID int64  `json:"user_id"`
+		Tag    string `json:"tag"`
+	}
+	if err := json.Unmarshal(h.caller.lastSetChatMemberTagBody(), &body); err != nil {
+		t.Fatalf("json.Unmarshal(setChatMemberTag body) error = %v", err)
+	}
+	if body.ChatID != -1011 || body.UserID != 99 || body.Tag != "Viewer Display" {
+		t.Fatalf("setChatMemberTag body = %+v, want chat_id=-1011 user_id=99 tag=%q", body, "Viewer Display")
+	}
+}
+
 func TestRegisterTelegramHandlersApprovesJoinRequestInForumSupergroup(t *testing.T) {
 	t.Parallel()
 
@@ -1189,6 +1230,47 @@ func TestRegisterTelegramHandlersChatMemberJoinTracksUntrackedUser(t *testing.T)
 
 	if got := h.store.lastUntrackedMemberUpsert(); got.telegramUserID != 700 || got.source != "chat_member" {
 		t.Fatalf("last untracked upsert = %+v, want telegram_user_id=700 source=chat_member", got)
+	}
+}
+
+func TestRegisterTelegramHandlersChatMemberJoinSetsUntrackedTagWhenEnabled(t *testing.T) {
+	t.Parallel()
+
+	h := newRouteTestHarness(t)
+	h.controller.memberTagSync = core.NewMemberTagSyncService(h.store, h.controller.telegramGroups, nil, nil)
+	h.store.setManagedGroup(core.ManagedGroup{
+		ChatID:               -10036,
+		CreatorID:            "creator-1",
+		GroupName:            "VIP",
+		MemberTagSyncEnabled: true,
+	})
+
+	h.handleUpdate(t, telego.Update{
+		UpdateID: 7001,
+		ChatMember: &telego.ChatMemberUpdated{
+			Chat: telego.Chat{ID: -10036, Type: telego.ChatTypeSupergroup},
+			From: telego.User{ID: 704, IsBot: false},
+			OldChatMember: &telego.ChatMemberLeft{
+				Status: telego.MemberStatusLeft,
+				User:   telego.User{ID: 704, IsBot: false},
+			},
+			NewChatMember: &telego.ChatMemberMember{
+				Status: telego.MemberStatusMember,
+				User:   telego.User{ID: 704, IsBot: false},
+			},
+		},
+	})
+
+	h.caller.assertExactMethods(t, "setChatMemberTag")
+	var body struct {
+		UserID int64  `json:"user_id"`
+		Tag    string `json:"tag"`
+	}
+	if err := json.Unmarshal(h.caller.lastSetChatMemberTagBody(), &body); err != nil {
+		t.Fatalf("json.Unmarshal(setChatMemberTag body) error = %v", err)
+	}
+	if body.UserID != 704 || body.Tag != "Untracked" {
+		t.Fatalf("setChatMemberTag body = %+v, want user_id=704 tag=%q", body, "Untracked")
 	}
 }
 

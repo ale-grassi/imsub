@@ -77,6 +77,8 @@ const (
 	btnGroupPolicyObserveWarn = "btn_group_policy_observe_warn"
 	btnGroupPolicyKick        = "btn_group_policy_kick"
 	btnGroupPolicyGrace       = "btn_group_policy_grace"
+	btnMemberTagSyncEnable    = "btn_member_tag_sync_enable"
+	btnMemberTagSyncDisable   = "btn_member_tag_sync_disable"
 )
 
 // Dependencies configure Telegram bot construction.
@@ -99,11 +101,13 @@ type Dependencies struct {
 	GroupUnregistration *usecase.GroupUnregistrationUseCase
 	GroupPolicyUpdate   *usecase.GroupPolicyUpdateUseCase
 	GroupLanguageUpdate *usecase.GroupLanguageUpdateUseCase
+	GroupMemberTagSync  *usecase.GroupMemberTagUpdateUseCase
 	GroupBootstrap      *core.GroupBootstrapService
 	CreatorActivation   *usecase.CreatorActivationUseCase
 	SubscriptionEnd     *usecase.SubscriptionEndUseCase
 	Reset               *usecase.ResetUseCase
 	Privacy             *usecase.PrivacyUseCase
+	MemberTagSync       *core.MemberTagSyncService
 	Events              events.EventSink
 }
 
@@ -118,6 +122,7 @@ type controllerStore interface {
 	DeleteSubscriptionEndGrace(ctx context.Context, creatorID, twitchUserID string) error
 	ManagedGroupByChatID(ctx context.Context, chatID int64) (core.ManagedGroup, bool, error)
 	ListManagedGroups(ctx context.Context) ([]core.ManagedGroup, error)
+	ListTrackedGroupMemberIDs(ctx context.Context, chatID int64) ([]int64, error)
 	DeleteManagedGroup(ctx context.Context, chatID int64) error
 	IsCreatorBlocked(ctx context.Context, creatorID, twitchUserID string) (bool, error)
 	IsCreatorSubscriber(ctx context.Context, creatorID, twitchUserID string) (bool, error)
@@ -154,11 +159,13 @@ type Bot struct {
 	groupUnregistration *usecase.GroupUnregistrationUseCase
 	groupPolicyUpdate   *usecase.GroupPolicyUpdateUseCase
 	groupLanguageUpdate *usecase.GroupLanguageUpdateUseCase
+	groupMemberTagSync  *usecase.GroupMemberTagUpdateUseCase
 	groupBootstrap      *core.GroupBootstrapService
 	creatorActivation   *usecase.CreatorActivationUseCase
 	subscriptionEnd     *usecase.SubscriptionEndUseCase
 	reset               *usecase.ResetUseCase
 	privacy             *usecase.PrivacyUseCase
+	memberTagSync       *core.MemberTagSyncService
 	events              events.EventSink
 
 	backgroundWG sync.WaitGroup
@@ -192,11 +199,13 @@ func New(deps Dependencies) *Bot {
 		groupUnregistration: deps.GroupUnregistration,
 		groupPolicyUpdate:   deps.GroupPolicyUpdate,
 		groupLanguageUpdate: deps.GroupLanguageUpdate,
+		groupMemberTagSync:  deps.GroupMemberTagSync,
 		groupBootstrap:      deps.GroupBootstrap,
 		creatorActivation:   deps.CreatorActivation,
 		subscriptionEnd:     deps.SubscriptionEnd,
 		reset:               deps.Reset,
 		privacy:             deps.Privacy,
+		memberTagSync:       deps.MemberTagSync,
 		events:              events.EnsureSink(deps.Events),
 	}
 	return c

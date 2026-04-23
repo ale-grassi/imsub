@@ -27,6 +27,7 @@ type botGroupCapabilities struct {
 	isAdmin            bool
 	canInviteUsers     bool
 	canRestrictMembers bool
+	canManageTags      bool
 }
 
 var errTelegramBotNotConfigured = errors.New("telegram bot not configured")
@@ -38,6 +39,7 @@ func (c botGroupCapabilities) evaluation() groupCapabilityEvaluation {
 	return groupCapabilityEvaluation{
 		canInviteUsers:   c.canInviteUsers,
 		canRestrictUsers: c.canRestrictMembers,
+		canManageTags:    c.canManageTags,
 	}
 }
 
@@ -708,12 +710,14 @@ type groupCapabilityEvaluation struct {
 	botMissing       bool
 	canInviteUsers   bool
 	canRestrictUsers bool
+	canManageTags    bool
 }
 
 type membershipCapabilitySnapshot struct {
 	isAdmin            bool
 	canInviteUsers     bool
 	canRestrictMembers bool
+	canManageTags      bool
 }
 
 func (s membershipCapabilitySnapshot) healthy() bool {
@@ -729,6 +733,7 @@ func capabilitiesFromChatMember(member telego.ChatMember) membershipCapabilitySn
 			isAdmin:            true,
 			canInviteUsers:     m.CanInviteUsers,
 			canRestrictMembers: m.CanRestrictMembers,
+			canManageTags:      m.CanManageTags,
 		}
 	default:
 		return membershipCapabilitySnapshot{}
@@ -829,12 +834,13 @@ func (c *Bot) loadBotGroupCapabilities(ctx context.Context, chatID int64) (botGr
 
 	switch m := member.(type) {
 	case *telego.ChatMemberOwner:
-		return botGroupCapabilities{isAdmin: true, canInviteUsers: true, canRestrictMembers: true}, nil
+		return botGroupCapabilities{isAdmin: true, canInviteUsers: true, canRestrictMembers: true, canManageTags: true}, nil
 	case *telego.ChatMemberAdministrator:
 		return botGroupCapabilities{
 			isAdmin:            true,
 			canInviteUsers:     m.CanInviteUsers,
 			canRestrictMembers: m.CanRestrictMembers,
+			canManageTags:      m.CanManageTags,
 		}, nil
 	default:
 		return botGroupCapabilities{}, nil
@@ -901,6 +907,7 @@ func (c *Bot) observeGroupMember(ctx context.Context, group core.ManagedGroup, t
 		if err := c.store.RemoveUntrackedGroupMember(ctx, group.ChatID, telegramUserID); err != nil {
 			c.log().Warn("RemoveUntrackedGroupMember refresh failed", "chat_id", group.ChatID, "telegram_user_id", telegramUserID, "error", err)
 		}
+		c.applyTrackedMemberTag(ctx, group, telegramUserID)
 		return
 	}
 	promoted, err := core.PromoteExistingMemberIfEligible(ctx, c.store, c.godAccess, group, telegramUserID, core.SourceObservedExistingMember, now)
@@ -908,6 +915,7 @@ func (c *Bot) observeGroupMember(ctx context.Context, group core.ManagedGroup, t
 		if err != nil {
 			c.log().Warn("promote observed group member cleanup failed", "chat_id", group.ChatID, "creator_id", group.CreatorID, "telegram_user_id", telegramUserID, "error", err)
 		}
+		c.applyTrackedMemberTag(ctx, group, telegramUserID)
 		return
 	}
 	if err != nil {
@@ -921,6 +929,7 @@ func (c *Bot) observeGroupMember(ctx context.Context, group core.ManagedGroup, t
 		c.log().Warn("UpsertUntrackedGroupMember failed", "chat_id", group.ChatID, "telegram_user_id", telegramUserID, "source", source, "error", err)
 		return
 	}
+	c.applyUntrackedMemberTag(ctx, group, telegramUserID)
 	if group.Policy == core.GroupPolicyObserveWarn && source == "chat_member" {
 		c.sendGroupUntrackedJoinWarning(ctx, group, telegramUserID, memberLabel)
 		return
@@ -952,6 +961,11 @@ func (c *Bot) removeObservedGroupMember(ctx context.Context, chatID, telegramUse
 	}
 	if err := c.store.RemoveUntrackedGroupMember(ctx, chatID, telegramUserID); err != nil {
 		c.log().Warn("RemoveUntrackedGroupMember failed", "chat_id", chatID, "telegram_user_id", telegramUserID, "error", err)
+	}
+	if c.memberTagSync != nil {
+		if err := c.memberTagSync.ClearManagedTag(ctx, chatID, telegramUserID); err != nil {
+			c.log().Warn("ClearManagedTag failed", "chat_id", chatID, "telegram_user_id", telegramUserID, "error", err)
+		}
 	}
 }
 

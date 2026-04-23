@@ -122,6 +122,12 @@ func keyUntrackedGroupMembers(chatID int64) string {
 func keyTrackedGroupMemberMeta(chatID, telegramUserID int64) string {
 	return "imsub:group:member:" + strconv.FormatInt(chatID, 10) + ":" + strconv.FormatInt(telegramUserID, 10)
 }
+func keyManagedMemberTags(chatID int64) string {
+	return "imsub:group:member_tags:" + strconv.FormatInt(chatID, 10)
+}
+func keyManagedMemberTag(chatID, telegramUserID int64) string {
+	return "imsub:group:member_tag:" + strconv.FormatInt(chatID, 10) + ":" + strconv.FormatInt(telegramUserID, 10)
+}
 func keyMemberCleanupJob(jobID string) string { return "imsub:cleanup_job:" + jobID }
 func keyPendingMemberCleanupJobs() string     { return "imsub:cleanup_jobs:pending" }
 func keyMemberCleanupJobSeq() string          { return "imsub:cleanup_jobs:seq" }

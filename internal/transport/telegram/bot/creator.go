@@ -21,35 +21,41 @@ import (
 )
 
 const (
-	msgErrCreatorLink              = "err_creator_link"
-	msgCreatorRegisterInfo         = "creator_register_info"
-	msgCreatorRegisteredNoGroup    = "creator_registered_no_group_html"
-	msgCreatorRegistered           = "creator_registered_html"
-	msgCreatorRegisteredLinks      = "creator_registered_links"
-	msgCreatorAuthHealthy          = "creator_auth_healthy"
-	msgCreatorAuthReconnect        = "creator_auth_reconnect_required"
-	msgCreatorSubscribersPending   = "creator_subscribers_pending"
-	msgCreatorSubscribersReady     = "creator_subscribers_ready"
-	msgCreatorGroupsNone           = "creator_groups_none"
-	msgCreatorReconnectInfo        = "creator_reconnect_info"
-	msgCreatorReconnectMismatch    = "creator_reconnect_mismatch"
-	msgCreatorManageGroupsHTML     = "creator_manage_groups_html"
-	msgCreatorGroupSettingsHTML    = "creator_group_settings_html"
-	msgCreatorGroupPolicyHTML      = "creator_group_policy_picker_html"
-	msgCreatorGroupPolicyConfirm   = "creator_group_policy_confirm_html"
-	msgCreatorGroupLanguageHTML    = "creator_group_language_picker_html"
-	msgCreatorUnregisterConfirm    = "creator_unregister_confirm_html"
-	msgCreatorGroupUnregistered    = "creator_group_unregistered_html"
-	msgCreatorGroupPolicyUpdated   = "creator_group_policy_updated_html"
-	msgCreatorGroupLanguageUpdated = "creator_group_language_updated_html"
-	msgCreatorGracePickerHTML      = "creator_grace_picker_html"
-	msgCreatorGraceEnabled         = "creator_grace_enabled"
-	msgCreatorGraceDisabled        = "creator_grace_disabled"
-	msgCreatorGraceUpdated         = "creator_grace_updated"
-	msgCreatorBlocklistEnabled     = "creator_blocklist_enabled"
-	msgCreatorBlocklistDisabled    = "creator_blocklist_disabled"
-	msgCreatorBlocklistOnNotice    = "creator_blocklist_on_notice"
-	msgCreatorBlocklistOffNotice   = "creator_blocklist_off_notice"
+	msgErrCreatorLink                      = "err_creator_link"
+	msgCreatorRegisterInfo                 = "creator_register_info"
+	msgCreatorRegisteredNoGroup            = "creator_registered_no_group_html"
+	msgCreatorRegistered                   = "creator_registered_html"
+	msgCreatorRegisteredLinks              = "creator_registered_links"
+	msgCreatorAuthHealthy                  = "creator_auth_healthy"
+	msgCreatorAuthReconnect                = "creator_auth_reconnect_required"
+	msgCreatorSubscribersPending           = "creator_subscribers_pending"
+	msgCreatorSubscribersReady             = "creator_subscribers_ready"
+	msgCreatorGroupsNone                   = "creator_groups_none"
+	msgCreatorReconnectInfo                = "creator_reconnect_info"
+	msgCreatorReconnectMismatch            = "creator_reconnect_mismatch"
+	msgCreatorManageGroupsHTML             = "creator_manage_groups_html"
+	msgCreatorGroupSettingsHTML            = "creator_group_settings_html"
+	msgCreatorGroupPolicyHTML              = "creator_group_policy_picker_html"
+	msgCreatorGroupPolicyConfirm           = "creator_group_policy_confirm_html"
+	msgCreatorGroupLanguageHTML            = "creator_group_language_picker_html"
+	msgCreatorGroupMemberTagsHTML          = "creator_group_member_tags_confirm_html"
+	msgCreatorUnregisterConfirm            = "creator_unregister_confirm_html"
+	msgCreatorGroupUnregistered            = "creator_group_unregistered_html"
+	msgCreatorGroupPolicyUpdated           = "creator_group_policy_updated_html"
+	msgCreatorGroupLanguageUpdated         = "creator_group_language_updated_html"
+	msgCreatorGroupMemberTagsState         = "creator_group_member_tags_state"
+	msgCreatorGroupMemberTagsOffState      = "creator_group_member_tags_state_off"
+	msgCreatorGroupMemberTagsEnableNotice  = "creator_group_member_tags_enable_notice_html"
+	msgCreatorGroupMemberTagsDisableNotice = "creator_group_member_tags_disable_notice_html"
+	msgCreatorGroupMemberTagsNeedTags      = "creator_group_member_tags_need_tags_html"
+	msgCreatorGracePickerHTML              = "creator_grace_picker_html"
+	msgCreatorGraceEnabled                 = "creator_grace_enabled"
+	msgCreatorGraceDisabled                = "creator_grace_disabled"
+	msgCreatorGraceUpdated                 = "creator_grace_updated"
+	msgCreatorBlocklistEnabled             = "creator_blocklist_enabled"
+	msgCreatorBlocklistDisabled            = "creator_blocklist_disabled"
+	msgCreatorBlocklistOnNotice            = "creator_blocklist_on_notice"
+	msgCreatorBlocklistOffNotice           = "creator_blocklist_off_notice"
 
 	btnRegisterCreatorOpen = "btn_register_creator_open"
 	btnReconnectCreator    = "btn_reconnect_creator"
@@ -96,6 +102,9 @@ func (c *Bot) handleCreatorCallback(ctx context.Context, userID int64, editMsgID
 		if action.target == creatorCallbackTargetLanguage {
 			return callbackNoAckAfterRender(c.replyCreatorGroupLanguagePicker(ctx, userID, editMsgID, lang, action.chatID))
 		}
+		if action.target == creatorCallbackTargetMemberTags {
+			return callbackNoAckAfterRender(c.replyCreatorGroupMemberTagsConfirm(ctx, userID, editMsgID, lang, action.chatID))
+		}
 	case callbackVerbPick:
 		if action.target == creatorCallbackTargetGroup {
 			return callbackNoAckAfterRender(c.replyCreatorGroupSettings(ctx, userID, editMsgID, lang, action.chatID, ""))
@@ -128,6 +137,9 @@ func (c *Bot) handleCreatorCallback(ctx context.Context, userID int64, editMsgID
 		}
 		if action.target == creatorCallbackTargetLanguage {
 			return callbackNoAckAfterRender(c.executeCreatorGroupLanguageUpdate(ctx, userID, editMsgID, lang, action.chatID, action.language))
+		}
+		if action.target == creatorCallbackTargetMemberTags {
+			return callbackNoAckAfterRender(c.executeCreatorGroupMemberTagsUpdate(ctx, userID, editMsgID, lang, action.chatID, action.toggle))
 		}
 		if action.target == creatorCallbackTargetBlocklist {
 			return callbackNoAckAfterRender(c.toggleCreatorBlocklist(ctx, userID, editMsgID, lang))
@@ -540,6 +552,17 @@ func (c *Bot) replyCreatorGroupLanguagePicker(ctx context.Context, telegramUserI
 	return ""
 }
 
+//nolint:unparam // callback render helpers use a shared string-returning shape
+func (c *Bot) replyCreatorGroupMemberTagsConfirm(ctx context.Context, telegramUserID int64, editMsgID int, lang string, groupChatID int64) string {
+	group, ok := c.loadCreatorGroupForMemberTags(ctx, telegramUserID, editMsgID, lang, groupChatID)
+	if !ok {
+		return ""
+	}
+	view := buildCreatorGroupMemberTagsConfirmView(lang, group, "")
+	c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
+	return ""
+}
+
 func (c *Bot) replyCreatorGroupUnregisterConfirm(ctx context.Context, telegramUserID int64, editMsgID int, lang string, groupChatID int64) string {
 	res, ok := c.loadCreatorStatusResult(ctx, telegramUserID, lang, editMsgID)
 	if !ok {
@@ -663,6 +686,74 @@ func (c *Bot) executeCreatorGroupLanguageUpdate(ctx context.Context, telegramUse
 		c.log().Warn("unsupported group language update outcome", "chat_id", groupChatID, "outcome", res.Outcome)
 		return ""
 	}
+}
+
+func (c *Bot) executeCreatorGroupMemberTagsUpdate(ctx context.Context, telegramUserID int64, editMsgID int, lang string, groupChatID int64, toggle string) string {
+	if c.groupMemberTagSync == nil {
+		return c.replyCreatorGroupSettings(ctx, telegramUserID, editMsgID, lang, groupChatID, "")
+	}
+	if toggle == "on" {
+		if _, ok := c.loadCreatorGroupForMemberTags(ctx, telegramUserID, editMsgID, lang, groupChatID); !ok {
+			return ""
+		}
+	}
+	enable := toggle == "on"
+	res, err := c.groupMemberTagSync.UpdateGroupMemberTagSync(ctx, telegramUserID, groupChatID, enable)
+	if err != nil {
+		c.log().Warn("UpdateGroupMemberTagSync from creator menu failed", "chat_id", groupChatID, "owner_telegram_id", telegramUserID, "toggle", toggle, "error", err)
+		return c.replyCreatorGroupSettings(ctx, telegramUserID, editMsgID, lang, groupChatID, "")
+	}
+	switch res.Outcome {
+	case usecase.UpdateGroupMemberTagOutcomeNotManaged:
+		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, "")
+	case usecase.UpdateGroupMemberTagOutcomeNotOwner:
+		return c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, "")
+	case usecase.UpdateGroupMemberTagOutcomeUnchanged, usecase.UpdateGroupMemberTagOutcomeUpdated:
+		noticeKey := msgCreatorGroupMemberTagsDisableNotice
+		if res.Group.MemberTagSyncEnabled {
+			noticeKey = msgCreatorGroupMemberTagsEnableNotice
+		}
+		if c.memberTagSync != nil {
+			c.runBackground(context.WithoutCancel(ctx), func(bgctx context.Context) {
+				syncCtx, cancel := context.WithTimeout(bgctx, 30*time.Second)
+				defer cancel()
+				if res.Group.MemberTagSyncEnabled {
+					if _, syncErr := c.memberTagSync.SyncGroup(syncCtx, res.Group.ChatID, true); syncErr != nil {
+						c.log().Warn("member tag enable sync failed", "chat_id", res.Group.ChatID, "error", syncErr)
+					}
+					return
+				}
+				if _, syncErr := c.memberTagSync.CleanupGroup(syncCtx, res.Group.ChatID); syncErr != nil {
+					c.log().Warn("member tag disable cleanup failed", "chat_id", res.Group.ChatID, "error", syncErr)
+				}
+			})
+		}
+		return c.replyCreatorGroupSettings(ctx, telegramUserID, editMsgID, lang, groupChatID, i18n.Translate(lang, noticeKey))
+	default:
+		return c.replyCreatorGroupSettings(ctx, telegramUserID, editMsgID, lang, groupChatID, "")
+	}
+}
+
+func (c *Bot) loadCreatorGroupForMemberTags(ctx context.Context, telegramUserID int64, editMsgID int, lang string, groupChatID int64) (core.ManagedGroup, bool) {
+	res, ok := c.loadCreatorStatusResult(ctx, telegramUserID, lang, editMsgID)
+	if !ok {
+		return core.ManagedGroup{}, false
+	}
+	group, found := findCreatorManagedGroup(res.Groups, groupChatID)
+	if !found {
+		c.replyCreatorManagedGroups(ctx, telegramUserID, editMsgID, lang, "")
+		return core.ManagedGroup{}, false
+	}
+	caps, err := c.loadBotGroupCapabilities(ctx, group.ChatID)
+	if err != nil {
+		c.log().Warn("load bot group capabilities for member tags failed", "chat_id", group.ChatID, "error", err)
+	}
+	if !caps.canManageTags {
+		view := buildCreatorGroupMemberTagsConfirmView(lang, group, i18n.Translate(lang, msgCreatorGroupMemberTagsNeedTags))
+		c.reply(ctx, telegramUserID, editMsgID, view.text, &view.opts)
+		return core.ManagedGroup{}, false
+	}
+	return group, true
 }
 
 func (c *Bot) toggleCreatorBlocklist(ctx context.Context, telegramUserID int64, editMsgID int, lang string) string {
@@ -927,6 +1018,7 @@ func buildCreatorGroupSettingsView(lang string, group core.ManagedGroup, backCal
 		html.EscapeString(groupLabel),
 		html.EscapeString(formatCreatorGroupPolicyValue(lang, group.Policy)),
 		html.EscapeString(formatGroupLanguageValue(lang, group.Language)),
+		html.EscapeString(formatCreatorGroupMemberTagsState(lang, group.MemberTagSyncEnabled)),
 	)
 	if strings.TrimSpace(notice) != "" {
 		text = notice + "\n\n" + text
@@ -937,8 +1029,41 @@ func buildCreatorGroupSettingsView(lang string, group core.ManagedGroup, backCal
 			Markup: tu.InlineKeyboard(
 				tu.InlineKeyboardRow(ui.IconCallbackButton(i18n.Translate(lang, btnChangeGroupPolicy), creatorGroupPolicyOpenCallback(group.ChatID), "5258318620722733379")),
 				tu.InlineKeyboardRow(ui.IconCallbackButton(i18n.Translate(lang, btnChangeGroupLanguage), creatorGroupLanguageOpenCallback(group.ChatID), "5879585266426973039")),
+				tu.InlineKeyboardRow(groupMemberTagButton(lang, group)),
 				tu.InlineKeyboardRow(ui.UnregisterButton(i18n.Translate(lang, btnUnregisterGroup), creatorGroupConfirmCallback(group.ChatID))),
 				tu.InlineKeyboardRow(ui.BackButton(i18n.Translate(lang, btnBack), backCallback)),
+			),
+		},
+	}
+}
+
+func buildCreatorGroupMemberTagsConfirmView(lang string, group core.ManagedGroup, notice string) sharedView {
+	groupLabel := singleManagedGroupLabel(group)
+	toggle := "on"
+	buttonKey := btnMemberTagSyncEnable
+	if group.MemberTagSyncEnabled {
+		toggle = "off"
+		buttonKey = btnMemberTagSyncDisable
+	}
+	text := fmt.Sprintf(
+		i18n.Translate(lang, msgCreatorGroupMemberTagsHTML),
+		html.EscapeString(groupLabel),
+		html.EscapeString(formatCreatorGroupMemberTagsState(lang, group.MemberTagSyncEnabled)),
+	)
+	if strings.TrimSpace(notice) != "" {
+		parts := strings.SplitN(text, "\n\n", 2)
+		if len(parts) == 2 {
+			text = notice + "\n\n" + parts[1]
+		} else {
+			text = notice
+		}
+	}
+	return sharedView{
+		text: text,
+		opts: client.MessageOptions{
+			Markup: tu.InlineKeyboard(
+				tu.InlineKeyboardRow(ui.IconCallbackButton(i18n.Translate(lang, buttonKey), creatorGroupMemberTagsExecuteCallback(group.ChatID, toggle), "5296348778012361146")),
+				tu.InlineKeyboardRow(ui.BackButton(i18n.Translate(lang, btnBack), creatorGroupPickCallback(group.ChatID))),
 			),
 		},
 	}
@@ -1030,6 +1155,28 @@ func formatCreatorGroupPolicyValue(lang string, policy core.GroupPolicy) string 
 	default:
 		return i18n.Translate(lang, btnGroupPolicyObserve)
 	}
+}
+
+func formatCreatorGroupMemberTagsState(lang string, enabled bool) string {
+	if enabled {
+		return i18n.Translate(lang, msgCreatorGroupMemberTagsState)
+	}
+	return i18n.Translate(lang, msgCreatorGroupMemberTagsOffState)
+}
+
+func groupMemberTagButtonText(lang string, enabled bool) string {
+	if enabled {
+		return i18n.Translate(lang, btnMemberTagSyncDisable)
+	}
+	return i18n.Translate(lang, btnMemberTagSyncEnable)
+}
+
+func groupMemberTagButton(lang string, group core.ManagedGroup) telego.InlineKeyboardButton {
+	button := ui.IconCallbackButton(groupMemberTagButtonText(lang, group.MemberTagSyncEnabled), creatorGroupMemberTagsOpenCallback(group.ChatID), "5296348778012361146")
+	if group.MemberTagSyncEnabled {
+		return button.WithStyle("success")
+	}
+	return button
 }
 
 func formatGroupLanguageValue(lang, groupLang string) string {

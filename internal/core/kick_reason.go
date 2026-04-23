@@ -11,7 +11,6 @@ const (
 	KickReasonGroupGracePolicy    KickReason = "group_grace_policy"
 	KickReasonGroupPolicy         KickReason = "group_policy"
 	KickReasonGroupUnregistration KickReason = "group_unregistration"
-	KickReasonMTProtoCleanup      KickReason = "mtproto_cleanup"
 	KickReasonSubscriptionEnd     KickReason = "subscription_end"
 	KickReasonSubscriptionGrace   KickReason = "subscription_grace"
 	KickReasonViewerReset         KickReason = "viewer_reset"

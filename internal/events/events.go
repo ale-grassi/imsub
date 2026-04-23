@@ -14,6 +14,7 @@ const (
 	NameGroupUnregistration         = "group_unregistration"
 	NameGroupPolicyUpdate           = "group_policy_update"
 	NameGroupLanguageUpdate         = "group_language_update"
+	NameGroupMemberTagUpdate        = "group_member_tag_update"
 	NameCreatorActivation           = "creator_activation"
 	NameSubscriptionEnd             = "subscription_end"
 	NameViewerOAuth                 = "viewer_oauth"

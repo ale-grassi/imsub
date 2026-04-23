@@ -265,7 +265,7 @@ func TestGroupBootstrapRetriesAndThenFailsSilently(t *testing.T) {
 	}
 }
 
-func TestGroupBootstrapLeaveFailureTriggersCleanupKick(t *testing.T) {
+func TestGroupBootstrapListFailureDoesNotCleanupKickMTProtoUser(t *testing.T) {
 	t.Parallel()
 
 	store := &bootstrapStoreStub{
@@ -279,7 +279,7 @@ func TestGroupBootstrapLeaveFailureTriggersCleanupKick(t *testing.T) {
 	mt := &bootstrapMTProtoStub{
 		selfID: 999,
 		errs: []error{
-			mtproto.StageError{Stage: "leave_failed", Err: errors.New("boom")},
+			mtproto.StageError{Stage: "list_failed", Err: errors.New("boom")},
 		},
 	}
 	svc := NewGroupBootstrapService(store, groupOps, mt, nil, nil, nil)
@@ -288,11 +288,8 @@ func TestGroupBootstrapLeaveFailureTriggersCleanupKick(t *testing.T) {
 	if err == nil {
 		t.Fatal("bootstrapAttempt() error = nil, want non-nil")
 	}
-	if len(groupOps.kicks) != 1 || groupOps.kicks[0] != 999 {
-		t.Fatalf("cleanup kicks = %v, want [999]", groupOps.kicks)
-	}
-	if len(groupOps.reasons) != 1 || groupOps.reasons[0] != KickReasonMTProtoCleanup {
-		t.Fatalf("cleanup reasons = %v, want [%q]", groupOps.reasons, KickReasonMTProtoCleanup)
+	if len(groupOps.kicks) != 0 {
+		t.Fatalf("cleanup kicks = %v, want none", groupOps.kicks)
 	}
 }
 

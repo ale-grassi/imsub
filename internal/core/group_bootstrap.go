@@ -117,11 +117,6 @@ func (s *GroupBootstrapService) bootstrapAttempt(ctx context.Context, group Mana
 
 	membersDump, err := s.mtproto.DumpMembersViaInvite(ctx, inviteLink)
 	if err != nil {
-		if classifyBootstrapError(err) == "leave_failed" {
-			if cleanupErr := s.cleanupMTProtoUser(ctx, group.ChatID); cleanupErr != nil {
-				s.logger.Warn("mtproto bootstrap cleanup kick failed", "chat_id", group.ChatID, "telegram_user_id", s.mtproto.SelfUserID(), "error", cleanupErr)
-			}
-		}
 		return groupBootstrapCounts{}, fmt.Errorf("dump members via invite: %w", err)
 	}
 
@@ -190,15 +185,6 @@ func (s *GroupBootstrapService) bootstrapAttempt(ctx context.Context, group Mana
 		counts.kicked++
 	}
 	return counts, nil
-}
-
-func (s *GroupBootstrapService) cleanupMTProtoUser(ctx context.Context, chatID int64) error {
-	if selfUserID := s.mtproto.SelfUserID(); selfUserID != 0 {
-		if err := s.groupOps.KickFromGroup(ctx, chatID, selfUserID, KickReasonMTProtoCleanup); err != nil {
-			return fmt.Errorf("kick mtproto bootstrap user: %w", err)
-		}
-	}
-	return nil
 }
 
 func (s *GroupBootstrapService) emit(ctx context.Context, outcome string, group ManagedGroup, counts groupBootstrapCounts, attempt int) {

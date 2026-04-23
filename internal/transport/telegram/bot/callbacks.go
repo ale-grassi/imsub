@@ -57,6 +57,7 @@ type callbackAction struct {
 	policy      core.GroupPolicy
 	language    string
 	grace       core.SubscriptionEndGrace
+	toggle      string
 	resetAction core.CreatorResetGroupAction
 	chatID      int64
 	threadID    int
@@ -85,6 +86,9 @@ func (a callbackAction) String() string {
 	}
 	if a.grace != "" {
 		parts = append(parts, string(a.grace))
+	}
+	if a.toggle != "" {
+		parts = append(parts, a.toggle)
 	}
 	if a.chatID != 0 {
 		parts = append(parts, strconv.FormatInt(a.chatID, 10))
@@ -285,6 +289,11 @@ func parseCreatorPickExecuteAction(action callbackAction, parts []string) (callb
 			if !validGroupLanguage(action.language) {
 				return callbackAction{}, false
 			}
+		case creatorCallbackTargetMemberTags:
+			action.toggle = parts[3]
+			if !validMemberTagToggle(action.toggle) {
+				return callbackAction{}, false
+			}
 		case creatorCallbackTargetGroup:
 			if action.verb != callbackVerbExecute {
 				return callbackAction{}, false
@@ -315,6 +324,7 @@ const (
 	creatorCallbackTargetGrace        = "grace"
 	creatorCallbackTargetPolicy       = "policy"
 	creatorCallbackTargetLanguage     = "language"
+	creatorCallbackTargetMemberTags   = "member_tags"
 )
 
 func validCreatorOpenTarget(target string) bool {
@@ -322,7 +332,7 @@ func validCreatorOpenTarget(target string) bool {
 }
 
 func validCreatorOpenChatTarget(target string) bool {
-	return target == creatorCallbackTargetGroupConfirm || target == creatorCallbackTargetPolicy || target == creatorCallbackTargetLanguage
+	return target == creatorCallbackTargetGroupConfirm || target == creatorCallbackTargetPolicy || target == creatorCallbackTargetLanguage || target == creatorCallbackTargetMemberTags
 }
 
 func (o resetOrigin) valid() bool {
@@ -379,6 +389,10 @@ func validGroupLanguage(lang string) bool {
 	}
 }
 
+func validMemberTagToggle(toggle string) bool {
+	return toggle == "on" || toggle == "off"
+}
+
 func viewerRefreshCallback() string {
 	return callbackAction{domain: callbackDomainViewer, verb: callbackVerbRefresh}.String()
 }
@@ -409,6 +423,10 @@ func creatorGroupPolicyOpenCallback(chatID int64) string {
 
 func creatorGroupLanguageOpenCallback(chatID int64) string {
 	return callbackAction{domain: callbackDomainCreator, verb: callbackVerbOpen, target: creatorCallbackTargetLanguage, chatID: chatID}.String()
+}
+
+func creatorGroupMemberTagsOpenCallback(chatID int64) string {
+	return callbackAction{domain: callbackDomainCreator, verb: callbackVerbOpen, target: creatorCallbackTargetMemberTags, chatID: chatID}.String()
 }
 
 func creatorGroupConfirmCallback(chatID int64) string {
@@ -451,6 +469,10 @@ func creatorBlocklistToggleCallback() string {
 
 func creatorGraceExecuteCallback(grace core.SubscriptionEndGrace) string {
 	return callbackAction{domain: callbackDomainCreator, verb: callbackVerbExecute, target: creatorCallbackTargetGrace, grace: grace}.String()
+}
+
+func creatorGroupMemberTagsExecuteCallback(chatID int64, toggle string) string {
+	return callbackAction{domain: callbackDomainCreator, verb: callbackVerbExecute, target: creatorCallbackTargetMemberTags, toggle: toggle, chatID: chatID}.String()
 }
 
 func groupRegisterPolicyCallback(chatID int64, threadID int, policy core.GroupPolicy) string {

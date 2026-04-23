@@ -23,13 +23,14 @@ func parseGroupTime(raw string) time.Time {
 
 func (s *Store) parseManagedGroup(vals map[string]string, chatID int64) core.ManagedGroup {
 	group := core.ManagedGroup{
-		ChatID:       chatID,
-		CreatorID:    vals["creator_id"],
-		GroupName:    vals["group_name"],
-		Language:     i18n.NormalizeLanguage(vals["language"]),
-		Policy:       core.GroupPolicy(vals["policy"]),
-		RegisteredAt: parseGroupTime(vals["registered_at"]),
-		UpdatedAt:    parseGroupTime(vals["updated_at"]),
+		ChatID:               chatID,
+		CreatorID:            vals["creator_id"],
+		GroupName:            vals["group_name"],
+		Language:             i18n.NormalizeLanguage(vals["language"]),
+		Policy:               core.GroupPolicy(vals["policy"]),
+		MemberTagSyncEnabled: vals["member_tag_sync_enabled"] == "1",
+		RegisteredAt:         parseGroupTime(vals["registered_at"]),
+		UpdatedAt:            parseGroupTime(vals["updated_at"]),
 	}
 	if rawThreadID := vals["registration_thread_id"]; rawThreadID != "" {
 		threadID, err := strconv.Atoi(rawThreadID)
@@ -171,13 +172,17 @@ func (s *Store) UpsertManagedGroup(ctx context.Context, group core.ManagedGroup)
 	}
 
 	fields := map[string]string{
-		"chat_id":       strconv.FormatInt(group.ChatID, 10),
-		"creator_id":    group.CreatorID,
-		"group_name":    group.GroupName,
-		"language":      group.Language,
-		"policy":        string(group.Policy),
-		"registered_at": group.RegisteredAt.UTC().Format(time.RFC3339),
-		"updated_at":    group.UpdatedAt.UTC().Format(time.RFC3339),
+		"chat_id":                 strconv.FormatInt(group.ChatID, 10),
+		"creator_id":              group.CreatorID,
+		"group_name":              group.GroupName,
+		"language":                group.Language,
+		"policy":                  string(group.Policy),
+		"member_tag_sync_enabled": "0",
+		"registered_at":           group.RegisteredAt.UTC().Format(time.RFC3339),
+		"updated_at":              group.UpdatedAt.UTC().Format(time.RFC3339),
+	}
+	if group.MemberTagSyncEnabled {
+		fields["member_tag_sync_enabled"] = "1"
 	}
 	if group.RegistrationThreadID > 0 {
 		fields["registration_thread_id"] = strconv.Itoa(group.RegistrationThreadID)
@@ -225,6 +230,7 @@ func (s *Store) DeleteManagedGroup(ctx context.Context, chatID int64) error {
 	pipe.SRem(ctx, keyManagedGroupsByCreator(group.CreatorID), strconv.FormatInt(chatID, 10))
 	pipe.Del(ctx, keyTrackedGroupMembers(chatID))
 	pipe.Del(ctx, keyUntrackedGroupMembers(chatID))
+	pipe.Del(ctx, keyManagedMemberTags(chatID))
 	if _, err := pipe.Exec(ctx); err != nil {
 		return fmt.Errorf("redis exec delete managed group: %w", err)
 	}

@@ -96,6 +96,7 @@ type ManagedGroup struct {
 	GroupName            string
 	Language             string
 	Policy               GroupPolicy
+	MemberTagSyncEnabled bool
 	RegistrationThreadID int
 	RegisteredAt         time.Time
 	UpdatedAt            time.Time
@@ -110,6 +111,14 @@ type UntrackedGroupMember struct {
 	FirstSeenAt    time.Time
 	LastSeenAt     time.Time
 	LastStatus     string
+}
+
+// ManagedMemberTag represents a Telegram member tag currently managed by ImSub.
+type ManagedMemberTag struct {
+	ChatID         int64
+	TelegramUserID int64
+	Tag            string
+	UpdatedAt      time.Time
 }
 
 // ActiveCreatorGroups packages the active creator record with its managed groups.

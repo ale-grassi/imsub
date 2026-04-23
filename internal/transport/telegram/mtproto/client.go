@@ -26,8 +26,6 @@ var (
 	errRunClient             = errors.New("run mtproto client")
 	errListChannelMembers    = errors.New("list channel members")
 	errListChatMembers       = errors.New("list chat members")
-	errLeaveJoinedChannel    = errors.New("leave joined channel")
-	errLeaveJoinedChat       = errors.New("leave joined chat")
 )
 
 // MemberRole classifies a dumped Telegram member.
@@ -108,7 +106,8 @@ func (c *Client) SelfUserID() int64 {
 	return c.selfUserID
 }
 
-// DumpMembersViaInvite joins a chat using the provided invite link, lists members, and leaves it.
+// DumpMembersViaInvite joins a chat using the provided invite link if needed,
+// lists members, and keeps the MTProto user in the group.
 func (c *Client) DumpMembersViaInvite(ctx context.Context, inviteLink string) ([]Member, error) {
 	if c == nil {
 		return nil, errNilClient
@@ -120,9 +119,6 @@ func (c *Client) DumpMembersViaInvite(ctx context.Context, inviteLink string) ([
 			return StageError{Stage: "join_failed", Err: err}
 		}
 		membersDump, listErr := dumpPeerMembers(ctx, peer)
-		if leaveErr := leavePeer(ctx, peer); leaveErr != nil {
-			return StageError{Stage: "leave_failed", Err: leaveErr}
-		}
 		if listErr != nil {
 			return StageError{Stage: "list_failed", Err: listErr}
 		}
@@ -225,23 +221,6 @@ func dumpPeerMembers(ctx context.Context, peer peers.Peer) ([]Member, error) {
 		return nil, fmt.Errorf("%w: %T", errUnsupportedJoinedPeer, peer)
 	}
 	return membersOut, nil
-}
-
-func leavePeer(ctx context.Context, peer peers.Peer) error {
-	switch p := peer.(type) {
-	case peers.Channel:
-		if err := p.Leave(ctx); err != nil {
-			return fmt.Errorf("%w: %w", errLeaveJoinedChannel, err)
-		}
-		return nil
-	case peers.Chat:
-		if err := p.Leave(ctx); err != nil {
-			return fmt.Errorf("%w: %w", errLeaveJoinedChat, err)
-		}
-		return nil
-	default:
-		return fmt.Errorf("%w: %T", errUnsupportedJoinedPeer, peer)
-	}
 }
 
 func roleFromStatus(status members.Status) (MemberRole, bool) {

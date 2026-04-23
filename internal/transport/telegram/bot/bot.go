@@ -586,6 +586,12 @@ func (c *Bot) onChatJoinRequest(ctx *tghandler.Context, req telego.ChatJoinReque
 	})
 	if err != nil {
 		c.log().Warn("Approve join request failed", "user_id", req.From.ID, "chat_id", req.Chat.ID, "error", err)
+		return nil
+	}
+	if group, ok, loadErr := c.store.ManagedGroupByChatID(ctx, req.Chat.ID); loadErr != nil {
+		c.log().Warn("ManagedGroupByChatID after join approval failed", "chat_id", req.Chat.ID, "telegram_user_id", req.From.ID, "error", loadErr)
+	} else if ok {
+		c.applyTrackedMemberTag(ctx, group, req.From.ID)
 	}
 	return nil
 }
@@ -624,6 +630,24 @@ func (c *Bot) shouldDeclineJoinRequest(ctx context.Context, chatID, telegramUser
 		return false
 	}
 	return blocked
+}
+
+func (c *Bot) applyTrackedMemberTag(ctx context.Context, group core.ManagedGroup, telegramUserID int64) {
+	if c == nil || c.memberTagSync == nil || !group.MemberTagSyncEnabled {
+		return
+	}
+	if err := c.memberTagSync.ApplyTrackedMemberTag(ctx, group, telegramUserID); err != nil {
+		c.log().Warn("apply tracked member tag failed", "chat_id", group.ChatID, "telegram_user_id", telegramUserID, "error", err)
+	}
+}
+
+func (c *Bot) applyUntrackedMemberTag(ctx context.Context, group core.ManagedGroup, telegramUserID int64) {
+	if c == nil || c.memberTagSync == nil || !group.MemberTagSyncEnabled {
+		return
+	}
+	if err := c.memberTagSync.ApplyUntrackedMemberTag(ctx, group, telegramUserID); err != nil {
+		c.log().Warn("apply untracked member tag failed", "chat_id", group.ChatID, "telegram_user_id", telegramUserID, "error", err)
+	}
 }
 
 const (

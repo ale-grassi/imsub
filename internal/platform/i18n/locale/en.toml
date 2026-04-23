@@ -60,6 +60,12 @@ other = "Change policy"
 [btn_change_group_language]
 other = "Change language"
 
+[btn_member_tag_sync_enable]
+other = "Enable member tags"
+
+[btn_member_tag_sync_disable]
+other = "Disable member tags"
+
 [btn_confirm_group_policy]
 other = "Apply policy"
 
@@ -136,7 +142,7 @@ other = "No groups linked yet."
 other = "🗂️ <b>Manage groups</b>\n\nSelect a group to review its settings, change how unverified members are handled, or unlink it."
 
 [creator_group_settings_html]
-other = "⚙️ <b>Group settings</b>\n\n<b>Group:</b> %s\n<b>Current policy:</b> %s\n<b>Current language:</b> %s"
+other = "⚙️ <b>Group settings</b>\n\n<b>Group:</b> %s\n<b>Current policy:</b> %s\n<b>Current language:</b> %s\n<b>Member tags:</b> %s"
 
 [creator_group_policy_picker_html]
 other = "🛡️ <b>Change group policy</b>\n\nChoose what should happen when the bot sees an unverified member in this group.\n\n<b>Group:</b> %s\n<b>Current policy:</b> %s"
@@ -146,6 +152,24 @@ other = "⚠️ <b>Change group policy?</b>\n\n<b>Group:</b> %s\n<b>Current poli
 
 [creator_group_language_picker_html]
 other = "🌐 <b>Change group language</b>\n\nChoose the language for bot messages sent in this group.\n\n<b>Group:</b> %s\n<b>Current language:</b> %s"
+
+[creator_group_member_tags_confirm_html]
+other = "🏷️ <b>Member tag sync</b>\n\n<b>Group:</b> %s\n<b>Current setting:</b> %s\n\nImSub will overwrite existing member tags in this group, set tracked members to their Twitch usernames, and mark untracked members as <code>Untracked</code>. If you disable this later, ImSub will clear only the tags it previously wrote."
+
+[creator_group_member_tags_state]
+other = "Enabled"
+
+[creator_group_member_tags_state_off]
+other = "Disabled"
+
+[creator_group_member_tags_enable_notice_html]
+other = "✅ <b>Member tag sync enabled</b>\n\nImSub is syncing current members now. Existing member tags in this group may be overwritten."
+
+[creator_group_member_tags_disable_notice_html]
+other = "✅ <b>Member tag sync disabled</b>\n\nImSub is clearing the tags it previously wrote in this group."
+
+[creator_group_member_tags_need_tags_html]
+other = "⚠️ <b>Member tag sync unavailable</b>\n\nGrant the bot the <b>Manage Tags</b> admin permission in this group, then try again."
 
 [creator_register_info]
 other = "🎙️ <b>Set up your creator account</b>\n\n⚠️ <b>Creator only</b>\nThese steps are only for creators who want to protect a group. If you want to join a group as a subscriber, use /start instead.\n\n➡️ <b>Step 1 of 4</b>\nConnect your <b>Twitch creator account</b>.\n\n<b>Setup flow</b>\n1. Link Twitch account\n2. Add the bot to the group\n3. Give the bot the required permissions\n4. Run <code>/linkgroup</code> and choose the group policy\n\n<b>Privacy notice</b>\nImSub stores your Telegram ID, linked Twitch creator account, creator OAuth tokens, and managed-group settings to operate access control. Use /reset to export or delete your bot data.\n\n<i>Authorization links expire and can only be used once. If the link has expired or was already used, come back here and use /creator to get a new one.\n\nIf the button below does not open Twitch, copy the link and open it in your browser. If Twitch still does not open, try to open the link in an incognito window or on a different device.</i>"

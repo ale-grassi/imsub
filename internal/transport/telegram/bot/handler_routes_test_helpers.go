@@ -357,7 +357,7 @@ func (c *routeTestCaller) Call(_ context.Context, url string, data *telegoapi.Re
 				"chat": {"id": 1, "type": "private"}
 			}`),
 		}, nil
-	case "answerCallbackQuery", "approveChatJoinRequest", "declineChatJoinRequest", "banChatMember", "unbanChatMember":
+	case "answerCallbackQuery", "approveChatJoinRequest", "declineChatJoinRequest", "banChatMember", "unbanChatMember", "setChatMemberTag":
 		return &telegoapi.Response{
 			Ok:     true,
 			Result: json.RawMessage(`true`),
@@ -465,6 +465,16 @@ func (c *routeTestCaller) lastAnswerCallbackBody() json.RawMessage {
 	return append(json.RawMessage(nil), bodies[len(bodies)-1]...)
 }
 
+func (c *routeTestCaller) lastSetChatMemberTagBody() json.RawMessage {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	bodies := c.requestBodies["setChatMemberTag"]
+	if len(bodies) == 0 {
+		return nil
+	}
+	return append(json.RawMessage(nil), bodies[len(bodies)-1]...)
+}
+
 type routeTestStore struct {
 	routeTestStoreStub
 
@@ -483,6 +493,7 @@ type routeTestStore struct {
 	untrackedUpserts        []routeTestUntrackedUpsert
 	untrackedMembersByGroup map[int64]map[int64]core.UntrackedGroupMember
 	untrackedCountByChatID  map[int64]int
+	managedTagsByGroup      map[int64]map[int64]core.ManagedMemberTag
 	subscribersByCreator    map[string]map[string]bool
 	blockedByCreatorUser    map[string]map[string]bool
 	activeUsers             []int64
@@ -952,7 +963,46 @@ func (s *routeTestStore) ListUntrackedGroupMembers(_ context.Context, chatID int
 	return out, nil
 }
 
+func (s *routeTestStore) UpsertManagedMemberTag(_ context.Context, item core.ManagedMemberTag) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.managedTagsByGroup == nil {
+		s.managedTagsByGroup = make(map[int64]map[int64]core.ManagedMemberTag)
+	}
+	if s.managedTagsByGroup[item.ChatID] == nil {
+		s.managedTagsByGroup[item.ChatID] = make(map[int64]core.ManagedMemberTag)
+	}
+	s.managedTagsByGroup[item.ChatID][item.TelegramUserID] = item
+	return nil
+}
+
+func (s *routeTestStore) RemoveManagedMemberTag(_ context.Context, chatID, telegramUserID int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.managedTagsByGroup != nil && s.managedTagsByGroup[chatID] != nil {
+		delete(s.managedTagsByGroup[chatID], telegramUserID)
+	}
+	return nil
+}
+
+func (s *routeTestStore) ListManagedMemberTags(_ context.Context, chatID int64) ([]core.ManagedMemberTag, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.managedTagsByGroup == nil || s.managedTagsByGroup[chatID] == nil {
+		return nil, nil
+	}
+	out := make([]core.ManagedMemberTag, 0, len(s.managedTagsByGroup[chatID]))
+	for _, item := range s.managedTagsByGroup[chatID] {
+		out = append(out, item)
+	}
+	return out, nil
+}
+
 func routeTestAdminMemberJSON(userID int64, isBot bool, canInviteUsers bool, canRestrictMembers bool) json.RawMessage {
+	return routeTestAdminMemberJSONWithTags(userID, isBot, canInviteUsers, canRestrictMembers, false)
+}
+
+func routeTestAdminMemberJSONWithTags(userID int64, isBot bool, canInviteUsers bool, canRestrictMembers bool, canManageTags bool) json.RawMessage {
 	return mustMarshalJSON(map[string]any{
 		"status": "administrator",
 		"user": map[string]any{
@@ -972,6 +1022,7 @@ func routeTestAdminMemberJSON(userID int64, isBot bool, canInviteUsers bool, can
 		"can_post_stories":       false,
 		"can_edit_stories":       false,
 		"can_delete_stories":     false,
+		"can_manage_tags":        canManageTags,
 	})
 }
 
@@ -1030,6 +1081,13 @@ func (routeTestStoreStub) CountUntrackedGroupMembers(context.Context, int64) (in
 	return 0, nil
 }
 func (routeTestStoreStub) ListUntrackedGroupMembers(context.Context, int64) ([]core.UntrackedGroupMember, error) {
+	return nil, nil
+}
+func (routeTestStoreStub) UpsertManagedMemberTag(context.Context, core.ManagedMemberTag) error {
+	return nil
+}
+func (routeTestStoreStub) RemoveManagedMemberTag(context.Context, int64, int64) error { return nil }
+func (routeTestStoreStub) ListManagedMemberTags(context.Context, int64) ([]core.ManagedMemberTag, error) {
 	return nil, nil
 }
 func (routeTestStoreStub) Creator(context.Context, string) (core.Creator, bool, error) {

@@ -157,6 +157,7 @@ func Run() error {
 	groupRegistrationUC := usecase.NewGroupRegistrationUseCase(s, eventSink)
 	groupPolicyUpdateUC := usecase.NewGroupPolicyUpdateUseCase(s, eventSink)
 	groupLanguageUpdateUC := usecase.NewGroupLanguageUpdateUseCase(s, eventSink)
+	groupMemberTagUpdateUC := usecase.NewGroupMemberTagUpdateUseCase(s, eventSink)
 	creatorActivationUC := usecase.NewCreatorActivationUseCase(eventSubSvc, eventSink)
 	jobRunner := jobs.NewRunner(logger, eventSink)
 	subscriberTask := jobs.NewSubscriberTask(reconcileSvc)
@@ -201,10 +202,12 @@ func Run() error {
 		logger.Info("telegram mtproto bootstrap disabled; groups will not dump pre-existing members on registration")
 	}
 	subscriptionSvc := core.NewSubscriptionService(s, godAccess)
+	memberTagSyncSvc := core.NewMemberTagSyncService(s, tgGroups, groupBootstrapSvc, logger)
 	subscriptionEndUC := usecase.NewSubscriptionEndUseCase(subscriptionSvc, eventSink)
 	groupUnregistrationUC := usecase.NewGroupUnregistrationUseCase(s, eventSubSvc, godAccess, eventSink)
 	gracePolicyTask := jobs.NewGracePolicyTask(s, tgGroups, godAccess, logger)
 	kickPolicyTask := jobs.NewKickPolicyTask(s, tgGroups, godAccess, logger)
+	memberTagSyncTask := jobs.NewMemberTagSyncTask(memberTagSyncSvc)
 
 	flowController := telegrambot.New(telegrambot.Dependencies{
 		Config:              cfg,
@@ -224,10 +227,12 @@ func Run() error {
 		GroupUnregistration: groupUnregistrationUC,
 		GroupPolicyUpdate:   groupPolicyUpdateUC,
 		GroupLanguageUpdate: groupLanguageUpdateUC,
+		GroupMemberTagSync:  groupMemberTagUpdateUC,
 		GroupBootstrap:      groupBootstrapSvc,
 		CreatorActivation:   creatorActivationUC,
 		SubscriptionEnd:     subscriptionEndUC,
 		Privacy:             privacyUC,
+		MemberTagSync:       memberTagSyncSvc,
 		Events:              eventSink,
 	})
 	viewerAccessUC := usecase.NewViewerAccessUseCase(core.NewViewerService(s, flowController.ViewerGroupOps(), godAccess, logger, eventSink), godAccess, eventSink)
@@ -392,6 +397,14 @@ func Run() error {
 		return jobRunner.RunScheduled(gctx, jobs.Schedule{
 			Task:         kickPolicyTask,
 			InitialDelay: jitteredDelay(60 * time.Second),
+			Interval:     15 * time.Minute,
+			Timeout:      10 * time.Minute,
+		})
+	})
+	g.Go(func() error {
+		return jobRunner.RunScheduled(gctx, jobs.Schedule{
+			Task:         memberTagSyncTask,
+			InitialDelay: jitteredDelay(90 * time.Second),
 			Interval:     15 * time.Minute,
 			Timeout:      10 * time.Minute,
 		})

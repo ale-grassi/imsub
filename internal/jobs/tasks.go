@@ -71,6 +71,10 @@ type privacyRetentionStore interface {
 	PurgeExpiredPrivacyData(ctx context.Context, untrackedRetention time.Duration) (int, error)
 }
 
+type memberTagSyncer interface {
+	SyncEnabledGroups(ctx context.Context) (core.MemberTagSyncCounts, error)
+}
+
 type productMetricsSink interface {
 	TelegramDailyActiveUsers(count int)
 	LinkedViewerAccounts(count int)
@@ -170,6 +174,11 @@ type privacyRetentionTask struct {
 	untrackedRetention time.Duration
 }
 
+type memberTagSyncTask struct {
+	syncer memberTagSyncer
+	counts *runCounts
+}
+
 // NewEventSubTask builds the EventSub reconciliation task.
 func NewEventSubTask(r eventSubReconciler) Task {
 	return eventSubTask{reconciler: r}
@@ -227,6 +236,14 @@ func NewMemberCleanupTask(store memberCleanupStore, kicker groupKicker, notifier
 	}
 }
 
+// NewMemberTagSyncTask builds the periodic background task for Telegram member-tag reconciliation.
+func NewMemberTagSyncTask(syncer memberTagSyncer) Task {
+	return memberTagSyncTask{
+		syncer: syncer,
+		counts: newRunCounts(),
+	}
+}
+
 // NewSubscriptionGraceTask builds the periodic sweep that enforces delayed
 // subscription-end removals.
 func NewSubscriptionGraceTask(store subscriptionGraceStore, kicker groupKicker, notifier subscriptionGraceNotifier, god *core.GodAccessChecker, logger *slog.Logger) Task {
@@ -262,6 +279,36 @@ func NewPrivacyRetentionTask(store privacyRetentionStore, untrackedRetention tim
 		store:              store,
 		untrackedRetention: untrackedRetention,
 	}
+}
+
+func (t memberTagSyncTask) Name() string { return "sync_member_tags" }
+
+func (t memberTagSyncTask) Run(ctx context.Context) error {
+	if t.syncer == nil {
+		return nil
+	}
+	t.counts.reset()
+	counts, err := t.syncer.SyncEnabledGroups(ctx)
+	t.counts.add("groups", counts.Groups)
+	t.counts.add("set", counts.Set)
+	t.counts.add("cleared", counts.Cleared)
+	t.counts.add("noop", counts.Noop)
+	t.counts.add("errors", counts.Errors)
+	if err != nil {
+		return fmt.Errorf("sync enabled member tags: %w", err)
+	}
+	return nil
+}
+
+func (t memberTagSyncTask) Classify(err error) string {
+	if err == nil {
+		return "ok"
+	}
+	return taskResultFailed
+}
+
+func (t memberTagSyncTask) Report() map[string]int {
+	return t.counts.snapshot()
 }
 
 func (t eventSubTask) Name() string { return "reconcile_eventsubs" }

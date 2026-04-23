@@ -201,6 +201,26 @@ func (c *Client) KickDisplacedUser(ctx context.Context, telegramUserID int64) {
 	}
 }
 
+// SetMemberTag sets or clears the Telegram member tag for a regular group member.
+func (c *Client) SetMemberTag(ctx context.Context, groupChatID, telegramUserID int64, tag string) error {
+	if c == nil || c.bot == nil {
+		return nil
+	}
+	if c.limiter != nil {
+		if err := c.limiter.Wait(ctx, groupChatID); err != nil {
+			return fmt.Errorf("limiter wait for set member tag: %w", err)
+		}
+	}
+	err := c.bot.SetChatMemberTag(ctx, (&telego.SetChatMemberTagParams{}).
+		WithChatID(tu.ID(groupChatID)).
+		WithUserID(telegramUserID).
+		WithTag(tag))
+	if err != nil {
+		return fmt.Errorf("set chat member tag: %w", err)
+	}
+	return nil
+}
+
 func (c *Client) recordKick(ctx context.Context, reason core.KickReason, result string) {
 	if c == nil || c.events == nil {
 		return
