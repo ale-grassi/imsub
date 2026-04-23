@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"imsub/internal/transport/telegram/mtproto"
 )
 
 const untrackedMemberTag = "Untracked"
@@ -26,11 +28,17 @@ type memberTagSetter interface {
 	SetMemberTag(ctx context.Context, groupChatID, telegramUserID int64, tag string) error
 }
 
+type memberTagMemberSnapshot interface {
+	DumpMembersByChatID(ctx context.Context, chatID int64) ([]mtproto.Member, error)
+	SelfUserID() int64
+}
+
 // MemberTagSyncService applies and reconciles Telegram member tags managed by ImSub.
 type MemberTagSyncService struct {
 	store     memberTagSyncStore
 	setter    memberTagSetter
 	bootstrap *GroupBootstrapService
+	snapshot  memberTagMemberSnapshot
 	logger    *slog.Logger
 	now       func() time.Time
 }
@@ -45,7 +53,7 @@ type MemberTagSyncCounts struct {
 }
 
 // NewMemberTagSyncService creates a member-tag sync service.
-func NewMemberTagSyncService(store memberTagSyncStore, setter memberTagSetter, bootstrap *GroupBootstrapService, logger *slog.Logger) *MemberTagSyncService {
+func NewMemberTagSyncService(store memberTagSyncStore, setter memberTagSetter, bootstrap *GroupBootstrapService, snapshot memberTagMemberSnapshot, logger *slog.Logger) *MemberTagSyncService {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -53,6 +61,7 @@ func NewMemberTagSyncService(store memberTagSyncStore, setter memberTagSetter, b
 		store:     store,
 		setter:    setter,
 		bootstrap: bootstrap,
+		snapshot:  snapshot,
 		logger:    logger,
 		now: func() time.Time {
 			return time.Now().UTC()
@@ -167,6 +176,10 @@ func (s *MemberTagSyncService) SyncEnabledGroups(ctx context.Context) (MemberTag
 }
 
 func (s *MemberTagSyncService) syncKnownMembers(ctx context.Context, group ManagedGroup) (MemberTagSyncCounts, error) {
+	liveMembers, hasSnapshot, err := s.snapshotRegularMembers(ctx, group.ChatID)
+	if err != nil {
+		s.logger.Warn("member tag live-members snapshot failed; falling back to stored membership", "chat_id", group.ChatID, "error", err)
+	}
 	trackedIDs, err := s.store.ListTrackedGroupMemberIDs(ctx, group.ChatID)
 	if err != nil {
 		return MemberTagSyncCounts{}, fmt.Errorf("list tracked group members: %w", err)
@@ -177,6 +190,11 @@ func (s *MemberTagSyncService) syncKnownMembers(ctx context.Context, group Manag
 	}
 	desired := make(map[int64]string, len(trackedIDs)+len(untracked))
 	for _, telegramUserID := range trackedIDs {
+		if hasSnapshot {
+			if _, ok := liveMembers[telegramUserID]; !ok {
+				continue
+			}
+		}
 		identity, ok, identityErr := s.store.UserIdentity(ctx, telegramUserID)
 		if identityErr != nil {
 			return MemberTagSyncCounts{}, fmt.Errorf("load tracked user identity %d: %w", telegramUserID, identityErr)
@@ -187,6 +205,11 @@ func (s *MemberTagSyncService) syncKnownMembers(ctx context.Context, group Manag
 		desired[telegramUserID] = trackedMemberTag(identity)
 	}
 	for _, member := range untracked {
+		if hasSnapshot {
+			if _, ok := liveMembers[member.TelegramUserID]; !ok {
+				continue
+			}
+		}
 		desired[member.TelegramUserID] = untrackedMemberTag
 	}
 
@@ -224,6 +247,30 @@ func (s *MemberTagSyncService) syncKnownMembers(ctx context.Context, group Manag
 		counts.Cleared++
 	}
 	return counts, nil
+}
+
+func (s *MemberTagSyncService) snapshotRegularMembers(ctx context.Context, chatID int64) (map[int64]struct{}, bool, error) {
+	if s == nil || s.snapshot == nil || chatID == 0 {
+		return nil, false, nil
+	}
+	dumped, err := s.snapshot.DumpMembersByChatID(ctx, chatID)
+	if err != nil {
+		return nil, false, fmt.Errorf("dump members by chat id: %w", err)
+	}
+	selfUserID := s.snapshot.SelfUserID()
+	members := make(map[int64]struct{}, len(dumped))
+	for _, member := range dumped {
+		if member.TelegramUserID == 0 || member.TelegramUserID == selfUserID || member.IsBot {
+			continue
+		}
+		switch member.Role {
+		case mtproto.MemberRoleMember, mtproto.MemberRoleRestricted:
+			members[member.TelegramUserID] = struct{}{}
+		case mtproto.MemberRoleAdmin, mtproto.MemberRoleCreator:
+			continue
+		}
+	}
+	return members, true, nil
 }
 
 func (s *MemberTagSyncService) setOwnedTag(ctx context.Context, chatID, telegramUserID int64, tag string) error {

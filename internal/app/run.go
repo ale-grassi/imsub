@@ -169,8 +169,8 @@ func Run() error {
 	integrityTask := jobs.NewIntegrityAuditTask(s, logger, eventSink)
 	blocklistSvc = core.NewCreatorBlocklistService(s, twitchAPI, tgGroups, logger)
 	var groupBootstrapSvc *core.GroupBootstrapService
+	var mtprotoClient *telegrammtproto.Client
 	if cfg.MTProtoEnabled() {
-		var mtprotoClient *telegrammtproto.Client
 		if err := startupRec.Phase("mtproto_init", func() error {
 			var perr error
 			mtprotoClient, perr = telegrammtproto.New(cfg.TelegramMTProtoAppID, cfg.TelegramMTProtoHash, cfg.TelegramMTProtoSession)
@@ -202,7 +202,7 @@ func Run() error {
 		logger.Info("telegram mtproto bootstrap disabled; groups will not dump pre-existing members on registration")
 	}
 	subscriptionSvc := core.NewSubscriptionService(s, godAccess)
-	memberTagSyncSvc := core.NewMemberTagSyncService(s, tgGroups, groupBootstrapSvc, logger)
+	memberTagSyncSvc := core.NewMemberTagSyncService(s, tgGroups, groupBootstrapSvc, mtprotoClient, logger)
 	subscriptionEndUC := usecase.NewSubscriptionEndUseCase(subscriptionSvc, eventSink)
 	groupUnregistrationUC := usecase.NewGroupUnregistrationUseCase(s, eventSubSvc, godAccess, eventSink)
 	gracePolicyTask := jobs.NewGracePolicyTask(s, tgGroups, godAccess, logger)

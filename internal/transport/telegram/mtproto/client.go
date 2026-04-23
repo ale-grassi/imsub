@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gotd/td/constant"
 	"github.com/gotd/td/session"
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/peers"
@@ -117,6 +118,29 @@ func (c *Client) DumpMembersViaInvite(ctx context.Context, inviteLink string) ([
 		peer, err := manager.JoinLink(ctx, inviteLink)
 		if err != nil {
 			return StageError{Stage: "join_failed", Err: err}
+		}
+		membersDump, listErr := dumpPeerMembers(ctx, peer)
+		if listErr != nil {
+			return StageError{Stage: "list_failed", Err: listErr}
+		}
+		dumped = membersDump
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return dumped, nil
+}
+
+// DumpMembersByChatID lists members for a chat already known to the MTProto session.
+func (c *Client) DumpMembersByChatID(ctx context.Context, chatID int64) ([]Member, error) {
+	if c == nil {
+		return nil, errNilClient
+	}
+	var dumped []Member
+	if err := c.run(ctx, func(ctx context.Context, _ *telegram.Client, manager *peers.Manager) error {
+		peer, err := manager.ResolveTDLibID(ctx, constant.TDLibPeerID(chatID))
+		if err != nil {
+			return StageError{Stage: "resolve_failed", Err: err}
 		}
 		membersDump, listErr := dumpPeerMembers(ctx, peer)
 		if listErr != nil {

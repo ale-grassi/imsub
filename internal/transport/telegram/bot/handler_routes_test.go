@@ -827,7 +827,7 @@ func TestRegisterTelegramHandlersApprovesJoinRequestAndSetsTrackedMemberTag(t *t
 	t.Parallel()
 
 	h := newRouteTestHarness(t)
-	h.controller.memberTagSync = core.NewMemberTagSyncService(h.store, h.controller.telegramGroups, nil, nil)
+	h.controller.memberTagSync = core.NewMemberTagSyncService(h.store, h.controller.telegramGroups, nil, nil, nil)
 	h.store.setManagedGroup(core.ManagedGroup{
 		ChatID:               -1011,
 		CreatorID:            "creator-1",
@@ -1237,7 +1237,7 @@ func TestRegisterTelegramHandlersChatMemberJoinSetsUntrackedTagWhenEnabled(t *te
 	t.Parallel()
 
 	h := newRouteTestHarness(t)
-	h.controller.memberTagSync = core.NewMemberTagSyncService(h.store, h.controller.telegramGroups, nil, nil)
+	h.controller.memberTagSync = core.NewMemberTagSyncService(h.store, h.controller.telegramGroups, nil, nil, nil)
 	h.store.setManagedGroup(core.ManagedGroup{
 		ChatID:               -10036,
 		CreatorID:            "creator-1",
