@@ -10,6 +10,8 @@ var ErrUnauthorized = errors.New("twitch: unauthorized")
 const (
 	// ScopeChannelReadSubscriptions is the scope required to read channel subscribers.
 	ScopeChannelReadSubscriptions = "channel:read:subscriptions"
+	// ScopeChannelModerate is the scope required for moderation EventSub subscriptions.
+	ScopeChannelModerate = "channel:moderate"
 	// ScopeModerationRead is the scope required to read the creator's moderation ban list.
 	ScopeModerationRead = "moderation:read"
 	// EventTypeChannelSubscribe is the Twitch EventSub type for new subscriptions.

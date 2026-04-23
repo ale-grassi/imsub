@@ -125,10 +125,7 @@ func (o *OAuthService) LinkCreator(ctx context.Context, code string, payload OAu
 	if err != nil {
 		return CreatorResult{}, &FlowError{Kind: KindTokenExchange, Cause: err}
 	}
-	if !slices.Contains(tok.Scope, ScopeChannelReadSubscriptions) {
-		return CreatorResult{}, &FlowError{Kind: KindScopeMissing, Cause: errMissingScope}
-	}
-	if !slices.Contains(tok.Scope, ScopeModerationRead) {
+	if !hasCreatorOAuthScopes(tok.Scope) {
 		return CreatorResult{}, &FlowError{Kind: KindScopeMissing, Cause: errMissingScope}
 	}
 
@@ -172,4 +169,10 @@ func (o *OAuthService) LinkCreator(ctx context.Context, code string, payload OAu
 		Creator:                creator,
 		BroadcasterDisplayName: broadcasterDisplayName,
 	}, nil
+}
+
+func hasCreatorOAuthScopes(scopes []string) bool {
+	return slices.Contains(scopes, ScopeChannelReadSubscriptions) &&
+		slices.Contains(scopes, ScopeModerationRead) &&
+		slices.Contains(scopes, ScopeChannelModerate)
 }

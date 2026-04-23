@@ -161,7 +161,7 @@ func TestLinkCreatorUpsertSetsUpdatedAt(t *testing.T) {
 				return TokenResponse{
 					AccessToken:  "at",
 					RefreshToken: "rt",
-					Scope:        []string{ScopeChannelReadSubscriptions, ScopeModerationRead},
+					Scope:        []string{ScopeChannelReadSubscriptions, ScopeModerationRead, ScopeChannelModerate},
 				}, nil
 			},
 			fetchUserFn: func(_ context.Context, _ string) (id, login, displayName string, err error) {
@@ -189,6 +189,9 @@ func TestLinkCreatorUpsertSetsUpdatedAt(t *testing.T) {
 	}
 	if !slices.Contains(saved.GrantedScopes, ScopeModerationRead) {
 		t.Errorf("LinkCreator() saved scopes = %v, want %q included", saved.GrantedScopes, ScopeModerationRead)
+	}
+	if !slices.Contains(saved.GrantedScopes, ScopeChannelModerate) {
+		t.Errorf("LinkCreator() saved scopes = %v, want %q included", saved.GrantedScopes, ScopeChannelModerate)
 	}
 }
 
@@ -220,7 +223,7 @@ func TestLinkCreatorReconnectClearsAuthDegradation(t *testing.T) {
 				return TokenResponse{
 					AccessToken:  "new-at",
 					RefreshToken: "new-rt",
-					Scope:        []string{ScopeChannelReadSubscriptions, ScopeModerationRead},
+					Scope:        []string{ScopeChannelReadSubscriptions, ScopeModerationRead, ScopeChannelModerate},
 				}, nil
 			},
 			fetchUserFn: func(_ context.Context, _ string) (id, login, displayName string, err error) {
@@ -255,7 +258,7 @@ func TestLinkCreatorReconnectRejectsDifferentCreator(t *testing.T) {
 				return TokenResponse{
 					AccessToken:  "new-at",
 					RefreshToken: "new-rt",
-					Scope:        []string{ScopeChannelReadSubscriptions, ScopeModerationRead},
+					Scope:        []string{ScopeChannelReadSubscriptions, ScopeModerationRead, ScopeChannelModerate},
 				}, nil
 			},
 			fetchUserFn: func(_ context.Context, _ string) (id, login, displayName string, err error) {

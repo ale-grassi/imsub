@@ -768,7 +768,7 @@ func (c *Bot) toggleCreatorBlocklist(ctx context.Context, telegramUserID int64, 
 	enable := !res.Creator.BlocklistSyncEnabled
 	creator, _, err := c.creatorBlocklist.ToggleBlocklistSync(ctx, telegramUserID, enable)
 	if err != nil {
-		if errors.Is(err, core.ErrCreatorModerationScopeMissing) {
+		if errors.Is(err, core.ErrCreatorBlocklistScopeMissing) {
 			c.log().Warn("creator blocklist toggle requires reconnect", "telegram_user_id", telegramUserID, "creator_id", res.Creator.ID)
 			c.replyCreatorOAuthPrompt(ctx, telegramUserID, editMsgID, lang, true)
 			return ""

@@ -134,15 +134,21 @@ func TestEnabledEventSubTypesPagination(t *testing.T) {
 			if req.URL.Query().Get("user_id") != "111" {
 				t.Errorf("EnabledEventSubTypes request user_id = %q, want %q", req.URL.Query().Get("user_id"), "111")
 			}
+			if got := req.URL.Query().Get("status"); got != "" {
+				t.Errorf("EnabledEventSubTypes request status = %q, want empty", got)
+			}
 			switch call {
 			case 1:
 				return response(http.StatusOK, `{
-					"data":[{"type":"channel.subscribe","condition":{"broadcaster_user_id":"111"}}],
+					"data":[
+						{"type":"channel.subscribe","status":"enabled","condition":{"broadcaster_user_id":"111"}},
+						{"type":"channel.subscription.end","status":"webhook_callback_verification_pending","condition":{"broadcaster_user_id":"111"}}
+					],
 					"pagination":{"cursor":"c2"}
 				}`), nil
 			case 2:
 				return response(http.StatusOK, `{
-					"data":[{"type":"channel.subscription.end","condition":{"broadcaster_user_id":"111"}}],
+					"data":[{"type":"channel.subscription.end","status":"enabled","condition":{"broadcaster_user_id":"111"}}],
 					"pagination":{"cursor":""}
 				}`), nil
 			default:

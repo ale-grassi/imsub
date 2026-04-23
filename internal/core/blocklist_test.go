@@ -216,7 +216,7 @@ func TestCreatorBlocklistToggleEnablesSync(t *testing.T) {
 		ownedCreator: Creator{
 			ID:                   "creator-1",
 			OwnerTelegramID:      77,
-			GrantedScopes:        []string{ScopeModerationRead},
+			GrantedScopes:        []string{ScopeModerationRead, ScopeChannelModerate},
 			BlocklistSyncEnabled: false,
 		},
 		ownedCreatorOK: true,
@@ -236,7 +236,7 @@ func TestCreatorBlocklistToggleEnablesSync(t *testing.T) {
 	}
 }
 
-func TestCreatorBlocklistToggleRequiresModerationScope(t *testing.T) {
+func TestCreatorBlocklistToggleRequiresBlocklistScopes(t *testing.T) {
 	t.Parallel()
 
 	store := &blocklistFakeStore{
@@ -249,8 +249,8 @@ func TestCreatorBlocklistToggleRequiresModerationScope(t *testing.T) {
 	svc := NewCreatorBlocklistService(store, &blocklistFakeTwitch{}, nil, nil)
 
 	_, _, err := svc.ToggleBlocklistSync(t.Context(), 77, true)
-	if !errors.Is(err, ErrCreatorModerationScopeMissing) {
-		t.Fatalf("ToggleBlocklistSync() error = %v, want ErrCreatorModerationScopeMissing", err)
+	if !errors.Is(err, ErrCreatorBlocklistScopeMissing) {
+		t.Fatalf("ToggleBlocklistSync() error = %v, want ErrCreatorBlocklistScopeMissing", err)
 	}
 	if len(store.updateEnabledCalls) != 0 {
 		t.Fatalf("UpdateCreatorBlocklistSyncEnabled calls = %v, want none", store.updateEnabledCalls)

@@ -37,8 +37,9 @@ type blocklistGroupRevoker interface {
 
 const creatorAuthErrorBlocklistTokenRefreshFailed = "blocklist_token_refresh_failed"
 
-// ErrCreatorModerationScopeMissing reports that the creator token lacks moderation-read access.
-var ErrCreatorModerationScopeMissing = errors.New("creator missing moderation:read scope")
+// ErrCreatorBlocklistScopeMissing reports that the creator token lacks the
+// scopes needed for blocklist sync and its EventSub subscriptions.
+var ErrCreatorBlocklistScopeMissing = errors.New("creator missing required blocklist scopes")
 
 // CreatorBlocklistService manages synced creator ban-list state and enforcement.
 type CreatorBlocklistService struct {
@@ -76,8 +77,8 @@ func (s *CreatorBlocklistService) ToggleBlocklistSync(ctx context.Context, owner
 	if !ok {
 		return Creator{}, 0, nil
 	}
-	if enabled && !slices.Contains(creator.GrantedScopes, ScopeModerationRead) {
-		return Creator{}, 0, ErrCreatorModerationScopeMissing
+	if enabled && !hasBlocklistScopes(creator.GrantedScopes) {
+		return Creator{}, 0, ErrCreatorBlocklistScopeMissing
 	}
 	if err := s.store.UpdateCreatorBlocklistSyncEnabled(ctx, creator.ID, enabled); err != nil {
 		return Creator{}, 0, fmt.Errorf("update creator blocklist sync enabled: %w", err)
@@ -88,6 +89,11 @@ func (s *CreatorBlocklistService) ToggleBlocklistSync(ctx context.Context, owner
 	}
 	count, err := s.SyncCreatorBlocklist(ctx, creator)
 	return creator, count, err
+}
+
+func hasBlocklistScopes(scopes []string) bool {
+	return slices.Contains(scopes, ScopeModerationRead) &&
+		slices.Contains(scopes, ScopeChannelModerate)
 }
 
 // SyncCreatorBlocklist refreshes the cached permanent-ban set for a creator and enforces it.

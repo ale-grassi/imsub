@@ -53,7 +53,7 @@ func (c *Controller) OAuthStart(w http.ResponseWriter, r *http.Request) {
 		scope = ""
 	case core.OAuthModeCreator:
 		modeLabel = string(core.OAuthModeCreator)
-		scope = strings.Join([]string{core.ScopeChannelReadSubscriptions, core.ScopeModerationRead}, " ")
+		scope = strings.Join([]string{core.ScopeChannelReadSubscriptions, core.ScopeModerationRead, core.ScopeChannelModerate}, " ")
 	default:
 		modeLabel = string(payload.Mode)
 		resultLabel = oauthStartResultUnknownMode
