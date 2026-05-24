@@ -1,6 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
+	"context"
+	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +14,19 @@ import (
 
 	"imsub/internal/adapter/s3"
 )
+
+type fakeBackupObjectStore struct {
+	objects []s3.ObjectInfo
+	bodies  map[string][]byte
+}
+
+func (f fakeBackupObjectStore) ListPrefix(_ context.Context, _ string) ([]s3.ObjectInfo, error) {
+	return append([]s3.ObjectInfo(nil), f.objects...), nil
+}
+
+func (f fakeBackupObjectStore) Download(_ context.Context, key string) (io.ReadCloser, error) {
+	return io.NopCloser(bytes.NewReader(f.bodies[key])), nil
+}
 
 func TestLoadBackupConfigReadsDotEnv(t *testing.T) {
 	t.Parallel()
@@ -151,6 +169,51 @@ func TestSelectLatestBackupKey(t *testing.T) {
 	if key != "backups/b.jsonl.gz" {
 		t.Fatalf("selectLatestBackupKey() = %q, want latest key", key)
 	}
+}
+
+func TestResolveRestoreChainForIncrementalBackup(t *testing.T) {
+	t.Parallel()
+
+	baseKey := "backups/full/imsub-full-2026-03-12T00-00-00Z.jsonl.gz"
+	inc1Key := "backups/incremental/imsub-incremental-2026-03-12T06-00-00Z.jsonl.gz"
+	inc2Key := "backups/incremental/imsub-incremental-2026-03-12T12-00-00Z.jsonl.gz"
+	otherIncKey := "backups/incremental/imsub-incremental-2026-03-12T09-00-00Z.jsonl.gz"
+	store := fakeBackupObjectStore{
+		objects: []s3.ObjectInfo{
+			{Key: baseKey, LastModified: time.Date(2026, 3, 12, 0, 0, 0, 0, time.UTC)},
+			{Key: inc1Key, LastModified: time.Date(2026, 3, 12, 6, 0, 0, 0, time.UTC)},
+			{Key: otherIncKey, LastModified: time.Date(2026, 3, 12, 9, 0, 0, 0, time.UTC)},
+			{Key: inc2Key, LastModified: time.Date(2026, 3, 12, 12, 0, 0, 0, time.UTC)},
+		},
+		bodies: map[string][]byte{
+			baseKey:     gzipManifest(t, backupManifest{Format: backupFormat, Kind: "full", BaseFullKey: baseKey}),
+			inc1Key:     gzipManifest(t, backupManifest{Format: backupFormat, Kind: "incremental", BaseFullKey: baseKey}),
+			inc2Key:     gzipManifest(t, backupManifest{Format: backupFormat, Kind: "incremental", BaseFullKey: baseKey}),
+			otherIncKey: gzipManifest(t, backupManifest{Format: backupFormat, Kind: "incremental", BaseFullKey: "backups/full/other.jsonl.gz"}),
+		},
+	}
+
+	chain, err := resolveRestoreChain(context.Background(), store, inc2Key)
+	if err != nil {
+		t.Fatalf("resolveRestoreChain() error = %v", err)
+	}
+	want := []string{baseKey, inc1Key, inc2Key}
+	if strings.Join(chain, ",") != strings.Join(want, ",") {
+		t.Fatalf("resolveRestoreChain() = %v, want %v", chain, want)
+	}
+}
+
+func gzipManifest(t *testing.T, manifest backupManifest) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	if err := json.NewEncoder(gz).Encode(manifest); err != nil {
+		t.Fatalf("encode manifest: %v", err)
+	}
+	if err := gz.Close(); err != nil {
+		t.Fatalf("close gzip: %v", err)
+	}
+	return buf.Bytes()
 }
 
 func TestUsageErrorIncludesBackupCommands(t *testing.T) {

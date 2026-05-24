@@ -2,8 +2,11 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -27,12 +30,14 @@ import (
 )
 
 const backupLoadConfirmValue = "backup-load"
+const backupFormat = "imsub-redis-backup"
 
 var (
 	errBackupLoadConfirmRequired = errors.New("backup load requires explicit confirmation")
 	errRedisConfigMissing        = errors.New("missing redis env vars")
 	errBackupConfigMissing       = errors.New("missing backup env vars")
 	errNoBackupObjects           = errors.New("no backup objects found under backups/")
+	errBackupBaseMissing         = errors.New("backup base is missing")
 	errDownloadOutRequired       = errors.New("download requires -out")
 	errMTProtoConfigMissing      = errors.New("missing mtproto env vars")
 	errInvalidMTProtoAppID       = errors.New("invalid IMSUB_TELEGRAM_MTPROTO_API_ID")
@@ -46,6 +51,13 @@ type backupConfig struct {
 	S3AccessKeyID     string
 	S3SecretAccessKey string
 	S3Region          string
+}
+
+type backupManifest struct {
+	Format      string `json:"format"`
+	Kind        string `json:"kind"`
+	CreatedAt   string `json:"created_at"`
+	BaseFullKey string `json:"base_full_key,omitempty"`
 }
 
 type mtprotoConfig struct {
@@ -209,20 +221,157 @@ func runBackupLoad(args []string) error {
 	defer func() { _ = store.Close() }()
 
 	ctx := context.Background()
-	rc, sourceLabel, err := openBackupSource(ctx, *envPath, *key, *fromFile)
-	if err != nil {
+	if strings.TrimSpace(*fromFile) != "" {
+		rc, sourceLabel, err := openBackupSource(ctx, *envPath, *key, *fromFile)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = rc.Close() }()
+		if _, err := store.RestoreBackup(ctx, rc); err != nil {
+			return fmt.Errorf("load backup %q: %w", sourceLabel, err)
+		}
+	} else if err := restoreBackupFromObjectStorage(ctx, store, *envPath, *key); err != nil {
 		return err
-	}
-	defer func() { _ = rc.Close() }()
-
-	if _, err := store.RestoreBackup(ctx, rc); err != nil {
-		return fmt.Errorf("load backup %q: %w", sourceLabel, err)
 	}
 
 	if _, err := io.WriteString(os.Stdout, "backup_load_completed=true\n"); err != nil {
 		return fmt.Errorf("write backup load summary: %w", err)
 	}
 	return nil
+}
+
+func restoreBackupFromObjectStorage(ctx context.Context, store *redis.Store, envPath, key string) error {
+	cfg, err := loadBackupConfig(envPath)
+	if err != nil {
+		return err
+	}
+	s3Client, err := s3.NewClient(cfg.S3Endpoint, cfg.S3Bucket, cfg.S3AccessKeyID, cfg.S3SecretAccessKey, cfg.S3Region)
+	if err != nil {
+		return fmt.Errorf("new s3 client: %w", err)
+	}
+	selectedKey, err := resolveBackupObjectKey(ctx, s3Client, key)
+	if err != nil {
+		return err
+	}
+	chain, err := resolveRestoreChain(ctx, s3Client, selectedKey)
+	if err != nil {
+		return err
+	}
+	for _, objectKey := range chain {
+		rc, err := s3Client.Download(ctx, objectKey)
+		if err != nil {
+			return fmt.Errorf("download backup object %q: %w", objectKey, err)
+		}
+		_, restoreErr := store.RestoreBackup(ctx, rc)
+		closeErr := rc.Close()
+		if restoreErr != nil {
+			return fmt.Errorf("load backup %q: %w", objectKey, restoreErr)
+		}
+		if closeErr != nil {
+			return fmt.Errorf("close backup object %q: %w", objectKey, closeErr)
+		}
+	}
+	return nil
+}
+
+func resolveRestoreChain(ctx context.Context, store backupObjectStore, selectedKey string) ([]string, error) {
+	selectedBytes, err := downloadBackupBytes(ctx, store, selectedKey)
+	if err != nil {
+		return nil, err
+	}
+	manifest, ok, err := inspectBackupManifest(selectedBytes)
+	if err != nil {
+		return nil, fmt.Errorf("inspect backup %q: %w", selectedKey, err)
+	}
+	if !ok || manifest.Kind != "incremental" {
+		return []string{selectedKey}, nil
+	}
+	if manifest.BaseFullKey == "" {
+		return nil, fmt.Errorf("%w for incremental backup %q", errBackupBaseMissing, selectedKey)
+	}
+	objects, err := store.ListPrefix(ctx, "backups/")
+	if err != nil {
+		return nil, fmt.Errorf("list backup objects: %w", err)
+	}
+	objectByKey := map[string]s3.ObjectInfo{}
+	for _, object := range objects {
+		objectByKey[object.Key] = object
+	}
+	selectedObject, ok := objectByKey[selectedKey]
+	if !ok {
+		selectedObject = s3.ObjectInfo{Key: selectedKey}
+	}
+	baseObject, ok := objectByKey[manifest.BaseFullKey]
+	if !ok {
+		return nil, fmt.Errorf("%w: %q for %q", errBackupBaseMissing, manifest.BaseFullKey, selectedKey)
+	}
+	chain := []s3.ObjectInfo{baseObject}
+	for _, object := range objects {
+		if object.Key == manifest.BaseFullKey || object.Key == selectedKey || !strings.Contains(object.Key, "/incremental/") {
+			continue
+		}
+		if !object.LastModified.After(baseObject.LastModified) || object.LastModified.After(selectedObject.LastModified) {
+			continue
+		}
+		raw, err := downloadBackupBytes(ctx, store, object.Key)
+		if err != nil {
+			return nil, err
+		}
+		candidateManifest, ok, err := inspectBackupManifest(raw)
+		if err != nil {
+			return nil, fmt.Errorf("inspect backup %q: %w", object.Key, err)
+		}
+		if ok && candidateManifest.Kind == "incremental" && candidateManifest.BaseFullKey == manifest.BaseFullKey {
+			chain = append(chain, object)
+		}
+	}
+	chain = append(chain, selectedObject)
+	sort.Slice(chain, func(i, j int) bool {
+		if chain[i].LastModified.Equal(chain[j].LastModified) {
+			return chain[i].Key < chain[j].Key
+		}
+		return chain[i].LastModified.Before(chain[j].LastModified)
+	})
+	out := make([]string, 0, len(chain))
+	for _, object := range chain {
+		if len(out) == 0 || out[len(out)-1] != object.Key {
+			out = append(out, object.Key)
+		}
+	}
+	return out, nil
+}
+
+func downloadBackupBytes(ctx context.Context, store backupObjectStore, key string) ([]byte, error) {
+	rc, err := store.Download(ctx, key)
+	if err != nil {
+		return nil, fmt.Errorf("download backup object %q: %w", key, err)
+	}
+	defer func() { _ = rc.Close() }()
+	raw, err := io.ReadAll(rc)
+	if err != nil {
+		return nil, fmt.Errorf("read backup object %q: %w", key, err)
+	}
+	return raw, nil
+}
+
+func inspectBackupManifest(raw []byte) (backupManifest, bool, error) {
+	gz, err := gzip.NewReader(bytes.NewReader(raw))
+	if err != nil {
+		return backupManifest{}, false, fmt.Errorf("open backup gzip stream: %w", err)
+	}
+	defer func() { _ = gz.Close() }()
+	dec := json.NewDecoder(gz)
+	var manifest backupManifest
+	if err := dec.Decode(&manifest); err != nil {
+		if errors.Is(err, io.EOF) {
+			return backupManifest{}, false, nil
+		}
+		return backupManifest{}, false, fmt.Errorf("decode first backup record: %w", err)
+	}
+	if manifest.Format != backupFormat {
+		return backupManifest{}, false, nil
+	}
+	return manifest, true, nil
 }
 
 func openBackupSource(ctx context.Context, envPath, key, fromFile string) (io.ReadCloser, string, error) {
@@ -349,6 +498,11 @@ func cleanOutputPath(path string) string {
 
 type backupObjectResolver interface {
 	ListPrefix(context.Context, string) ([]s3.ObjectInfo, error)
+}
+
+type backupObjectStore interface {
+	backupObjectResolver
+	Download(context.Context, string) (io.ReadCloser, error)
 }
 
 func resolveBackupObjectKey(ctx context.Context, resolver backupObjectResolver, explicitKey string) (string, error) {

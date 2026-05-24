@@ -94,6 +94,71 @@ func TestRedisBackupRoundTripWithRealRedis(t *testing.T) {
 	}
 }
 
+func TestRedisIncrementalBackupRestoreWithRealRedis(t *testing.T) {
+	t.Parallel()
+
+	store, client := newRealRedisBackupStore(t)
+	ctx := t.Context()
+
+	if err := store.AddCreatorSubscriber(ctx, "creator-1", "sub-1"); err != nil {
+		t.Fatalf("AddCreatorSubscriber(sub-1) error = %v", err)
+	}
+	if err := store.AddCreatorBlockedUser(ctx, "creator-1", "blocked-1"); err != nil {
+		t.Fatalf("AddCreatorBlockedUser(blocked-1) error = %v", err)
+	}
+	if err := client.Set(ctx, "other:key", "skip", 0).Err(); err != nil {
+		t.Fatalf("seed foreign key: %v", err)
+	}
+
+	var full bytes.Buffer
+	if _, err := store.ExportBackup(ctx, &full); err != nil {
+		t.Fatalf("ExportBackup() error = %v", err)
+	}
+	if err := client.Del(ctx, "imsub:backup:dirty", "imsub:backup:deleted").Err(); err != nil {
+		t.Fatalf("clear backup tracking after full export: %v", err)
+	}
+	if err := client.Set(ctx, "imsub:backup:base_full_key", "backups/full/base.jsonl.gz", 0).Err(); err != nil {
+		t.Fatalf("seed base full key: %v", err)
+	}
+
+	if err := store.AddCreatorSubscriber(ctx, "creator-1", "sub-2"); err != nil {
+		t.Fatalf("AddCreatorSubscriber(sub-2) error = %v", err)
+	}
+	if err := store.FinalizeCreatorBlocklistDump(ctx, "creator-1", "", false); err != nil {
+		t.Fatalf("FinalizeCreatorBlocklistDump(delete) error = %v", err)
+	}
+
+	var incremental bytes.Buffer
+	if _, _, err := store.CreateBackup(ctx, &incremental, redis.BackupKindIncremental, "backups/incremental/next.jsonl.gz", time.Now().UTC()); err != nil {
+		t.Fatalf("CreateBackup(incremental) error = %v", err)
+	}
+
+	if err := client.FlushDB(ctx).Err(); err != nil {
+		t.Fatalf("FlushDB() error = %v", err)
+	}
+	if _, err := store.RestoreBackup(ctx, bytes.NewReader(full.Bytes())); err != nil {
+		t.Fatalf("RestoreBackup(full) error = %v", err)
+	}
+	if _, err := store.RestoreBackup(ctx, bytes.NewReader(incremental.Bytes())); err != nil {
+		t.Fatalf("RestoreBackup(incremental) error = %v", err)
+	}
+
+	subs, err := client.SMembers(ctx, "imsub:creator:subscribers:creator-1").Result()
+	if err != nil {
+		t.Fatalf("SMembers(subscribers) error = %v", err)
+	}
+	slices.Sort(subs)
+	if !slices.Equal(subs, []string{"sub-1", "sub-2"}) {
+		t.Fatalf("restored subscribers = %v, want [sub-1 sub-2]", subs)
+	}
+	if exists, err := client.Exists(ctx, "imsub:creator:blocked:creator-1").Result(); err != nil || exists != 0 {
+		t.Fatalf("restored blocklist exists = (%d, %v), want 0 nil", exists, err)
+	}
+	if exists, err := client.Exists(ctx, "other:key").Result(); err != nil || exists != 0 {
+		t.Fatalf("restored foreign key exists = (%d, %v), want 0 nil", exists, err)
+	}
+}
+
 func newRealRedisBackupStore(t *testing.T) (*redis.Store, *redislib.Client) {
 	t.Helper()
 

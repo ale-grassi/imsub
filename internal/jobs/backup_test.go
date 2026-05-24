@@ -14,6 +14,12 @@ type fakeBackupExporter struct {
 	count int
 	data  []byte
 	err   error
+	full  bool
+	token string
+
+	finishUploaded bool
+	finishCalls    int
+	kind           string
 }
 
 type fakeBackupUploader struct {
@@ -32,14 +38,25 @@ type fakeBackupMetrics struct {
 	calls     int
 }
 
-func (f fakeBackupExporter) ExportBackup(_ context.Context, w io.Writer) (int, error) {
+func (f *fakeBackupExporter) ShouldCreateFullBackup(_ context.Context, _ time.Time, _ time.Duration) (bool, error) {
+	return f.full, nil
+}
+
+func (f *fakeBackupExporter) CreateBackup(_ context.Context, w io.Writer, kind, _ string, _ time.Time) (int, string, error) {
+	f.kind = kind
 	if f.err != nil {
-		return 0, f.err
+		return 0, f.token, f.err
 	}
 	if _, err := w.Write(f.data); err != nil {
-		return 0, err
+		return 0, "", err
 	}
-	return f.count, nil
+	return f.count, f.token, nil
+}
+
+func (f *fakeBackupExporter) FinishBackup(_ context.Context, _ string, uploaded bool, _ string, _ string, _ time.Time) error {
+	f.finishUploaded = uploaded
+	f.finishCalls++
+	return nil
 }
 
 func (f *fakeBackupUploader) Upload(_ context.Context, key string, r io.Reader, size int64, contentType string) error {
@@ -70,10 +87,12 @@ func TestRedisBackupTaskUploadsSnapshot(t *testing.T) {
 
 	uploader := &fakeBackupUploader{}
 	metrics := &fakeBackupMetrics{}
-	taskIface := NewRedisBackupTask(fakeBackupExporter{
+	exporter := &fakeBackupExporter{
 		count: 3,
 		data:  []byte("backup-bytes"),
-	}, uploader, slog.New(slog.DiscardHandler), metrics)
+		full:  true,
+	}
+	taskIface := NewRedisBackupTask(exporter, uploader, slog.New(slog.DiscardHandler), metrics)
 
 	task, ok := taskIface.(redisBackupTask)
 	if !ok {
@@ -84,7 +103,7 @@ func TestRedisBackupTaskUploadsSnapshot(t *testing.T) {
 	if err := task.Run(t.Context()); err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
-	if uploader.key != "backups/imsub-2026-03-12T15-04-05Z.jsonl.gz" {
+	if uploader.key != "backups/full/imsub-full-2026-03-12T15-04-05Z.jsonl.gz" {
 		t.Fatalf("upload key = %q, want backup object key", uploader.key)
 	}
 	if uploader.contentType != "application/gzip" {
@@ -102,6 +121,9 @@ func TestRedisBackupTaskUploadsSnapshot(t *testing.T) {
 	if metrics.keyCount != 3 || metrics.sizeBytes != int64(len("backup-bytes")) {
 		t.Fatalf("metrics payload = (%d, %d), want (%d, %d)", metrics.keyCount, metrics.sizeBytes, 3, len("backup-bytes"))
 	}
+	if exporter.finishCalls != 1 || !exporter.finishUploaded || exporter.kind != "full" {
+		t.Fatalf("exporter finish = (%d, %t, %q), want one uploaded full", exporter.finishCalls, exporter.finishUploaded, exporter.kind)
+	}
 }
 
 func TestRedisBackupTaskClassifiesFailures(t *testing.T) {
@@ -109,7 +131,7 @@ func TestRedisBackupTaskClassifiesFailures(t *testing.T) {
 
 	wantErr := errors.New("boom")
 	metrics := &fakeBackupMetrics{}
-	task := NewRedisBackupTask(fakeBackupExporter{err: wantErr}, &fakeBackupUploader{}, nil, metrics)
+	task := NewRedisBackupTask(&fakeBackupExporter{err: wantErr}, &fakeBackupUploader{}, nil, metrics)
 
 	err := task.Run(t.Context())
 	if err == nil {
@@ -123,15 +145,36 @@ func TestRedisBackupTaskClassifiesFailures(t *testing.T) {
 	}
 }
 
+func TestRedisBackupTaskRequeuesExportFailureAfterRotation(t *testing.T) {
+	t.Parallel()
+
+	wantErr := errors.New("export failed")
+	metrics := &fakeBackupMetrics{}
+	exporter := &fakeBackupExporter{err: wantErr, token: "rotated-token"}
+	task := NewRedisBackupTask(exporter, &fakeBackupUploader{}, nil, metrics)
+
+	err := task.Run(t.Context())
+	if err == nil {
+		t.Fatal("Run() error = nil, want non-nil")
+	}
+	if exporter.finishCalls != 1 || exporter.finishUploaded {
+		t.Fatalf("exporter finish = (%d, %t), want one failed requeue", exporter.finishCalls, exporter.finishUploaded)
+	}
+	if metrics.calls != 1 || metrics.result != taskResultFailed {
+		t.Fatalf("metrics = %+v, want one failed call", *metrics)
+	}
+}
+
 func TestRedisBackupTaskRecordsUploadFailureMetrics(t *testing.T) {
 	t.Parallel()
 
 	wantErr := errors.New("upload failed")
 	metrics := &fakeBackupMetrics{}
-	task := NewRedisBackupTask(fakeBackupExporter{
+	exporter := &fakeBackupExporter{
 		count: 2,
 		data:  []byte("backup-bytes"),
-	}, &fakeBackupUploader{err: wantErr}, nil, metrics)
+	}
+	task := NewRedisBackupTask(exporter, &fakeBackupUploader{err: wantErr}, nil, metrics)
 
 	err := task.Run(t.Context())
 	if err == nil {
@@ -139,5 +182,8 @@ func TestRedisBackupTaskRecordsUploadFailureMetrics(t *testing.T) {
 	}
 	if metrics.calls != 1 || metrics.result != taskResultFailed || metrics.keyCount != 0 || metrics.sizeBytes != 0 {
 		t.Fatalf("metrics = %+v, want one failed zeroed call", *metrics)
+	}
+	if exporter.finishCalls != 1 || exporter.finishUploaded {
+		t.Fatalf("exporter finish = (%d, %t), want one failed requeue", exporter.finishCalls, exporter.finishUploaded)
 	}
 }

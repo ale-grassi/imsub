@@ -259,7 +259,7 @@ func Run() error {
 			startupRec.Ready("failed")
 			return fmt.Errorf("s3 error: %w", err)
 		}
-		backupTask = jobs.NewRedisBackupTask(s, s3Client, logger, metrics)
+		backupTask = jobs.NewRedisBackupTaskWithFullInterval(s, s3Client, logger, metrics, cfg.FullBackupInterval)
 	}
 	eventSubSvc.SetObserver(eventSink)
 	blocklistSvc.SetObserver(eventSink)

@@ -16,7 +16,10 @@ const DefaultS3Region = "auto"
 // ErrMissingEnv indicates one or more required environment variables are not set.
 var ErrMissingEnv = errors.New("missing env vars")
 
-var errInvalidBackupInterval = errors.New("IMSUB_BACKUP_INTERVAL must be > 0")
+var (
+	errInvalidBackupInterval     = errors.New("IMSUB_BACKUP_INTERVAL must be > 0")
+	errInvalidFullBackupInterval = errors.New("IMSUB_FULL_BACKUP_INTERVAL must be > 0")
+)
 
 // Config holds runtime configuration sourced from environment variables.
 type Config struct {
@@ -42,6 +45,7 @@ type Config struct {
 	S3SecretAccessKey      string
 	S3Region               string
 	BackupInterval         time.Duration
+	FullBackupInterval     time.Duration
 	PrivacyPolicyURL       string
 	PrivacyPolicyVersion   string
 	PrivacyReceiptTTL      time.Duration
@@ -89,6 +93,7 @@ func Load() (Config, error) {
 	cfg.GodTelegramUserIDs = godIDs
 
 	backupIntervalRaw := strings.TrimSpace(os.Getenv("IMSUB_BACKUP_INTERVAL"))
+	fullBackupIntervalRaw := strings.TrimSpace(os.Getenv("IMSUB_FULL_BACKUP_INTERVAL"))
 	mtprotoAppIDRaw := strings.TrimSpace(os.Getenv("IMSUB_TELEGRAM_MTPROTO_API_ID"))
 	if mtprotoAppIDRaw != "" {
 		mtprotoAppID, err := strconv.Atoi(mtprotoAppIDRaw)
@@ -105,6 +110,15 @@ func Load() (Config, error) {
 			return Config{}, fmt.Errorf("parse IMSUB_BACKUP_INTERVAL: %w", err)
 		}
 		cfg.BackupInterval = parsedInterval
+	}
+	if fullBackupIntervalRaw == "" {
+		cfg.FullBackupInterval = 168 * time.Hour
+	} else {
+		parsedInterval, err := time.ParseDuration(fullBackupIntervalRaw)
+		if err != nil {
+			return Config{}, fmt.Errorf("parse IMSUB_FULL_BACKUP_INTERVAL: %w", err)
+		}
+		cfg.FullBackupInterval = parsedInterval
 	}
 	privacyReceiptTTLRaw := strings.TrimSpace(os.Getenv("IMSUB_PRIVACY_RECEIPT_TTL"))
 	if privacyReceiptTTLRaw == "" {
@@ -214,6 +228,9 @@ func Load() (Config, error) {
 		}
 		if cfg.BackupInterval <= 0 {
 			return Config{}, errInvalidBackupInterval
+		}
+		if cfg.FullBackupInterval <= 0 {
+			return Config{}, errInvalidFullBackupInterval
 		}
 	}
 

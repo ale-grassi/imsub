@@ -153,7 +153,8 @@ All configuration is done through environment variables. See `.env.example` for 
 | `IMSUB_S3_ACCESS_KEY_ID` | — | Access key for the backup bucket |
 | `IMSUB_S3_SECRET_ACCESS_KEY` | — | Secret key for the backup bucket |
 | `IMSUB_S3_REGION` | `auto` | Region passed to the S3-compatible client |
-| `IMSUB_BACKUP_INTERVAL` | `6h` | Periodic Redis backup cadence when S3 backup config is set |
+| `IMSUB_BACKUP_INTERVAL` | `6h` | Periodic Redis incremental backup cadence when S3 backup config is set |
+| `IMSUB_FULL_BACKUP_INTERVAL` | `168h` | Full Redis backup baseline cadence when S3 backup config is set |
 
 ---
 
@@ -320,7 +321,7 @@ go run ./cmd/imsub-admin backup-download -env .env -out tmp/backups/latest.jsonl
 Download a specific object key:
 
 ```bash
-go run ./cmd/imsub-admin backup-download -env .env -key backups/imsub-2026-03-12T12-00-00Z.jsonl.gz -out tmp/backups/imsub-2026-03-12T12-00-00Z.jsonl.gz
+go run ./cmd/imsub-admin backup-download -env .env -key backups/full/imsub-full-2026-03-12T12-00-00Z.jsonl.gz -out tmp/backups/imsub-full-2026-03-12T12-00-00Z.jsonl.gz
 ```
 
 Load a downloaded backup into the local Redis:
@@ -332,7 +333,7 @@ go run ./cmd/imsub-admin backup-load -from-file tmp/backups/latest.jsonl.gz -red
 Load directly from object storage into the configured Redis:
 
 ```bash
-go run ./cmd/imsub-admin backup-load -env .env -key backups/imsub-2026-03-12T12-00-00Z.jsonl.gz -confirm=backup-load
+go run ./cmd/imsub-admin backup-load -env .env -key backups/incremental/imsub-incremental-2026-03-12T18-00-00Z.jsonl.gz -confirm=backup-load
 ```
 
 For the common local flow, use:
@@ -341,7 +342,7 @@ For the common local flow, use:
 make seed CONFIRM=seed
 ```
 
-The backup-load flow uses `RESTORE REPLACE` for each `imsub:*` key, so it keeps the explicit confirmation requirement. The backup-download flow is read-only and does not require confirmation.
+Periodic backups write weekly full baselines under `backups/full/` and incremental backups under `backups/incremental/`. Loading an incremental directly from object storage automatically applies its full baseline first, then later incrementals in timestamp order. The backup-load flow uses `RESTORE REPLACE` for key records and deletes tombstoned keys, so it keeps the explicit confirmation requirement. The backup-download flow is read-only and does not require confirmation.
 
 ### Pre-commit Hooks
 

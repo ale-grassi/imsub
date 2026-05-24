@@ -26,7 +26,9 @@ func newTestStore(t *testing.T) *Store {
 	t.Cleanup(func() { _ = client.Close() })
 
 	logger := slog.New(slog.DiscardHandler)
-	return &Store{rdb: client, logger: logger}
+	store := &Store{rdb: client, logger: logger}
+	client.AddHook(backupTrackingHook{store: store})
+	return store
 }
 
 func TestRemoveUserCreatorByTwitchRemovesTrackedGroupMembership(t *testing.T) {

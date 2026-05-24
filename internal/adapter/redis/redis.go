@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -31,7 +33,9 @@ func NewStore(redisURL string, logger *slog.Logger) (*Store, error) {
 	if err := client.Ping(ctx).Err(); err != nil {
 		return nil, fmt.Errorf("redis ping: %w", err)
 	}
-	return &Store{rdb: client, logger: logger}, nil
+	store := &Store{rdb: client, logger: logger}
+	client.AddHook(backupTrackingHook{store: store})
+	return store, nil
 }
 
 func (s *Store) log() *slog.Logger {
@@ -150,6 +154,126 @@ func keyPrivacyReceipts(telegramUserID int64) string {
 }
 func keyPrivacyReceipt(telegramUserID int64, receiptID string) string {
 	return "imsub:privacy:receipt:" + strconv.FormatInt(telegramUserID, 10) + ":" + receiptID
+}
+
+func keyBackupDirty() string       { return "imsub:backup:dirty" }
+func keyBackupDeleted() string     { return "imsub:backup:deleted" }
+func keyBackupBaseFullKey() string { return "imsub:backup:base_full_key" }
+func keyBackupBaseFullAt() string  { return "imsub:backup:base_full_at" }
+
+type backupSkipTrackingKey struct{}
+
+func skipBackupTracking(ctx context.Context) context.Context {
+	return context.WithValue(ctx, backupSkipTrackingKey{}, true)
+}
+
+func backupTrackingSkipped(ctx context.Context) bool {
+	v, _ := ctx.Value(backupSkipTrackingKey{}).(bool)
+	return v
+}
+
+type backupTrackingHook struct {
+	store *Store
+}
+
+var _ redis.Hook = backupTrackingHook{}
+
+func (h backupTrackingHook) DialHook(next redis.DialHook) redis.DialHook {
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		return next(ctx, network, addr)
+	}
+}
+
+func (h backupTrackingHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return func(ctx context.Context, cmd redis.Cmder) error {
+		err := next(ctx, cmd)
+		if err == nil && !backupTrackingSkipped(ctx) {
+			h.trackCommand(ctx, cmd)
+		}
+		return err
+	}
+}
+
+func (h backupTrackingHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+	return func(ctx context.Context, cmds []redis.Cmder) error {
+		err := next(ctx, cmds)
+		if !backupTrackingSkipped(ctx) {
+			for _, cmd := range cmds {
+				if cmd.Err() == nil {
+					h.trackCommand(ctx, cmd)
+				}
+			}
+		}
+		return err
+	}
+}
+
+func (h backupTrackingHook) trackCommand(ctx context.Context, cmd redis.Cmder) {
+	if h.store == nil || h.store.rdb == nil {
+		return
+	}
+	dirty, deleted := backupTouchedKeys(cmd)
+	if len(dirty) == 0 && len(deleted) == 0 {
+		return
+	}
+	ctx = skipBackupTracking(ctx)
+	if len(dirty) > 0 {
+		if err := h.store.rdb.SAdd(ctx, keyBackupDirty(), stringSliceToAny(dirty)...).Err(); err != nil {
+			h.store.log().Warn("backup dirty tracking failed", "error", err)
+		}
+	}
+	if len(deleted) > 0 {
+		if err := h.store.rdb.SAdd(ctx, keyBackupDeleted(), stringSliceToAny(deleted)...).Err(); err != nil {
+			h.store.log().Warn("backup deleted tracking failed", "error", err)
+		}
+	}
+}
+
+func backupTouchedKeys(cmd redis.Cmder) (dirty []string, deleted []string) {
+	args := cmd.Args()
+	if len(args) < 2 {
+		return nil, nil
+	}
+	name, _ := args[0].(string)
+	name = strings.ToLower(name)
+	keyAt := func(i int) (string, bool) {
+		if i >= len(args) {
+			return "", false
+		}
+		key, ok := args[i].(string)
+		if !ok || !isBackupExportedKey(key) {
+			return "", false
+		}
+		return key, true
+	}
+	appendKey := func(dst []string, i int) []string {
+		if key, ok := keyAt(i); ok {
+			dst = append(dst, key)
+		}
+		return dst
+	}
+	switch name {
+	case "del", "unlink":
+		for i := 1; i < len(args); i++ {
+			deleted = appendKey(deleted, i)
+		}
+	case "getdel":
+		deleted = appendKey(deleted, 1)
+	case "rename", "renamenx":
+		deleted = appendKey(deleted, 1)
+		dirty = appendKey(dirty, 2)
+	case "set", "setex", "psetex", "setnx", "hset", "hdel", "hmset", "sadd", "srem", "zadd", "zrem", "expire", "pexpire", "expireat", "pexpireat", "persist", "restore", "restore-asking":
+		dirty = appendKey(dirty, 1)
+	}
+	return dirty, deleted
+}
+
+func stringSliceToAny(values []string) []any {
+	out := make([]any, 0, len(values))
+	for _, value := range values {
+		out = append(out, value)
+	}
+	return out
 }
 
 // --- Lua scripts ---

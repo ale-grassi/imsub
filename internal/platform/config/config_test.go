@@ -153,6 +153,9 @@ func TestLoadDefaultsAndNormalization(t *testing.T) {
 	if cfg.BackupInterval != 6*time.Hour {
 		t.Errorf("Load().BackupInterval = %s, want %s", cfg.BackupInterval, 6*time.Hour)
 	}
+	if cfg.FullBackupInterval != 168*time.Hour {
+		t.Errorf("Load().FullBackupInterval = %s, want %s", cfg.FullBackupInterval, 168*time.Hour)
+	}
 }
 
 func TestLoadParsesGodTelegramUserIDs(t *testing.T) {
@@ -189,6 +192,7 @@ func TestLoadBackupConfigEnabled(t *testing.T) {
 	t.Setenv("IMSUB_S3_SECRET_ACCESS_KEY", "sk")
 	t.Setenv("IMSUB_S3_REGION", "")
 	t.Setenv("IMSUB_BACKUP_INTERVAL", "12h")
+	t.Setenv("IMSUB_FULL_BACKUP_INTERVAL", "72h")
 
 	cfg, err := Load()
 	if err != nil {
@@ -199,6 +203,9 @@ func TestLoadBackupConfigEnabled(t *testing.T) {
 	}
 	if cfg.BackupInterval != 12*time.Hour {
 		t.Fatalf("Load().BackupInterval = %s, want %s", cfg.BackupInterval, 12*time.Hour)
+	}
+	if cfg.FullBackupInterval != 72*time.Hour {
+		t.Fatalf("Load().FullBackupInterval = %s, want %s", cfg.FullBackupInterval, 72*time.Hour)
 	}
 	if cfg.S3Region != "auto" {
 		t.Fatalf("Load().S3Region = %q, want %q", cfg.S3Region, "auto")
@@ -244,6 +251,23 @@ func TestLoadBackupConfigRejectsInvalidInterval(t *testing.T) {
 	}
 }
 
+func TestLoadBackupConfigRejectsInvalidFullInterval(t *testing.T) {
+	setRequiredEnv(t)
+	t.Setenv("IMSUB_S3_ENDPOINT", "fly.storage.tigris.dev")
+	t.Setenv("IMSUB_S3_BUCKET", "imsub-backups")
+	t.Setenv("IMSUB_S3_ACCESS_KEY_ID", "ak")
+	t.Setenv("IMSUB_S3_SECRET_ACCESS_KEY", "sk")
+	t.Setenv("IMSUB_FULL_BACKUP_INTERVAL", "0")
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("Load() error = nil, want invalid full backup interval")
+	}
+	if !strings.Contains(err.Error(), "IMSUB_FULL_BACKUP_INTERVAL") {
+		t.Fatalf("Load() error = %q, want to mention IMSUB_FULL_BACKUP_INTERVAL", err.Error())
+	}
+}
+
 func TestLoadBackupDefaultsAloneDoNotEnableValidation(t *testing.T) {
 	setRequiredEnv(t)
 	t.Setenv("IMSUB_S3_REGION", "auto")
@@ -261,6 +285,9 @@ func TestLoadBackupDefaultsAloneDoNotEnableValidation(t *testing.T) {
 	}
 	if cfg.BackupInterval != 6*time.Hour {
 		t.Fatalf("Load().BackupInterval = %s, want %s", cfg.BackupInterval, 6*time.Hour)
+	}
+	if cfg.FullBackupInterval != 168*time.Hour {
+		t.Fatalf("Load().FullBackupInterval = %s, want %s", cfg.FullBackupInterval, 168*time.Hour)
 	}
 }
 
