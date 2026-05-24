@@ -60,10 +60,14 @@ func (s *memberTagSyncStoreStub) RemoveManagedMemberTag(_ context.Context, chatI
 
 type memberTagSetterStub struct {
 	calls []ManagedMemberTag
+	errs  map[int64]error
 }
 
 func (s *memberTagSetterStub) SetMemberTag(_ context.Context, groupChatID, telegramUserID int64, tag string) error {
 	s.calls = append(s.calls, ManagedMemberTag{ChatID: groupChatID, TelegramUserID: telegramUserID, Tag: tag})
+	if s.errs != nil {
+		return s.errs[telegramUserID]
+	}
 	return nil
 }
 
@@ -158,6 +162,25 @@ func TestMemberTagSyncServiceCleanupGroupClearsOwnedTags(t *testing.T) {
 		if call.Tag != "" {
 			t.Fatalf("clear call tag = %q, want empty", call.Tag)
 		}
+	}
+}
+
+func TestMemberTagSyncServiceClearManagedTagDropsStaleRecordWhenUserGone(t *testing.T) {
+	t.Parallel()
+
+	store := &memberTagSyncStoreStub{}
+	setter := &memberTagSetterStub{
+		errs: map[int64]error{
+			10: errors.New(`set chat member tag: telego: setChatMemberTag: request call: 400 "Bad Request: USER_NOT_PARTICIPANT"`),
+		},
+	}
+	svc := NewMemberTagSyncService(store, setter, nil, nil, nil)
+
+	if err := svc.ClearManagedTag(t.Context(), 100, 10); err != nil {
+		t.Fatalf("ClearManagedTag() error = %v", err)
+	}
+	if len(store.removed) != 1 || store.removed[0] != [2]int64{100, 10} {
+		t.Fatalf("removed = %+v, want stale tag removed", store.removed)
 	}
 }
 

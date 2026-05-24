@@ -14,6 +14,7 @@ import (
 const (
 	taskResultFailed         = "failed"
 	taskResultPartialFailure = "partial_failure"
+	taskResultPanic          = "panic"
 	taskResultTimeout        = "timeout"
 	taskNameReconcileSubs    = "reconcile_subscribers"
 )

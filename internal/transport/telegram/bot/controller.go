@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -247,6 +248,11 @@ func (c *Bot) runBackground(ctx context.Context, fn func(context.Context)) {
 		return
 	}
 	c.backgroundWG.Go(func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				c.log().Error("telegram background task panicked", "panic", recovered, "stack", string(debug.Stack()))
+			}
+		}()
 		fn(ctx)
 	})
 }

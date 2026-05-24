@@ -1,8 +1,10 @@
 package bot
 
 import (
+	"context"
 	"encoding/base64"
 	"testing"
+	"time"
 
 	"imsub/internal/platform/config"
 )
@@ -33,5 +35,20 @@ func TestOAuthStartURLEscapesState(t *testing.T) {
 	state := "a/b c"
 	if got, want := c.oauthStartURL(state), "https://example.com/auth/start/a%2Fb%20c"; got != want {
 		t.Errorf("(*Bot).oauthStartURL(%q) = %q, want %q", state, got, want)
+	}
+}
+
+func TestRunBackgroundRecoversPanic(t *testing.T) {
+	t.Parallel()
+
+	c := New(Dependencies{})
+	c.runBackground(context.Background(), func(context.Context) {
+		panic("boom")
+	})
+
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	if err := c.WaitBackground(ctx); err != nil {
+		t.Fatalf("WaitBackground() error = %v", err)
 	}
 }

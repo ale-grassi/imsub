@@ -1075,6 +1075,14 @@ func (s *slowTask) Classify(err error) string {
 	return "ok"
 }
 
+type panicTask struct{}
+
+func (panicTask) Name() string { return "panic_task" }
+func (panicTask) Run(context.Context) error {
+	panic("boom")
+}
+func (panicTask) Classify(error) string { return taskResultFailed }
+
 func TestRunScheduledWrapsTimeout(t *testing.T) {
 	t.Parallel()
 
@@ -1125,6 +1133,43 @@ func TestRunScheduledWrapsTimeout(t *testing.T) {
 	}
 	assertRunIDPresent(t, finish)
 	assertRunTimestamps(t, finish, true, true)
+}
+
+func TestRunScheduledRecoversTaskPanic(t *testing.T) {
+	t.Parallel()
+
+	obs := &fakeObserver{}
+	runner := NewRunner(nil, obs)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = runner.RunScheduled(ctx, Schedule{
+			Task:     panicTask{},
+			Interval: 500 * time.Millisecond,
+		})
+	}()
+
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		for _, evt := range obs.all() {
+			if evt.Name == events.NameBackgroundJob {
+				cancel()
+				<-done
+				if evt.Outcome != taskResultPanic {
+					t.Fatalf("panic task outcome = %q, want %q", evt.Outcome, taskResultPanic)
+				}
+				assertRunIDPresent(t, evt)
+				assertRunTimestamps(t, evt, true, true)
+				return
+			}
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	cancel()
+	<-done
+	t.Fatalf("no background_job finish event, events=%+v", obs.all())
 }
 
 func TestRunScheduledEmitsStartEvent(t *testing.T) {

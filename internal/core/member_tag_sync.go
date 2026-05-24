@@ -98,12 +98,28 @@ func (s *MemberTagSyncService) ClearManagedTag(ctx context.Context, chatID, tele
 		return nil
 	}
 	if err := s.setter.SetMemberTag(ctx, chatID, telegramUserID, ""); err != nil {
-		return fmt.Errorf("clear member tag: %w", err)
+		if !isMemberTagUserGone(err) {
+			return fmt.Errorf("clear member tag: %w", err)
+		}
+		// Telegram already has no clearable member here; drop our stale marker so
+		// the periodic reconciler does not retry the same impossible clear forever.
+		if err := s.store.RemoveManagedMemberTag(ctx, chatID, telegramUserID); err != nil {
+			return fmt.Errorf("remove stale managed member tag: %w", err)
+		}
+		return nil
 	}
 	if err := s.store.RemoveManagedMemberTag(ctx, chatID, telegramUserID); err != nil {
 		return fmt.Errorf("remove managed member tag: %w", err)
 	}
 	return nil
+}
+
+func isMemberTagUserGone(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "user_not_participant") || strings.Contains(msg, "user not participant")
 }
 
 // SyncGroup refreshes and reconciles member tags for one group.

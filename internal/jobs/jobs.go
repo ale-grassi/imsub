@@ -3,8 +3,10 @@ package jobs
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"maps"
+	"runtime/debug"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -12,6 +14,8 @@ import (
 
 	"imsub/internal/events"
 )
+
+var errTaskPanic = errors.New("background task panic")
 
 // ErrInvalidInterval indicates that a schedule interval is not strictly positive.
 var ErrInvalidInterval = errors.New("jobs: invalid interval")
@@ -121,7 +125,7 @@ func (r *Runner) runTask(ctx context.Context, schedule Schedule) {
 	if schedule.Timeout > 0 {
 		runCtx, cancel = context.WithTimeout(ctx, schedule.Timeout)
 	}
-	err := task.Run(runCtx)
+	panicked, err := r.runTaskSafely(runCtx, task)
 	finishedAt := time.Now()
 	duration := finishedAt.Sub(start)
 	if cancel != nil {
@@ -129,7 +133,9 @@ func (r *Runner) runTask(ctx context.Context, schedule Schedule) {
 	}
 
 	result := "ok"
-	if err != nil {
+	if panicked {
+		result = taskResultPanic
+	} else if err != nil {
 		result = task.Classify(err)
 		// Override generic "failed" to "timeout" when the deadline clearly expired,
 		// so callers don't each need to special-case context.DeadlineExceeded.
@@ -168,6 +174,20 @@ func (r *Runner) runTask(ctx context.Context, schedule Schedule) {
 			Count:   n,
 		})
 	}
+}
+
+func (r *Runner) runTaskSafely(ctx context.Context, task Task) (panicked bool, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			panicked = true
+			err = errTaskPanic
+			r.logger.Error("background task panicked", "task", task.Name(), "panic", recovered, "stack", string(debug.Stack()))
+		}
+	}()
+	if err := task.Run(ctx); err != nil {
+		return false, fmt.Errorf("run task: %w", err)
+	}
+	return false, nil
 }
 
 func (r *Runner) emit(ctx context.Context, evt events.Event) {
