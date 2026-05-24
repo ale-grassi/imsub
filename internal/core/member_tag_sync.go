@@ -84,7 +84,13 @@ func (s *MemberTagSyncService) ApplyTrackedMemberTag(ctx context.Context, group 
 	if !ok {
 		return nil
 	}
-	return s.setOwnedTag(ctx, group.ChatID, telegramUserID, trackedMemberTag(identity))
+	if err := s.setOwnedTag(ctx, group.ChatID, telegramUserID, trackedMemberTag(identity)); err != nil {
+		if isMemberTagPermissionFailure(err) {
+			return s.disableMemberTagSync(ctx, group, memberTagPermissionFailureReason(err), err)
+		}
+		return err
+	}
+	return nil
 }
 
 // ApplyUntrackedMemberTag applies the Untracked tag when per-group sync is enabled.
@@ -92,7 +98,13 @@ func (s *MemberTagSyncService) ApplyUntrackedMemberTag(ctx context.Context, grou
 	if !group.MemberTagSyncEnabled {
 		return nil
 	}
-	return s.setOwnedTag(ctx, group.ChatID, telegramUserID, untrackedMemberTag)
+	if err := s.setOwnedTag(ctx, group.ChatID, telegramUserID, untrackedMemberTag); err != nil {
+		if isMemberTagPermissionFailure(err) {
+			return s.disableMemberTagSync(ctx, group, memberTagPermissionFailureReason(err), err)
+		}
+		return err
+	}
+	return nil
 }
 
 // ClearManagedTag clears an ImSub-owned tag for a specific member.
@@ -154,7 +166,8 @@ func (e memberTagSyncDisabledError) Unwrap() error {
 	return e.err
 }
 
-func isMemberTagSyncDisabledError(err error) bool {
+// IsMemberTagSyncDisabledError reports whether a tag operation disabled sync for a group.
+func IsMemberTagSyncDisabledError(err error) bool {
 	var disabled memberTagSyncDisabledError
 	return errors.As(err, &disabled)
 }
@@ -221,7 +234,7 @@ func (s *MemberTagSyncService) SyncEnabledGroups(ctx context.Context) (MemberTag
 		total.Noop += counts.Noop
 		total.Errors += counts.Errors
 		if syncErr != nil {
-			if isMemberTagSyncDisabledError(syncErr) {
+			if IsMemberTagSyncDisabledError(syncErr) {
 				continue
 			}
 			total.Errors++

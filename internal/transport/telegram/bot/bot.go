@@ -637,6 +637,9 @@ func (c *Bot) applyTrackedMemberTag(ctx context.Context, group core.ManagedGroup
 		return
 	}
 	if err := c.memberTagSync.ApplyTrackedMemberTag(ctx, group, telegramUserID); err != nil {
+		if core.IsMemberTagSyncDisabledError(err) {
+			return
+		}
 		c.log().Warn("apply tracked member tag failed", "chat_id", group.ChatID, "telegram_user_id", telegramUserID, "error", err)
 	}
 }
@@ -646,6 +649,9 @@ func (c *Bot) applyUntrackedMemberTag(ctx context.Context, group core.ManagedGro
 		return
 	}
 	if err := c.memberTagSync.ApplyUntrackedMemberTag(ctx, group, telegramUserID); err != nil {
+		if core.IsMemberTagSyncDisabledError(err) {
+			return
+		}
 		c.log().Warn("apply untracked member tag failed", "chat_id", group.ChatID, "telegram_user_id", telegramUserID, "error", err)
 	}
 }

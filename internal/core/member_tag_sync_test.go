@@ -265,6 +265,38 @@ func TestMemberTagSyncServiceApplyTrackedMemberTagSkipsUnknownIdentity(t *testin
 	}
 }
 
+func TestMemberTagSyncServiceApplyUntrackedMemberTagPermissionFailureDisablesGroup(t *testing.T) {
+	t.Parallel()
+
+	store := &memberTagSyncStoreStub{
+		group:   ManagedGroup{ChatID: 100, CreatorID: "c1", MemberTagSyncEnabled: true},
+		groupOK: true,
+		managedTagsByGroup: map[int64][]ManagedMemberTag{
+			100: {{ChatID: 100, TelegramUserID: 10, Tag: "old"}},
+		},
+	}
+	setter := &memberTagSetterStub{
+		errs: map[int64]error{
+			10: errors.New(`telego: setChatMemberTag: request call: 400 "Bad Request: CHAT_CREATOR_REQUIRED"`),
+		},
+	}
+	svc := NewMemberTagSyncService(store, setter, nil, nil, nil)
+
+	err := svc.ApplyUntrackedMemberTag(t.Context(), ManagedGroup{ChatID: 100, CreatorID: "c1", MemberTagSyncEnabled: true}, 10)
+	if err == nil {
+		t.Fatal("ApplyUntrackedMemberTag() error = nil, want disabled error")
+	}
+	if !IsMemberTagSyncDisabledError(err) {
+		t.Fatalf("ApplyUntrackedMemberTag() error = %v, want disabled error", err)
+	}
+	if len(store.disabledGroups) != 1 || store.disabledGroups[0] != 100 {
+		t.Fatalf("disabledGroups = %+v, want [100]", store.disabledGroups)
+	}
+	if len(store.removedGroups) != 1 || store.removedGroups[0] != 100 {
+		t.Fatalf("removedGroups = %+v, want [100]", store.removedGroups)
+	}
+}
+
 func TestMemberTagSyncServiceSyncEnabledGroupsNoopsWithoutSetter(t *testing.T) {
 	t.Parallel()
 
