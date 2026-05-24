@@ -20,8 +20,6 @@ import (
 )
 
 func TestRedisBackupRoundTripWithRealRedis(t *testing.T) {
-	t.Parallel()
-
 	store, client := newRealRedisBackupStore(t)
 	ctx := t.Context()
 
@@ -95,8 +93,6 @@ func TestRedisBackupRoundTripWithRealRedis(t *testing.T) {
 }
 
 func TestRedisIncrementalBackupRestoreWithRealRedis(t *testing.T) {
-	t.Parallel()
-
 	store, client := newRealRedisBackupStore(t)
 	ctx := t.Context()
 
