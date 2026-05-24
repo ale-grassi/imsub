@@ -201,6 +201,22 @@ func (s *Store) UpsertManagedGroup(ctx context.Context, group core.ManagedGroup)
 	return nil
 }
 
+// UpdateManagedGroupMemberTagSyncEnabled updates only the member-tag sync flag for a managed group.
+func (s *Store) UpdateManagedGroupMemberTagSyncEnabled(ctx context.Context, chatID int64, enabled bool) error {
+	rawEnabled := "0"
+	if enabled {
+		rawEnabled = "1"
+	}
+	fields := map[string]string{
+		"member_tag_sync_enabled": rawEnabled,
+		"updated_at":              time.Now().UTC().Format(time.RFC3339),
+	}
+	if err := s.rdb.HSet(ctx, keyManagedGroup(chatID), fields).Err(); err != nil {
+		return fmt.Errorf("redis hset managed group member tag sync enabled: %w", err)
+	}
+	return nil
+}
+
 // DeleteManagedGroup removes a managed group and its tracked/untracked indices.
 func (s *Store) DeleteManagedGroup(ctx context.Context, chatID int64) error {
 	group, ok, err := s.ManagedGroupByChatID(ctx, chatID)

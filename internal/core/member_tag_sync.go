@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -22,6 +23,8 @@ type memberTagSyncStore interface {
 	ListManagedMemberTags(ctx context.Context, chatID int64) ([]ManagedMemberTag, error)
 	UpsertManagedMemberTag(ctx context.Context, item ManagedMemberTag) error
 	RemoveManagedMemberTag(ctx context.Context, chatID, telegramUserID int64) error
+	RemoveManagedMemberTagsForGroup(ctx context.Context, chatID int64) error
+	UpdateManagedGroupMemberTagSyncEnabled(ctx context.Context, chatID int64, enabled bool) error
 }
 
 type memberTagSetter interface {
@@ -122,6 +125,40 @@ func isMemberTagUserGone(err error) bool {
 	return strings.Contains(msg, "user_not_participant") || strings.Contains(msg, "user not participant")
 }
 
+func isMemberTagPermissionFailure(err error) bool {
+	return memberTagPermissionFailureReason(err) != ""
+}
+
+func memberTagPermissionFailureReason(err error) string {
+	if err == nil {
+		return ""
+	}
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "chat_creator_required") {
+		return "chat_creator_required"
+	}
+	return ""
+}
+
+type memberTagSyncDisabledError struct {
+	chatID int64
+	reason string
+	err    error
+}
+
+func (e memberTagSyncDisabledError) Error() string {
+	return fmt.Sprintf("member tag sync disabled for chat %d: %s", e.chatID, e.reason)
+}
+
+func (e memberTagSyncDisabledError) Unwrap() error {
+	return e.err
+}
+
+func isMemberTagSyncDisabledError(err error) bool {
+	var disabled memberTagSyncDisabledError
+	return errors.As(err, &disabled)
+}
+
 // SyncGroup refreshes and reconciles member tags for one group.
 func (s *MemberTagSyncService) SyncGroup(ctx context.Context, chatID int64, fullRefresh bool) (MemberTagSyncCounts, error) {
 	if s == nil || s.store == nil || s.setter == nil {
@@ -184,6 +221,9 @@ func (s *MemberTagSyncService) SyncEnabledGroups(ctx context.Context) (MemberTag
 		total.Noop += counts.Noop
 		total.Errors += counts.Errors
 		if syncErr != nil {
+			if isMemberTagSyncDisabledError(syncErr) {
+				continue
+			}
 			total.Errors++
 			s.logger.Warn("member tag group sync failed", "chat_id", group.ChatID, "creator_id", group.CreatorID, "error", syncErr)
 		}
@@ -246,6 +286,9 @@ func (s *MemberTagSyncService) syncKnownMembers(ctx context.Context, group Manag
 		}
 		if err := s.setOwnedTag(ctx, group.ChatID, telegramUserID, tag); err != nil {
 			counts.Errors++
+			if isMemberTagPermissionFailure(err) {
+				return counts, s.disableMemberTagSync(ctx, group, memberTagPermissionFailureReason(err), err)
+			}
 			s.logger.Warn("set managed member tag failed", "chat_id", group.ChatID, "telegram_user_id", telegramUserID, "tag", tag, "error", err)
 			continue
 		}
@@ -255,14 +298,42 @@ func (s *MemberTagSyncService) syncKnownMembers(ctx context.Context, group Manag
 		if _, ok := desired[telegramUserID]; ok {
 			continue
 		}
+		if hasSnapshot {
+			if _, ok := liveMembers[telegramUserID]; !ok {
+				if err := s.store.RemoveManagedMemberTag(ctx, group.ChatID, telegramUserID); err != nil {
+					counts.Errors++
+					s.logger.Warn("remove stale managed member tag failed", "chat_id", group.ChatID, "telegram_user_id", telegramUserID, "error", err)
+					continue
+				}
+				counts.Cleared++
+				continue
+			}
+		}
 		if err := s.ClearManagedTag(ctx, group.ChatID, telegramUserID); err != nil {
 			counts.Errors++
+			if isMemberTagPermissionFailure(err) {
+				return counts, s.disableMemberTagSync(ctx, group, memberTagPermissionFailureReason(err), err)
+			}
 			s.logger.Warn("clear stale managed member tag failed", "chat_id", group.ChatID, "telegram_user_id", telegramUserID, "error", err)
 			continue
 		}
 		counts.Cleared++
 	}
 	return counts, nil
+}
+
+func (s *MemberTagSyncService) disableMemberTagSync(ctx context.Context, group ManagedGroup, reason string, cause error) error {
+	if reason == "" {
+		reason = "permission_failed"
+	}
+	if err := s.store.UpdateManagedGroupMemberTagSyncEnabled(ctx, group.ChatID, false); err != nil {
+		return fmt.Errorf("disable member tag sync after %s: %w", reason, err)
+	}
+	if err := s.store.RemoveManagedMemberTagsForGroup(ctx, group.ChatID); err != nil {
+		return fmt.Errorf("remove managed member tags after %s: %w", reason, err)
+	}
+	s.logger.Warn("member tag sync disabled for group", "chat_id", group.ChatID, "creator_id", group.CreatorID, "reason", reason)
+	return memberTagSyncDisabledError{chatID: group.ChatID, reason: reason, err: cause}
 }
 
 func (s *MemberTagSyncService) snapshotRegularMembers(ctx context.Context, chatID int64) (map[int64]struct{}, bool, error) {

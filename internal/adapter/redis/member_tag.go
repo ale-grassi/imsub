@@ -43,6 +43,28 @@ func (s *Store) RemoveManagedMemberTag(ctx context.Context, chatID, telegramUser
 	return nil
 }
 
+// RemoveManagedMemberTagsForGroup removes all ImSub ownership metadata for member tags in a group.
+func (s *Store) RemoveManagedMemberTagsForGroup(ctx context.Context, chatID int64) error {
+	rawIDs, err := s.rdb.SMembers(ctx, keyManagedMemberTags(chatID)).Result()
+	if err != nil {
+		return fmt.Errorf("redis smembers managed member tags: %w", err)
+	}
+	pipe := s.rdb.TxPipeline()
+	for _, rawID := range rawIDs {
+		telegramUserID, parseErr := strconv.ParseInt(rawID, 10, 64)
+		if parseErr != nil {
+			s.log().Warn("RemoveManagedMemberTagsForGroup invalid telegram user id, skipping", "chat_id", chatID, "telegram_user_id_raw", rawID, "error", parseErr)
+			continue
+		}
+		pipe.Del(ctx, keyManagedMemberTag(chatID, telegramUserID))
+	}
+	pipe.Del(ctx, keyManagedMemberTags(chatID))
+	if _, err := pipe.Exec(ctx); err != nil {
+		return fmt.Errorf("redis exec remove managed member tags for group: %w", err)
+	}
+	return nil
+}
+
 // ListManagedMemberTags returns all member tags currently managed by ImSub for a group.
 func (s *Store) ListManagedMemberTags(ctx context.Context, chatID int64) ([]core.ManagedMemberTag, error) {
 	rawIDs, err := s.rdb.SMembers(ctx, keyManagedMemberTags(chatID)).Result()

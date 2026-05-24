@@ -985,6 +985,30 @@ func (s *routeTestStore) RemoveManagedMemberTag(_ context.Context, chatID, teleg
 	return nil
 }
 
+func (s *routeTestStore) RemoveManagedMemberTagsForGroup(_ context.Context, chatID int64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.managedTagsByGroup != nil {
+		delete(s.managedTagsByGroup, chatID)
+	}
+	return nil
+}
+
+func (s *routeTestStore) UpdateManagedGroupMemberTagSyncEnabled(_ context.Context, chatID int64, enabled bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.managedGroupsByChatID == nil {
+		return nil
+	}
+	group, ok := s.managedGroupsByChatID[chatID]
+	if !ok {
+		return nil
+	}
+	group.MemberTagSyncEnabled = enabled
+	s.managedGroupsByChatID[chatID] = group
+	return nil
+}
+
 func (s *routeTestStore) ListManagedMemberTags(_ context.Context, chatID int64) ([]core.ManagedMemberTag, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1086,7 +1110,11 @@ func (routeTestStoreStub) ListUntrackedGroupMembers(context.Context, int64) ([]c
 func (routeTestStoreStub) UpsertManagedMemberTag(context.Context, core.ManagedMemberTag) error {
 	return nil
 }
-func (routeTestStoreStub) RemoveManagedMemberTag(context.Context, int64, int64) error { return nil }
+func (routeTestStoreStub) RemoveManagedMemberTag(context.Context, int64, int64) error   { return nil }
+func (routeTestStoreStub) RemoveManagedMemberTagsForGroup(context.Context, int64) error { return nil }
+func (routeTestStoreStub) UpdateManagedGroupMemberTagSyncEnabled(context.Context, int64, bool) error {
+	return nil
+}
 func (routeTestStoreStub) ListManagedMemberTags(context.Context, int64) ([]core.ManagedMemberTag, error) {
 	return nil, nil
 }
