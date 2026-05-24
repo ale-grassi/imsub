@@ -275,6 +275,7 @@ func (e *EventSubService) DumpCurrentSubscribers(ctx context.Context, creator Cr
 	defer e.store.CleanupSubscriberDump(cleanupCtx, tmpKey)
 	refreshed := false
 	wroteAny := false
+	dumpIDs := make([]string, 0, dumpIDChunkSize)
 	for {
 		userIDs, nextCursor, err := e.twitch.ListSubscriberPage(ctx, creator.AccessToken, creator.ID, cursor)
 		if err != nil && !refreshed && isUnauthorized(err) {
@@ -293,10 +294,14 @@ func (e *EventSubService) DumpCurrentSubscribers(ctx context.Context, creator Cr
 
 		total += len(userIDs)
 		if len(userIDs) > 0 {
-			if err := e.store.AddToSubscriberDump(ctx, tmpKey, userIDs); err != nil {
+			var flushed bool
+			dumpIDs, flushed, err = appendDumpIDs(dumpIDs, userIDs, func(ids []string) error {
+				return e.store.AddToSubscriberDump(ctx, tmpKey, ids)
+			})
+			if err != nil {
 				return total, fmt.Errorf("add to subscriber dump: %w", err)
 			}
-			wroteAny = true
+			wroteAny = wroteAny || flushed
 		}
 
 		if nextCursor == "" {
@@ -304,6 +309,13 @@ func (e *EventSubService) DumpCurrentSubscribers(ctx context.Context, creator Cr
 		}
 		cursor = nextCursor
 	}
+	flushed, err := flushDumpIDs(dumpIDs, func(ids []string) error {
+		return e.store.AddToSubscriberDump(ctx, tmpKey, ids)
+	})
+	if err != nil {
+		return total, fmt.Errorf("add to subscriber dump: %w", err)
+	}
+	wroteAny = wroteAny || flushed
 	if err := e.store.FinalizeSubscriberDump(ctx, creator.ID, tmpKey, wroteAny); err != nil {
 		return total, fmt.Errorf("finalize subscriber dump: %w", err)
 	}

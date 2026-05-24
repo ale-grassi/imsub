@@ -55,7 +55,7 @@ func (s *Store) AddToCreatorBlocklistDump(ctx context.Context, tmpKey string, us
 	for _, id := range userIDs {
 		args = append(args, id)
 	}
-	if err := s.rdb.SAdd(ctx, tmpKey, args...).Err(); err != nil {
+	if err := s.rdb.SAdd(skipBackupTracking(ctx), tmpKey, args...).Err(); err != nil {
 		return fmt.Errorf("redis sadd creator blocklist dump: %w", err)
 	}
 	return nil
@@ -78,8 +78,30 @@ func (s *Store) FinalizeCreatorBlocklistDump(ctx context.Context, creatorID, tmp
 
 // CleanupCreatorBlocklistDump removes a temporary creator blocklist dump key.
 func (s *Store) CleanupCreatorBlocklistDump(ctx context.Context, tmpKey string) {
-	if err := s.rdb.Del(ctx, tmpKey).Err(); err != nil {
+	if err := s.rdb.Del(skipBackupTracking(ctx), tmpKey).Err(); err != nil {
 		s.log().Warn("cleanup creator blocklist dump failed", "tmp_key", tmpKey, "error", err)
+	}
+}
+
+// ForEachCreatorBlockedUser scans the creator's synced blocklist without loading
+// the complete set into memory.
+func (s *Store) ForEachCreatorBlockedUser(ctx context.Context, creatorID string, fn func(twitchUserID string) error) error {
+	key := keyCreatorBlockedUsers(creatorID)
+	var cursor uint64
+	for {
+		userIDs, nextCursor, err := s.rdb.SScan(ctx, key, cursor, "*", 500).Result()
+		if err != nil {
+			return fmt.Errorf("redis sscan creator blocked users: %w", err)
+		}
+		for _, userID := range userIDs {
+			if err := fn(userID); err != nil {
+				return err
+			}
+		}
+		cursor = nextCursor
+		if cursor == 0 {
+			return nil
+		}
 	}
 }
 

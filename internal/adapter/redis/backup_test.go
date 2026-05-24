@@ -56,6 +56,38 @@ func TestExportBackupWritesGzipJSONLinesForImsubKeys(t *testing.T) {
 	}
 }
 
+func TestExportBackupSkipsTemporaryDumpKeys(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	ctx := t.Context()
+
+	subscriberTmp := s.NewSubscriberDumpKey("creator-1")
+	if err := s.AddToSubscriberDump(ctx, subscriberTmp, []string{"sub-1"}); err != nil {
+		t.Fatalf("AddToSubscriberDump() error = %v", err)
+	}
+	blocklistTmp := s.NewCreatorBlocklistDumpKey("creator-1")
+	if err := s.AddToCreatorBlocklistDump(ctx, blocklistTmp, []string{"blocked-1"}); err != nil {
+		t.Fatalf("AddToCreatorBlocklistDump() error = %v", err)
+	}
+	if err := s.rdb.Set(ctx, "imsub:plain", "value", 0).Err(); err != nil {
+		t.Fatalf("seed plain key: %v", err)
+	}
+
+	var buf bytes.Buffer
+	count, err := s.ExportBackup(ctx, &buf)
+	if err != nil {
+		t.Fatalf("ExportBackup() error = %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("ExportBackup() count = %d, want 1", count)
+	}
+	entries := decodeBackupEntries(t, &buf)
+	if len(entries) != 1 || entries[0].Key != "imsub:plain" {
+		t.Fatalf("entries = %+v, want only imsub:plain", entries)
+	}
+}
+
 func TestCreateIncrementalBackupWritesDirtyKeysAndTombstones(t *testing.T) {
 	t.Parallel()
 
@@ -101,6 +133,60 @@ func TestCreateIncrementalBackupWritesDirtyKeysAndTombstones(t *testing.T) {
 	}
 	if _, ok := gotTypes["imsub:backup:internal"]; ok {
 		t.Fatal("incremental unexpectedly included backup metadata key")
+	}
+}
+
+func TestTemporaryDumpWritesDoNotEnterBackupTracking(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	ctx := t.Context()
+
+	subscriberTmp := s.NewSubscriberDumpKey("creator-1")
+	if err := s.AddToSubscriberDump(ctx, subscriberTmp, []string{"sub-1", "sub-2"}); err != nil {
+		t.Fatalf("AddToSubscriberDump() error = %v", err)
+	}
+	if ok, err := s.rdb.SIsMember(skipBackupTracking(ctx), keyBackupDirty(), subscriberTmp).Result(); err != nil || ok {
+		t.Fatalf("subscriber temp dirty member = (%t, %v), want false nil", ok, err)
+	}
+	if err := s.FinalizeSubscriberDump(ctx, "creator-1", subscriberTmp, true); err != nil {
+		t.Fatalf("FinalizeSubscriberDump() error = %v", err)
+	}
+	if ok, err := s.rdb.SIsMember(skipBackupTracking(ctx), keyBackupDirty(), keyCreatorSubscribers("creator-1")).Result(); err != nil || !ok {
+		t.Fatalf("subscriber dest dirty member = (%t, %v), want true nil", ok, err)
+	}
+	if ok, err := s.rdb.SIsMember(skipBackupTracking(ctx), keyBackupDeleted(), subscriberTmp).Result(); err != nil || ok {
+		t.Fatalf("subscriber temp deleted member = (%t, %v), want false nil", ok, err)
+	}
+
+	blocklistTmp := s.NewCreatorBlocklistDumpKey("creator-1")
+	if err := s.AddToCreatorBlocklistDump(ctx, blocklistTmp, []string{"blocked-1"}); err != nil {
+		t.Fatalf("AddToCreatorBlocklistDump() error = %v", err)
+	}
+	if ok, err := s.rdb.SIsMember(skipBackupTracking(ctx), keyBackupDirty(), blocklistTmp).Result(); err != nil || ok {
+		t.Fatalf("blocklist temp dirty member = (%t, %v), want false nil", ok, err)
+	}
+	if err := s.FinalizeCreatorBlocklistDump(ctx, "creator-1", blocklistTmp, true); err != nil {
+		t.Fatalf("FinalizeCreatorBlocklistDump() error = %v", err)
+	}
+	if ok, err := s.rdb.SIsMember(skipBackupTracking(ctx), keyBackupDirty(), keyCreatorBlockedUsers("creator-1")).Result(); err != nil || !ok {
+		t.Fatalf("blocklist dest dirty member = (%t, %v), want true nil", ok, err)
+	}
+	if ok, err := s.rdb.SIsMember(skipBackupTracking(ctx), keyBackupDeleted(), blocklistTmp).Result(); err != nil || ok {
+		t.Fatalf("blocklist temp deleted member = (%t, %v), want false nil", ok, err)
+	}
+
+	if err := s.FinalizeSubscriberDump(ctx, "creator-empty", "", false); err != nil {
+		t.Fatalf("FinalizeSubscriberDump(empty) error = %v", err)
+	}
+	if ok, err := s.rdb.SIsMember(skipBackupTracking(ctx), keyBackupDeleted(), keyCreatorSubscribers("creator-empty")).Result(); err != nil || !ok {
+		t.Fatalf("empty subscriber dest deleted member = (%t, %v), want true nil", ok, err)
+	}
+	if err := s.FinalizeCreatorBlocklistDump(ctx, "creator-empty", "", false); err != nil {
+		t.Fatalf("FinalizeCreatorBlocklistDump(empty) error = %v", err)
+	}
+	if ok, err := s.rdb.SIsMember(skipBackupTracking(ctx), keyBackupDeleted(), keyCreatorBlockedUsers("creator-empty")).Result(); err != nil || !ok {
+		t.Fatalf("empty blocklist dest deleted member = (%t, %v), want true nil", ok, err)
 	}
 }
 

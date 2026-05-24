@@ -161,6 +161,12 @@ func keyBackupDeleted() string     { return "imsub:backup:deleted" }
 func keyBackupBaseFullKey() string { return "imsub:backup:base_full_key" }
 func keyBackupBaseFullAt() string  { return "imsub:backup:base_full_at" }
 
+func isTemporaryDumpKey(key string) bool {
+	return strings.Contains(key, ":tmp:") &&
+		(strings.HasPrefix(key, "imsub:creator:subscribers:") ||
+			strings.HasPrefix(key, "imsub:creator:blocked:"))
+}
+
 type backupSkipTrackingKey struct{}
 
 func skipBackupTracking(ctx context.Context) context.Context {

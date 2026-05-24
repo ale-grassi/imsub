@@ -24,6 +24,7 @@ type blocklistStore interface {
 	AddToCreatorBlocklistDump(ctx context.Context, tmpKey string, userIDs []string) error
 	FinalizeCreatorBlocklistDump(ctx context.Context, creatorID, tmpKey string, hasData bool) error
 	CleanupCreatorBlocklistDump(ctx context.Context, tmpKey string)
+	ForEachCreatorBlockedUser(ctx context.Context, creatorID string, fn func(twitchUserID string) error) error
 	AddCreatorBlockedUser(ctx context.Context, creatorID, twitchUserID string) error
 	RemoveCreatorBlockedUser(ctx context.Context, creatorID, twitchUserID string) error
 	ListManagedGroupsByCreator(ctx context.Context, creatorID string) ([]ManagedGroup, error)
@@ -112,7 +113,7 @@ func (s *CreatorBlocklistService) SyncCreatorBlocklist(ctx context.Context, crea
 	defer s.store.CleanupCreatorBlocklistDump(cleanupCtx, tmpKey)
 	refreshed := false
 	wroteAny := false
-	var bannedUserIDs []string
+	dumpIDs := make([]string, 0, dumpIDChunkSize)
 
 	for {
 		userIDs, nextCursor, err := s.twitch.ListBannedUserPage(ctx, creator.AccessToken, creator.ID, cursor)
@@ -133,23 +134,34 @@ func (s *CreatorBlocklistService) SyncCreatorBlocklist(ctx context.Context, crea
 		}
 		total += len(userIDs)
 		if len(userIDs) > 0 {
-			if err := s.store.AddToCreatorBlocklistDump(ctx, tmpKey, userIDs); err != nil {
+			var flushed bool
+			dumpIDs, flushed, err = appendDumpIDs(dumpIDs, userIDs, func(ids []string) error {
+				return s.store.AddToCreatorBlocklistDump(ctx, tmpKey, ids)
+			})
+			if err != nil {
 				s.emitBlocklistSync(ctx, creator.ID, "failed", total)
 				return total, fmt.Errorf("add to creator blocklist dump: %w", err)
 			}
-			bannedUserIDs = append(bannedUserIDs, userIDs...)
-			wroteAny = true
+			wroteAny = wroteAny || flushed
 		}
 		if nextCursor == "" {
 			break
 		}
 		cursor = nextCursor
 	}
+	flushed, err := flushDumpIDs(dumpIDs, func(ids []string) error {
+		return s.store.AddToCreatorBlocklistDump(ctx, tmpKey, ids)
+	})
+	if err != nil {
+		s.emitBlocklistSync(ctx, creator.ID, "failed", total)
+		return total, fmt.Errorf("add to creator blocklist dump: %w", err)
+	}
+	wroteAny = wroteAny || flushed
 	if err := s.store.FinalizeCreatorBlocklistDump(ctx, creator.ID, tmpKey, wroteAny); err != nil {
 		s.emitBlocklistSync(ctx, creator.ID, "failed", total)
 		return total, fmt.Errorf("finalize creator blocklist dump: %w", err)
 	}
-	if err := s.enforceCreatorBlocklist(ctx, creator, bannedUserIDs); err != nil {
+	if err := s.enforceCreatorBlocklist(ctx, creator); err != nil {
 		s.emitBlocklistSync(ctx, creator.ID, "failed", total)
 		return total, err
 	}
@@ -198,15 +210,15 @@ func (s *CreatorBlocklistService) HandleUnbanEvent(ctx context.Context, creatorI
 	return nil
 }
 
-func (s *CreatorBlocklistService) enforceCreatorBlocklist(ctx context.Context, creator Creator, twitchUserIDs []string) error {
+func (s *CreatorBlocklistService) enforceCreatorBlocklist(ctx context.Context, creator Creator) error {
 	groups, err := s.store.ListManagedGroupsByCreator(ctx, creator.ID)
 	if err != nil {
 		return fmt.Errorf("list managed groups by creator: %w", err)
 	}
-	for _, twitchUserID := range twitchUserIDs {
-		if err := s.enforceBlockedUser(ctx, creator.ID, groups, twitchUserID); err != nil {
-			return err
-		}
+	if err := s.store.ForEachCreatorBlockedUser(ctx, creator.ID, func(twitchUserID string) error {
+		return s.enforceBlockedUser(ctx, creator.ID, groups, twitchUserID)
+	}); err != nil {
+		return fmt.Errorf("scan creator blocked users: %w", err)
 	}
 	return nil
 }

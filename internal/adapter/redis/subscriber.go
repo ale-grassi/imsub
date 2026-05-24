@@ -55,7 +55,7 @@ func (s *Store) AddToSubscriberDump(ctx context.Context, tmpKey string, userIDs 
 	for _, id := range userIDs {
 		args = append(args, id)
 	}
-	if err := s.rdb.SAdd(ctx, tmpKey, args...).Err(); err != nil {
+	if err := s.rdb.SAdd(skipBackupTracking(ctx), tmpKey, args...).Err(); err != nil {
 		return fmt.Errorf("redis sadd subscriber dump: %w", err)
 	}
 	return nil
@@ -78,7 +78,7 @@ func (s *Store) FinalizeSubscriberDump(ctx context.Context, creatorID, tmpKey st
 
 // CleanupSubscriberDump removes a temporary subscriber dump key.
 func (s *Store) CleanupSubscriberDump(ctx context.Context, tmpKey string) {
-	if err := s.rdb.Del(ctx, tmpKey).Err(); err != nil {
+	if err := s.rdb.Del(skipBackupTracking(ctx), tmpKey).Err(); err != nil {
 		s.log().Warn("cleanup subscriber dump failed", "tmp_key", tmpKey, "error", err)
 	}
 }

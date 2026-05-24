@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -75,6 +76,17 @@ func (f *blocklistFakeStore) FinalizeCreatorBlocklistDump(_ context.Context, _ s
 }
 
 func (f *blocklistFakeStore) CleanupCreatorBlocklistDump(context.Context, string) {}
+
+func (f *blocklistFakeStore) ForEachCreatorBlockedUser(_ context.Context, _ string, fn func(string) error) error {
+	for _, batch := range f.blockedDumpAdds {
+		for _, twitchUserID := range batch {
+			if err := fn(twitchUserID); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
 
 func (f *blocklistFakeStore) AddCreatorBlockedUser(_ context.Context, _ string, twitchUserID string) error {
 	f.addedBlockedUsers = append(f.addedBlockedUsers, twitchUserID)
@@ -206,6 +218,46 @@ func TestCreatorBlocklistSyncCreatorBlocklist(t *testing.T) {
 	}
 	if observer.events[2].Name != events.NameCreatorBlocklistSync || observer.events[2].Outcome != "ok" || observer.events[2].Count != 2 || observer.events[2].Fields["creator_id"] != "creator-1" {
 		t.Fatalf("observer final event = %+v, want blocklist sync ok count 2", observer.events[2])
+	}
+}
+
+func TestCreatorBlocklistSyncBatchesDumpWrites(t *testing.T) {
+	t.Parallel()
+
+	firstPage := make([]string, dumpIDChunkSize-1)
+	for i := range firstPage {
+		firstPage[i] = fmt.Sprintf("tw-%d", i)
+	}
+	secondPage := []string{"tw-final"}
+	store := &blocklistFakeStore{}
+	svc := NewCreatorBlocklistService(store, &blocklistFakeTwitch{
+		listBannedFn: func(_ context.Context, _, _, cursor string) ([]string, string, error) {
+			if cursor == "" {
+				return firstPage, "next", nil
+			}
+			return secondPage, "", nil
+		},
+	}, nil, nil)
+
+	count, err := svc.SyncCreatorBlocklist(t.Context(), Creator{
+		ID:                   "creator-1",
+		AccessToken:          "token",
+		BlocklistSyncEnabled: true,
+	})
+	if err != nil {
+		t.Fatalf("SyncCreatorBlocklist() error = %v", err)
+	}
+	if count != dumpIDChunkSize {
+		t.Fatalf("SyncCreatorBlocklist() count = %d, want %d", count, dumpIDChunkSize)
+	}
+	if len(store.blockedDumpAdds) != 1 {
+		t.Fatalf("dump write count = %d, want 1", len(store.blockedDumpAdds))
+	}
+	if len(store.blockedDumpAdds[0]) != dumpIDChunkSize {
+		t.Fatalf("dump write size = %d, want %d", len(store.blockedDumpAdds[0]), dumpIDChunkSize)
+	}
+	if !store.finalized || !store.finalHasData {
+		t.Fatalf("finalized=%v hasData=%v, want both true", store.finalized, store.finalHasData)
 	}
 }
 

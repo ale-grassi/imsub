@@ -305,6 +305,48 @@ func TestDumpCurrentSubscribersRefreshOnUnauthorized(t *testing.T) {
 	}
 }
 
+func TestDumpCurrentSubscribersBatchesDumpWrites(t *testing.T) {
+	t.Parallel()
+
+	firstPage := make([]string, dumpIDChunkSize-1)
+	for i := range firstPage {
+		firstPage[i] = fmt.Sprintf("u-%d", i)
+	}
+	secondPage := []string{"u-final"}
+	var writes [][]string
+	svc := NewEventSubService(
+		&eventsubFakeStore{
+			addToSubscriberDumpFn: func(_ context.Context, _ string, userIDs []string) error {
+				writes = append(writes, append([]string(nil), userIDs...))
+				return nil
+			},
+		},
+		&eventSubFakeTwitch{
+			listSubscriberPageFn: func(_ context.Context, _, _, cursor string) ([]string, string, error) {
+				if cursor == "" {
+					return firstPage, "next", nil
+				}
+				return secondPage, "", nil
+			},
+		},
+		nil,
+	)
+
+	total, err := svc.DumpCurrentSubscribers(t.Context(), Creator{ID: "c1", AccessToken: "token"})
+	if err != nil {
+		t.Fatalf("DumpCurrentSubscribers() error = %v", err)
+	}
+	if total != dumpIDChunkSize {
+		t.Fatalf("DumpCurrentSubscribers() total = %d, want %d", total, dumpIDChunkSize)
+	}
+	if len(writes) != 1 {
+		t.Fatalf("dump write count = %d, want 1", len(writes))
+	}
+	if len(writes[0]) != dumpIDChunkSize {
+		t.Fatalf("dump write size = %d, want %d", len(writes[0]), dumpIDChunkSize)
+	}
+}
+
 func TestIsEventSubActiveForCreator(t *testing.T) {
 	t.Parallel()
 

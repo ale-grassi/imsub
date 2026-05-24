@@ -376,7 +376,9 @@ func parseAttemptToken(token string) backupAttempt {
 }
 
 func isBackupExportedKey(key string) bool {
-	return strings.HasPrefix(key, "imsub:") && !strings.HasPrefix(key, "imsub:backup:")
+	return strings.HasPrefix(key, "imsub:") &&
+		!strings.HasPrefix(key, "imsub:backup:") &&
+		!isTemporaryDumpKey(key)
 }
 
 func backupTTLMillis(ttl time.Duration) (int64, bool) {
