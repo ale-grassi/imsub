@@ -60,6 +60,7 @@ type Metrics struct {
 	redisBackupTime         *prometheus.HistogramVec
 	redisBackupKeys         prometheus.Gauge
 	redisBackupBytes        prometheus.Gauge
+	redisCommands           *prometheus.CounterVec
 	creatorTokenRefresh     *prometheus.CounterVec
 	creatorBlocklistSync    *prometheus.CounterVec
 	creatorBlockEnforce     *prometheus.CounterVec
@@ -333,6 +334,13 @@ func New() *Metrics {
 			Name: "imsub_redis_backup_uploaded_bytes",
 			Help: "Uploaded object size in bytes from the most recent successful Redis backup snapshot.",
 		}),
+		redisCommands: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "imsub_redis_commands_total",
+				Help: "Redis commands issued by background job, command name, and result.",
+			},
+			[]string{"job", "command", "result"},
+		),
 		creatorTokenRefresh: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "imsub_creator_token_refresh_total",
@@ -589,6 +597,7 @@ func New() *Metrics {
 		m.redisBackupTime,
 		m.redisBackupKeys,
 		m.redisBackupBytes,
+		m.redisCommands,
 		m.creatorTokenRefresh,
 		m.creatorBlocklistSync,
 		m.creatorBlockEnforce,
@@ -1307,6 +1316,18 @@ func (m *Metrics) RedisBackup(result string, d time.Duration, keyCount int, size
 	}
 	m.redisBackupKeys.Set(float64(keyCount))
 	m.redisBackupBytes.Set(float64(sizeBytes))
+}
+
+// ObserveRedisCommand records Redis commands issued by app workflows.
+func (m *Metrics) ObserveRedisCommand(_ context.Context, job, command, result string, count int) {
+	if m == nil || count == 0 {
+		return
+	}
+	m.redisCommands.WithLabelValues(
+		httputil.LabelOrUnknown(job),
+		httputil.LabelOrUnknown(command),
+		httputil.LabelOrUnknown(result),
+	).Add(float64(count))
 }
 
 // Middleware returns HTTP middleware that records request metrics and

@@ -73,6 +73,7 @@ func Run() error {
 		if perr != nil {
 			return fmt.Errorf("create redis store: %w", perr)
 		}
+		s.SetCommandObserver(metrics)
 		return nil
 	}); err != nil {
 		startupRec.Ready("failed")

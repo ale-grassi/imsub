@@ -25,6 +25,7 @@ func TestNilSafety(t *testing.T) {
 	m.BackgroundJobStarted("audit", "1713489600000")
 	m.BackgroundJobFinished("audit", "ok", time.Millisecond, "1713489601000")
 	m.RedisBackup("ok", time.Millisecond, 3, 128)
+	m.ObserveRedisCommand(context.Background(), "job", "get", "ok", 1)
 	m.ResetExecution("viewer", "ok")
 	m.ResetGroupTargets("tracked", 2)
 	m.GroupRegistration("registered")
@@ -84,6 +85,7 @@ func TestMetricsExposure(t *testing.T) {
 	m.BackgroundJobStarted("integrity_audit", "1713489600000")
 	m.BackgroundJobFinished("integrity_audit", "ok", 120*time.Millisecond, "1713489601000")
 	m.RedisBackup("ok", 140*time.Millisecond, 7, 1024)
+	m.ObserveRedisCommand(context.Background(), "sync_member_tags", "smembers", "ok", 3)
 	m.ResetExecution("viewer", "ok")
 	m.ResetGroupTargets("tracked", 2)
 	m.GroupRegistration("registered")
@@ -144,6 +146,7 @@ func TestMetricsExposure(t *testing.T) {
 		"imsub_redis_backup_duration_seconds",
 		"imsub_redis_backup_exported_keys",
 		"imsub_redis_backup_uploaded_bytes",
+		"imsub_redis_commands_total",
 		"imsub_reset_executions_total",
 		"imsub_reset_group_targets_total",
 		"imsub_group_registrations_total",
@@ -184,6 +187,27 @@ func TestMetricsExposure(t *testing.T) {
 	for _, needle := range needles {
 		if !strings.Contains(body, needle) {
 			t.Errorf("m.Handler() output missing %q", needle)
+		}
+	}
+}
+
+func TestRedisCommandMetrics(t *testing.T) {
+	t.Parallel()
+
+	m := New()
+	m.ObserveRedisCommand(context.Background(), "sync_member_tags", "smembers", "ok", 2)
+	m.ObserveRedisCommand(context.Background(), "sync_member_tags", "hgetall", "error", 1)
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
+	rec := httptest.NewRecorder()
+	m.Handler().ServeHTTP(rec, req)
+	body := rec.Body.String()
+	for _, needle := range []string{
+		`imsub_redis_commands_total{command="smembers",job="sync_member_tags",result="ok"} 2`,
+		`imsub_redis_commands_total{command="hgetall",job="sync_member_tags",result="error"} 1`,
+	} {
+		if !strings.Contains(body, needle) {
+			t.Fatalf("metrics output missing %q: %s", needle, body)
 		}
 	}
 }

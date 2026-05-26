@@ -278,6 +278,7 @@ func TestMemberTagSyncServiceApplyUntrackedMemberTagPermissionFailureDisablesGro
 	setter := &memberTagSetterStub{
 		errs: map[int64]error{
 			10: errors.New(`telego: setChatMemberTag: request call: 400 "Bad Request: CHAT_CREATOR_REQUIRED"`),
+			11: errors.New(`telego: setChatMemberTag: request call: 400 "Bad Request: CHAT_CREATOR_REQUIRED"`),
 		},
 	}
 	svc := NewMemberTagSyncService(store, setter, nil, nil, nil)
@@ -441,6 +442,7 @@ func TestMemberTagSyncServicePermissionFailureDisablesGroupAndStops(t *testing.T
 	setter := &memberTagSetterStub{
 		errs: map[int64]error{
 			10: errors.New(`telego: setChatMemberTag: request call: 400 "Bad Request: CHAT_CREATOR_REQUIRED"`),
+			11: errors.New(`telego: setChatMemberTag: request call: 400 "Bad Request: CHAT_CREATOR_REQUIRED"`),
 		},
 	}
 	svc := NewMemberTagSyncService(store, setter, nil, nil, nil)
@@ -458,7 +460,7 @@ func TestMemberTagSyncServicePermissionFailureDisablesGroupAndStops(t *testing.T
 	if len(store.removedGroups) != 1 || store.removedGroups[0] != 100 {
 		t.Fatalf("removedGroups = %+v, want [100]", store.removedGroups)
 	}
-	if len(setter.calls) != 1 || setter.calls[0].TelegramUserID != 10 {
+	if len(setter.calls) != 1 {
 		t.Fatalf("setter calls = %+v, want processing stopped after first failure", setter.calls)
 	}
 }

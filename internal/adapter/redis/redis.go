@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"imsub/internal/events"
+
 	"github.com/redis/go-redis/v9"
 )
 
@@ -17,8 +19,14 @@ const schemaVersionCurrent = 4
 
 // Store implements [Store] backed by Redis.
 type Store struct {
-	rdb    *redis.Client
-	logger *slog.Logger
+	rdb             *redis.Client
+	logger          *slog.Logger
+	commandObserver CommandObserver
+}
+
+// CommandObserver receives low-cardinality Redis command telemetry.
+type CommandObserver interface {
+	ObserveRedisCommand(ctx context.Context, job, command, result string, count int)
 }
 
 // NewStore connects to Redis and returns a ready [Store].
@@ -34,8 +42,17 @@ func NewStore(redisURL string, logger *slog.Logger) (*Store, error) {
 		return nil, fmt.Errorf("redis ping: %w", err)
 	}
 	store := &Store{rdb: client, logger: logger}
+	client.AddHook(redisCommandMetricsHook{store: store})
 	client.AddHook(backupTrackingHook{store: store})
 	return store, nil
+}
+
+// SetCommandObserver configures optional Redis command telemetry.
+func (s *Store) SetCommandObserver(observer CommandObserver) {
+	if s == nil {
+		return
+	}
+	s.commandObserver = observer
 }
 
 func (s *Store) log() *slog.Logger {
@@ -176,6 +193,65 @@ func skipBackupTracking(ctx context.Context) context.Context {
 func backupTrackingSkipped(ctx context.Context) bool {
 	v, _ := ctx.Value(backupSkipTrackingKey{}).(bool)
 	return v
+}
+
+type redisCommandMetricsHook struct {
+	store *Store
+}
+
+var _ redis.Hook = redisCommandMetricsHook{}
+
+func (h redisCommandMetricsHook) DialHook(next redis.DialHook) redis.DialHook {
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		return next(ctx, network, addr)
+	}
+}
+
+func (h redisCommandMetricsHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return func(ctx context.Context, cmd redis.Cmder) error {
+		err := next(ctx, cmd)
+		h.observe(ctx, redisCommandName(cmd), redisCommandResult(err), 1)
+		return err
+	}
+}
+
+func (h redisCommandMetricsHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+	return func(ctx context.Context, cmds []redis.Cmder) error {
+		err := next(ctx, cmds)
+		for _, cmd := range cmds {
+			h.observe(ctx, redisCommandName(cmd), redisCommandResult(cmd.Err()), 1)
+		}
+		return err
+	}
+}
+
+func (h redisCommandMetricsHook) observe(ctx context.Context, command, result string, count int) {
+	if h.store == nil || h.store.commandObserver == nil || count == 0 {
+		return
+	}
+	job := "foreground"
+	if bg, ok := events.BackgroundJobFromContext(ctx); ok && strings.TrimSpace(bg.Job) != "" {
+		job = bg.Job
+	}
+	h.store.commandObserver.ObserveRedisCommand(ctx, job, command, result, count)
+}
+
+func redisCommandName(cmd redis.Cmder) string {
+	if cmd == nil {
+		return "unknown"
+	}
+	name := strings.ToLower(strings.TrimSpace(cmd.Name()))
+	if name == "" {
+		return "unknown"
+	}
+	return name
+}
+
+func redisCommandResult(err error) string {
+	if err == nil || errors.Is(err, redis.Nil) {
+		return "ok"
+	}
+	return "error"
 }
 
 type backupTrackingHook struct {

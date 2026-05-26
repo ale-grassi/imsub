@@ -120,10 +120,10 @@ func (r *Runner) runTask(ctx context.Context, schedule Schedule) {
 		},
 	})
 
-	runCtx := ctx
+	runCtx := events.WithBackgroundJobContext(ctx, task.Name(), runID)
 	var cancel context.CancelFunc
 	if schedule.Timeout > 0 {
-		runCtx, cancel = context.WithTimeout(ctx, schedule.Timeout)
+		runCtx, cancel = context.WithTimeout(runCtx, schedule.Timeout)
 	}
 	panicked, err := r.runTaskSafely(runCtx, task)
 	finishedAt := time.Now()

@@ -27,6 +27,7 @@ func newTestStore(t *testing.T) *Store {
 
 	logger := slog.New(slog.DiscardHandler)
 	store := &Store{rdb: client, logger: logger}
+	client.AddHook(redisCommandMetricsHook{store: store})
 	client.AddHook(backupTrackingHook{store: store})
 	return store
 }

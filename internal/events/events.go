@@ -6,6 +6,14 @@ import (
 	"time"
 )
 
+type backgroundJobContextKey struct{}
+
+// BackgroundJobContext identifies the background job currently using a context.
+type BackgroundJobContext struct {
+	Job   string
+	RunID string
+}
+
 // Shared event names emitted across use cases, transport, jobs, and lower-level workflows.
 const (
 	NameResetExecuted               = "reset_executed"
@@ -54,6 +62,24 @@ type Event struct {
 	Fields   map[string]string
 	Count    int
 	Duration time.Duration
+}
+
+// WithBackgroundJobContext attaches background job identity to a context for
+// lower-level instrumentation.
+func WithBackgroundJobContext(ctx context.Context, job, runID string) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, backgroundJobContextKey{}, BackgroundJobContext{Job: job, RunID: runID})
+}
+
+// BackgroundJobFromContext returns background job identity, if present.
+func BackgroundJobFromContext(ctx context.Context) (BackgroundJobContext, bool) {
+	if ctx == nil {
+		return BackgroundJobContext{}, false
+	}
+	job, ok := ctx.Value(backgroundJobContextKey{}).(BackgroundJobContext)
+	return job, ok
 }
 
 // EventSink consumes emitted events.

@@ -3,11 +3,29 @@ package redis
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"io"
 	"testing"
 	"time"
+
+	"imsub/internal/events"
 )
+
+type redisCommandObservation struct {
+	job     string
+	command string
+	result  string
+	count   int
+}
+
+type redisCommandObserverStub struct {
+	observed []redisCommandObservation
+}
+
+func (s *redisCommandObserverStub) ObserveRedisCommand(_ context.Context, job, command, result string, count int) {
+	s.observed = append(s.observed, redisCommandObservation{job: job, command: command, result: result, count: count})
+}
 
 func TestExportBackupWritesGzipJSONLinesForImsubKeys(t *testing.T) {
 	t.Parallel()
@@ -261,6 +279,39 @@ func TestBackupTrackingHookRecordsMutationCommands(t *testing.T) {
 	}
 	if ok, err := s.rdb.SIsMember(skipBackupTracking(ctx), keyBackupDirty(), "imsub:backup:dirty").Result(); err != nil || ok {
 		t.Fatalf("backup metadata dirty member = (%t, %v), want false nil", ok, err)
+	}
+}
+
+func TestRedisCommandMetricsHookRecordsJobContext(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	observer := &redisCommandObserverStub{}
+	s.SetCommandObserver(observer)
+	ctx := events.WithBackgroundJobContext(t.Context(), "sync_member_tags", "run-1")
+
+	if err := s.rdb.Set(ctx, "imsub:metric", "value", 0).Err(); err != nil {
+		t.Fatalf("Set() error = %v", err)
+	}
+	pipe := s.rdb.Pipeline()
+	pipe.Get(ctx, "imsub:metric")
+	pipe.Get(ctx, "imsub:metric")
+	if _, err := pipe.Exec(ctx); err != nil {
+		t.Fatalf("Exec() error = %v", err)
+	}
+
+	want := map[redisCommandObservation]int{
+		{job: "sync_member_tags", command: "set", result: "ok", count: 1}:  1,
+		{job: "sync_member_tags", command: "get", result: "ok", count: 1}:  2,
+		{job: "sync_member_tags", command: "sadd", result: "ok", count: 1}: 1,
+	}
+	for _, got := range observer.observed {
+		want[got]--
+	}
+	for observation, remaining := range want {
+		if remaining > 0 {
+			t.Fatalf("missing observation %+v in %+v", observation, observer.observed)
+		}
 	}
 }
 

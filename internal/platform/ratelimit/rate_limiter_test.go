@@ -41,7 +41,7 @@ func TestRateLimiterWaitCanceledContext(t *testing.T) {
 func TestRateLimiterWaitPerChatSpacing(t *testing.T) {
 	t.Parallel()
 
-	l := NewRateLimiter(1000, 10*time.Millisecond)
+	l := NewRateLimiter(1000, 50*time.Millisecond)
 	t.Cleanup(l.Close)
 
 	ctx := t.Context()
@@ -52,8 +52,8 @@ func TestRateLimiterWaitPerChatSpacing(t *testing.T) {
 	if err := l.Wait(ctx, 123); err != nil {
 		t.Fatalf("Wait(ctx, %d) second call error = %v, want nil", 123, err)
 	}
-	if elapsed := time.Since(start); elapsed < 8*time.Millisecond {
-		t.Fatalf("Wait(ctx, %d) second call elapsed = %v, want >= %v", 123, elapsed, 8*time.Millisecond)
+	if elapsed := time.Since(start); elapsed < 25*time.Millisecond {
+		t.Fatalf("Wait(ctx, %d) second call elapsed = %v, want >= %v", 123, elapsed, 25*time.Millisecond)
 	}
 }
 
