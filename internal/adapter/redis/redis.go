@@ -16,6 +16,7 @@ import (
 )
 
 const schemaVersionCurrent = 4
+const redisCommandSAdd = "sadd"
 
 // Store implements [Store] backed by Redis.
 type Store struct {
@@ -133,9 +134,6 @@ func keyManagedGroupsByCreator(creatorID string) string {
 func keyTelegramActiveUsers() string { return "imsub:metrics:telegram_active_users" }
 func keyTrackedGroupMembers(chatID int64) string {
 	return "imsub:group:tracked:" + strconv.FormatInt(chatID, 10)
-}
-func keyIntegrityTrackedReverseIndexProcessed(runID string) string {
-	return "imsub:integrity:tracked_reverse_index:processed:" + runID
 }
 func keyUntrackedGroupMembers(chatID int64) string {
 	return "imsub:group:untracked:" + strconv.FormatInt(chatID, 10)
@@ -374,7 +372,7 @@ func backupTouchedKeys(cmd redis.Cmder) (dirty []string, deleted []string) {
 	case "rename", "renamenx":
 		deleted = appendKey(deleted, 1)
 		dirty = appendKey(dirty, 2)
-	case "set", "setex", "psetex", "setnx", "hset", "hdel", "hmset", "sadd", "srem", "zadd", "zrem", "expire", "pexpire", "expireat", "pexpireat", "persist", "restore", "restore-asking":
+	case "set", "setex", "psetex", "setnx", "hset", "hdel", "hmset", redisCommandSAdd, "srem", "zadd", "zrem", "expire", "pexpire", "expireat", "pexpireat", "persist", "restore", "restore-asking":
 		dirty = appendKey(dirty, 1)
 	}
 	return dirty, deleted

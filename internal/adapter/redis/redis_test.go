@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"imsub/internal/core"
+	"imsub/internal/events"
 
 	miniredis "github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
@@ -315,6 +316,65 @@ func TestRepairTrackedGroupReverseIndex(t *testing.T) {
 	slices.Sort(user101)
 	if !slices.Equal(user101, []string{"501"}) {
 		t.Fatalf("unexpected user101 tracked groups: %v", user101)
+	}
+}
+
+func TestRepairTrackedGroupReverseIndexAvoidsPerGroupMembershipChecks(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	ctx := t.Context()
+
+	if err := s.UpsertCreator(ctx, core.Creator{ID: "c1", TwitchLogin: "c1", OwnerTelegramID: 900}); err != nil {
+		t.Fatalf("UpsertCreator c1 failed: %v", err)
+	}
+	if err := s.UpsertCreator(ctx, core.Creator{ID: "c2", TwitchLogin: "c2", OwnerTelegramID: 901}); err != nil {
+		t.Fatalf("UpsertCreator c2 failed: %v", err)
+	}
+	if err := s.UpsertManagedGroup(ctx, core.ManagedGroup{ChatID: 501, CreatorID: "c1", GroupName: "A"}); err != nil {
+		t.Fatalf("UpsertManagedGroup 501 failed: %v", err)
+	}
+	if err := s.UpsertManagedGroup(ctx, core.ManagedGroup{ChatID: 502, CreatorID: "c2", GroupName: "B"}); err != nil {
+		t.Fatalf("UpsertManagedGroup 502 failed: %v", err)
+	}
+	if err := s.rdb.SAdd(ctx, keyUsersSet(), "100", "101").Err(); err != nil {
+		t.Fatalf("seed users set failed: %v", err)
+	}
+	if err := s.rdb.SAdd(ctx, keyTrackedGroupMembers(501), "100", "101").Err(); err != nil {
+		t.Fatalf("seed group 501 members failed: %v", err)
+	}
+	if err := s.rdb.SAdd(ctx, keyTrackedGroupMembers(502), "100").Err(); err != nil {
+		t.Fatalf("seed group 502 members failed: %v", err)
+	}
+	if err := s.rdb.SAdd(ctx, keyUserTrackedGroups(100), "501", "502").Err(); err != nil {
+		t.Fatalf("seed user 100 tracked groups failed: %v", err)
+	}
+	if err := s.rdb.SAdd(ctx, keyUserTrackedGroups(101), "501").Err(); err != nil {
+		t.Fatalf("seed user 101 tracked groups failed: %v", err)
+	}
+
+	observer := &redisCommandObserverStub{}
+	s.SetCommandObserver(observer)
+	ctx = events.WithBackgroundJobContext(ctx, "integrity_audit", "test-run")
+
+	indexUsers, repairedUsers, missingLinks, staleLinks, err := s.RepairTrackedGroupReverseIndex(ctx)
+	if err != nil {
+		t.Fatalf("RepairTrackedGroupReverseIndex failed: %v", err)
+	}
+	if indexUsers != 2 || repairedUsers != 0 || missingLinks != 0 || staleLinks != 0 {
+		t.Fatalf("unexpected repair stats: users=%d repaired=%d missing=%d stale=%d", indexUsers, repairedUsers, missingLinks, staleLinks)
+	}
+
+	for _, obs := range observer.observed {
+		if obs.job != "integrity_audit" {
+			continue
+		}
+		if obs.command == "sismember" {
+			t.Fatal("integrity audit should not issue per-group SISMEMBER checks")
+		}
+		if obs.command == redisCommandSAdd {
+			t.Fatal("clean integrity audit should not write temporary or repair SADD commands")
+		}
 	}
 }
 

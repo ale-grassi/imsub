@@ -301,9 +301,9 @@ func TestRedisCommandMetricsHookRecordsJobContext(t *testing.T) {
 	}
 
 	want := map[redisCommandObservation]int{
-		{job: "sync_member_tags", command: "set", result: "ok", count: 1}:  1,
-		{job: "sync_member_tags", command: "get", result: "ok", count: 1}:  2,
-		{job: "sync_member_tags", command: "sadd", result: "ok", count: 1}: 1,
+		{job: "sync_member_tags", command: "set", result: "ok", count: 1}:            1,
+		{job: "sync_member_tags", command: "get", result: "ok", count: 1}:            2,
+		{job: "sync_member_tags", command: redisCommandSAdd, result: "ok", count: 1}: 1,
 	}
 	for _, got := range observer.observed {
 		want[got]--
@@ -332,7 +332,7 @@ func TestBackupTrackingHookAggregatesPipelineTrackingCommands(t *testing.T) {
 
 	saddCount := 0
 	for _, got := range observer.observed {
-		if got.command == "sadd" && got.result == "ok" {
+		if got.command == redisCommandSAdd && got.result == "ok" {
 			saddCount += got.count
 		}
 	}
