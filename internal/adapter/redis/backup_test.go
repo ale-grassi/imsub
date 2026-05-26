@@ -315,6 +315,32 @@ func TestRedisCommandMetricsHookRecordsJobContext(t *testing.T) {
 	}
 }
 
+func TestBackupTrackingHookAggregatesPipelineTrackingCommands(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	observer := &redisCommandObserverStub{}
+	s.SetCommandObserver(observer)
+	ctx := t.Context()
+
+	pipe := s.rdb.Pipeline()
+	pipe.HSet(ctx, "imsub:hash", "field", "value")
+	pipe.SAdd(ctx, "imsub:set", "one")
+	if _, err := pipe.Exec(ctx); err != nil {
+		t.Fatalf("Exec() error = %v", err)
+	}
+
+	saddCount := 0
+	for _, got := range observer.observed {
+		if got.command == "sadd" && got.result == "ok" {
+			saddCount += got.count
+		}
+	}
+	if saddCount != 2 {
+		t.Fatalf("observed successful SADD count = %d in %+v, want 2 (one app command plus one aggregated backup tracker command)", saddCount, observer.observed)
+	}
+}
+
 func TestFinishBackupUploadFailureRequeuesRotatedSets(t *testing.T) {
 	t.Parallel()
 

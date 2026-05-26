@@ -280,11 +280,7 @@ func (h backupTrackingHook) ProcessPipelineHook(next redis.ProcessPipelineHook) 
 	return func(ctx context.Context, cmds []redis.Cmder) error {
 		err := next(ctx, cmds)
 		if !backupTrackingSkipped(ctx) {
-			for _, cmd := range cmds {
-				if cmd.Err() == nil {
-					h.trackCommand(ctx, cmd)
-				}
-			}
+			h.trackCommands(ctx, cmds)
 		}
 		return err
 	}
@@ -306,6 +302,40 @@ func (h backupTrackingHook) trackCommand(ctx context.Context, cmd redis.Cmder) {
 	}
 	if len(deleted) > 0 {
 		if err := h.store.rdb.SAdd(ctx, keyBackupDeleted(), stringSliceToAny(deleted)...).Err(); err != nil {
+			h.store.log().Warn("backup deleted tracking failed", "error", err)
+		}
+	}
+}
+
+func (h backupTrackingHook) trackCommands(ctx context.Context, cmds []redis.Cmder) {
+	if h.store == nil || h.store.rdb == nil || len(cmds) == 0 {
+		return
+	}
+	dirtySet := make(map[string]struct{})
+	deletedSet := make(map[string]struct{})
+	for _, cmd := range cmds {
+		if cmd.Err() != nil {
+			continue
+		}
+		dirty, deleted := backupTouchedKeys(cmd)
+		for _, key := range dirty {
+			dirtySet[key] = struct{}{}
+		}
+		for _, key := range deleted {
+			deletedSet[key] = struct{}{}
+		}
+	}
+	if len(dirtySet) == 0 && len(deletedSet) == 0 {
+		return
+	}
+	ctx = skipBackupTracking(ctx)
+	if len(dirtySet) > 0 {
+		if err := h.store.rdb.SAdd(ctx, keyBackupDirty(), stringSliceToAny(mapKeys(dirtySet))...).Err(); err != nil {
+			h.store.log().Warn("backup dirty tracking failed", "error", err)
+		}
+	}
+	if len(deletedSet) > 0 {
+		if err := h.store.rdb.SAdd(ctx, keyBackupDeleted(), stringSliceToAny(mapKeys(deletedSet))...).Err(); err != nil {
 			h.store.log().Warn("backup deleted tracking failed", "error", err)
 		}
 	}
@@ -354,6 +384,14 @@ func stringSliceToAny(values []string) []any {
 	out := make([]any, 0, len(values))
 	for _, value := range values {
 		out = append(out, value)
+	}
+	return out
+}
+
+func mapKeys(m map[string]struct{}) []string {
+	out := make([]string, 0, len(m))
+	for key := range m {
+		out = append(out, key)
 	}
 	return out
 }
