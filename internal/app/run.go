@@ -382,7 +382,7 @@ func Run() error {
 		return jobRunner.RunScheduled(gctx, jobs.Schedule{
 			Task:         integrityTask,
 			InitialDelay: jitteredDelay(120 * time.Second),
-			Interval:     20 * time.Minute,
+			Interval:     2 * time.Hour,
 			Timeout:      15 * time.Minute,
 		})
 	})
