@@ -2,6 +2,7 @@ SHELL := /bin/bash
 APP := imsub
 GO ?= go
 GOLANGCI_LINT ?= golangci-lint
+GOLANGCI_LINT_VERSION ?= 2.10.1
 GOVULNCHECK ?= govulncheck
 GITLEAKS ?= gitleaks
 CACHE_HOME ?= $(HOME)/.cache
@@ -15,7 +16,7 @@ TUNNEL_PID_FILE := tmp/ngrok.pid
 TUNNEL_LOG_FILE := tmp/ngrok.log
 NGROK_API_URL := http://127.0.0.1:4040/api/tunnels
 
-.PHONY: help run run-tunnel tunnel attach-tunnel stop-tunnel seed fmt fmt-check vet test test-integration build check ci-check ci-check-parallel lint actionlint style-check cover cover-open vuln fly-config-validate secrets-scan msg-gallery msg-gallery-md msg-gallery-tg prod-logs prod-redis-proxy
+.PHONY: help run run-tunnel tunnel attach-tunnel stop-tunnel seed fmt fmt-check vet test test-integration build check ci-check ci-check-parallel lint lint-version-check actionlint style-check cover cover-open vuln fly-config-validate secrets-scan msg-gallery msg-gallery-md msg-gallery-tg prod-logs prod-redis-proxy
 
 help:
 	@echo "Targets:"
@@ -222,7 +223,14 @@ test-integration:
 build:
 	$(GO) build ./...
 
-lint:
+lint-version-check:
+	@version="$$($(GOLANGCI_LINT) version 2>/dev/null | awk '{print $$4}')"; \
+	if [ "$$version" != "$(GOLANGCI_LINT_VERSION)" ]; then \
+		echo "golangci-lint version $$version found, want $(GOLANGCI_LINT_VERSION)"; \
+		exit 1; \
+	fi
+
+lint: lint-version-check
 	$(GOLANGCI_LINT) run
 
 actionlint:
@@ -262,10 +270,10 @@ msg-gallery-tg:
 
 check: fmt test build
 
-ci-check: fmt-check vet build test test-integration lint vuln secrets-scan actionlint fly-config-validate
+ci-check: lint-version-check fmt-check vet build test test-integration lint vuln secrets-scan actionlint fly-config-validate
 
 ci-check-parallel:
-	$(MAKE) -j$(CI_CHECK_JOBS) fmt-check vet build test test-integration lint vuln secrets-scan actionlint fly-config-validate
+	$(MAKE) -j$(CI_CHECK_JOBS) lint-version-check fmt-check vet build test test-integration lint vuln secrets-scan actionlint fly-config-validate
 
 prod-logs:
 	@if [ "$(CONFIRM)" != "prod-logs" ]; then \

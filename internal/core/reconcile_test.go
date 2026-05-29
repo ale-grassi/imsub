@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -21,7 +23,7 @@ func (f *reconcileFakeStore) ListActiveCreators(ctx context.Context) ([]Creator,
 func TestReconcileSubscribersOnceOK(t *testing.T) {
 	t.Parallel()
 
-	calls := 0
+	var calls int64
 	svc := NewReconcilerService(
 		&reconcileFakeStore{
 			listActiveCreatorsFn: func(context.Context) ([]Creator, error) {
@@ -32,7 +34,7 @@ func TestReconcileSubscribersOnceOK(t *testing.T) {
 			},
 		},
 		func(context.Context, Creator) (int, error) {
-			calls++
+			atomic.AddInt64(&calls, 1)
 			return 1, nil
 		},
 		slog.New(slog.DiscardHandler),
@@ -89,5 +91,63 @@ func TestReconcileSubscribersOncePartialFailure(t *testing.T) {
 	err := svc.ReconcileSubscribersOnce(t.Context())
 	if !errors.Is(err, ErrPartialReconcile) {
 		t.Fatalf("ReconcileSubscribersOnce() returned error %v, want error matching %v", err, ErrPartialReconcile)
+	}
+}
+
+func TestReconcileSubscribersOnceRunsCreatorsConcurrently(t *testing.T) {
+	t.Parallel()
+
+	creators := []Creator{
+		{ID: "c1"},
+		{ID: "c2"},
+		{ID: "c3"},
+		{ID: "c4"},
+	}
+	started := make(chan string, len(creators))
+	release := make(chan struct{})
+	var running int64
+	var maxRunning int64
+
+	svc := NewReconcilerService(
+		&reconcileFakeStore{
+			listActiveCreatorsFn: func(context.Context) ([]Creator, error) {
+				return creators, nil
+			},
+		},
+		func(_ context.Context, c Creator) (int, error) {
+			nowRunning := atomic.AddInt64(&running, 1)
+			for {
+				observed := atomic.LoadInt64(&maxRunning)
+				if nowRunning <= observed || atomic.CompareAndSwapInt64(&maxRunning, observed, nowRunning) {
+					break
+				}
+			}
+			started <- c.ID
+			<-release
+			atomic.AddInt64(&running, -1)
+			return 1, nil
+		},
+		slog.New(slog.DiscardHandler),
+	)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	var runErr error
+	go func() {
+		defer wg.Done()
+		runErr = svc.ReconcileSubscribersOnce(t.Context())
+	}()
+
+	for range creators {
+		<-started
+	}
+	if got := atomic.LoadInt64(&maxRunning); got < 2 {
+		t.Fatalf("max concurrent dumps = %d, want at least 2", got)
+	}
+	close(release)
+	wg.Wait()
+
+	if runErr != nil {
+		t.Fatalf("ReconcileSubscribersOnce() returned error %v, want nil", runErr)
 	}
 }

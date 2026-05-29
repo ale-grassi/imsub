@@ -16,6 +16,7 @@ import (
 )
 
 const schemaVersionCurrent = 4
+const redisCommandSet = "set"
 const redisCommandSAdd = "sadd"
 
 // Store implements [Store] backed by Redis.
@@ -374,7 +375,7 @@ func backupTouchedKeys(cmd redis.Cmder) (dirty []string, deleted []string) {
 	case "rename", "renamenx":
 		deleted = appendKey(deleted, 1)
 		dirty = appendKey(dirty, 2)
-	case "set", "setex", "psetex", "setnx", "hset", "hdel", "hmset", redisCommandSAdd, "srem", "zadd", "zrem", "expire", "pexpire", "expireat", "pexpireat", "persist", "restore", "restore-asking":
+	case redisCommandSet, "setex", "psetex", "setnx", "hset", "hdel", "hmset", redisCommandSAdd, "srem", "zadd", "zrem", "expire", "pexpire", "expireat", "pexpireat", "persist", "restore", "restore-asking":
 		dirty = appendKey(dirty, 1)
 	}
 	return dirty, deleted

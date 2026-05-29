@@ -5,10 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 type dumpFunc func(ctx context.Context, creator Creator) (int, error)
+
+const subscriberReconcileConcurrency = 4
 
 var (
 	// ErrListActiveCreators reports that listing active creators failed.
@@ -50,14 +55,26 @@ func (r *ReconcilerService) ReconcileSubscribersOnce(ctx context.Context) error 
 		return fmt.Errorf("list active creators: %w", errors.Join(ErrListActiveCreators, err))
 	}
 	var partialErr error
+	var partialMu sync.Mutex
+	g, runCtx := errgroup.WithContext(ctx)
+	g.SetLimit(subscriberReconcileConcurrency)
 	for _, creator := range creators {
-		runCtx, cancel := context.WithTimeout(ctx, r.timeout)
-		_, err := r.dump(runCtx, creator)
-		cancel()
-		if err != nil {
+		g.Go(func() error {
+			creatorCtx, cancel := context.WithTimeout(runCtx, r.timeout)
+			defer cancel()
+			_, err := r.dump(creatorCtx, creator)
+			if err == nil {
+				return nil
+			}
 			r.log.Warn("reconciler dumpCurrentSubscribers failed", "creator_id", creator.ID, "error", err)
+			partialMu.Lock()
 			partialErr = errors.Join(partialErr, fmt.Errorf("creator %s: %w", creator.ID, err))
-		}
+			partialMu.Unlock()
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return fmt.Errorf("reconcile subscriber dumps: %w", err)
 	}
 	if partialErr != nil {
 		return fmt.Errorf("reconcile subscribers: %w", errors.Join(ErrPartialReconcile, partialErr))

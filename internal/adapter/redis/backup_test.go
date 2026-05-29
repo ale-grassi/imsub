@@ -301,7 +301,7 @@ func TestRedisCommandMetricsHookRecordsJobContext(t *testing.T) {
 	}
 
 	want := map[redisCommandObservation]int{
-		{job: "sync_member_tags", command: "set", result: "ok", count: 1}:            1,
+		{job: "sync_member_tags", command: redisCommandSet, result: "ok", count: 1}:  1,
 		{job: "sync_member_tags", command: "get", result: "ok", count: 1}:            2,
 		{job: "sync_member_tags", command: redisCommandSAdd, result: "ok", count: 1}: 1,
 	}
@@ -328,7 +328,7 @@ func TestRedisCommandMetricsHookRecordsForegroundOperationContext(t *testing.T) 
 	}
 
 	for _, got := range observer.observed {
-		if got.job == "telegram_command_start" && got.command == "set" && got.result == "ok" {
+		if got.job == "telegram_command_start" && got.command == redisCommandSet && got.result == "ok" {
 			return
 		}
 	}
@@ -349,7 +349,7 @@ func TestRedisCommandMetricsHookPrefersBackgroundJobContext(t *testing.T) {
 	}
 
 	for _, got := range observer.observed {
-		if got.command != "set" || got.result != "ok" {
+		if got.command != redisCommandSet || got.result != "ok" {
 			continue
 		}
 		if got.job == "sync_member_tags" {
