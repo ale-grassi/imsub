@@ -73,6 +73,7 @@ func Run() error {
 		if perr != nil {
 			return fmt.Errorf("create redis store: %w", perr)
 		}
+		s.SetCommandObserver(metrics)
 		return nil
 	}); err != nil {
 		startupRec.Ready("failed")
@@ -381,7 +382,7 @@ func Run() error {
 		return jobRunner.RunScheduled(gctx, jobs.Schedule{
 			Task:         integrityTask,
 			InitialDelay: jitteredDelay(120 * time.Second),
-			Interval:     20 * time.Minute,
+			Interval:     2 * time.Hour,
 			Timeout:      15 * time.Minute,
 		})
 	})

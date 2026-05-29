@@ -10,15 +10,24 @@ import (
 	"strings"
 	"time"
 
+	"imsub/internal/events"
+
 	"github.com/redis/go-redis/v9"
 )
 
 const schemaVersionCurrent = 4
+const redisCommandSAdd = "sadd"
 
 // Store implements [Store] backed by Redis.
 type Store struct {
-	rdb    *redis.Client
-	logger *slog.Logger
+	rdb             *redis.Client
+	logger          *slog.Logger
+	commandObserver CommandObserver
+}
+
+// CommandObserver receives low-cardinality Redis command telemetry.
+type CommandObserver interface {
+	ObserveRedisCommand(ctx context.Context, job, command, result string, count int)
 }
 
 // NewStore connects to Redis and returns a ready [Store].
@@ -34,8 +43,17 @@ func NewStore(redisURL string, logger *slog.Logger) (*Store, error) {
 		return nil, fmt.Errorf("redis ping: %w", err)
 	}
 	store := &Store{rdb: client, logger: logger}
+	client.AddHook(redisCommandMetricsHook{store: store})
 	client.AddHook(backupTrackingHook{store: store})
 	return store, nil
+}
+
+// SetCommandObserver configures optional Redis command telemetry.
+func (s *Store) SetCommandObserver(observer CommandObserver) {
+	if s == nil {
+		return
+	}
+	s.commandObserver = observer
 }
 
 func (s *Store) log() *slog.Logger {
@@ -117,9 +135,6 @@ func keyTelegramActiveUsers() string { return "imsub:metrics:telegram_active_use
 func keyTrackedGroupMembers(chatID int64) string {
 	return "imsub:group:tracked:" + strconv.FormatInt(chatID, 10)
 }
-func keyIntegrityTrackedReverseIndexProcessed(runID string) string {
-	return "imsub:integrity:tracked_reverse_index:processed:" + runID
-}
 func keyUntrackedGroupMembers(chatID int64) string {
 	return "imsub:group:untracked:" + strconv.FormatInt(chatID, 10)
 }
@@ -178,6 +193,65 @@ func backupTrackingSkipped(ctx context.Context) bool {
 	return v
 }
 
+type redisCommandMetricsHook struct {
+	store *Store
+}
+
+var _ redis.Hook = redisCommandMetricsHook{}
+
+func (h redisCommandMetricsHook) DialHook(next redis.DialHook) redis.DialHook {
+	return func(ctx context.Context, network, addr string) (net.Conn, error) {
+		return next(ctx, network, addr)
+	}
+}
+
+func (h redisCommandMetricsHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return func(ctx context.Context, cmd redis.Cmder) error {
+		err := next(ctx, cmd)
+		h.observe(ctx, redisCommandName(cmd), redisCommandResult(err), 1)
+		return err
+	}
+}
+
+func (h redisCommandMetricsHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+	return func(ctx context.Context, cmds []redis.Cmder) error {
+		err := next(ctx, cmds)
+		for _, cmd := range cmds {
+			h.observe(ctx, redisCommandName(cmd), redisCommandResult(cmd.Err()), 1)
+		}
+		return err
+	}
+}
+
+func (h redisCommandMetricsHook) observe(ctx context.Context, command, result string, count int) {
+	if h.store == nil || h.store.commandObserver == nil || count == 0 {
+		return
+	}
+	job := "foreground"
+	if bg, ok := events.BackgroundJobFromContext(ctx); ok && strings.TrimSpace(bg.Job) != "" {
+		job = bg.Job
+	}
+	h.store.commandObserver.ObserveRedisCommand(ctx, job, command, result, count)
+}
+
+func redisCommandName(cmd redis.Cmder) string {
+	if cmd == nil {
+		return "unknown"
+	}
+	name := strings.ToLower(strings.TrimSpace(cmd.Name()))
+	if name == "" {
+		return "unknown"
+	}
+	return name
+}
+
+func redisCommandResult(err error) string {
+	if err == nil || errors.Is(err, redis.Nil) {
+		return "ok"
+	}
+	return "error"
+}
+
 type backupTrackingHook struct {
 	store *Store
 }
@@ -204,11 +278,7 @@ func (h backupTrackingHook) ProcessPipelineHook(next redis.ProcessPipelineHook) 
 	return func(ctx context.Context, cmds []redis.Cmder) error {
 		err := next(ctx, cmds)
 		if !backupTrackingSkipped(ctx) {
-			for _, cmd := range cmds {
-				if cmd.Err() == nil {
-					h.trackCommand(ctx, cmd)
-				}
-			}
+			h.trackCommands(ctx, cmds)
 		}
 		return err
 	}
@@ -230,6 +300,40 @@ func (h backupTrackingHook) trackCommand(ctx context.Context, cmd redis.Cmder) {
 	}
 	if len(deleted) > 0 {
 		if err := h.store.rdb.SAdd(ctx, keyBackupDeleted(), stringSliceToAny(deleted)...).Err(); err != nil {
+			h.store.log().Warn("backup deleted tracking failed", "error", err)
+		}
+	}
+}
+
+func (h backupTrackingHook) trackCommands(ctx context.Context, cmds []redis.Cmder) {
+	if h.store == nil || h.store.rdb == nil || len(cmds) == 0 {
+		return
+	}
+	dirtySet := make(map[string]struct{})
+	deletedSet := make(map[string]struct{})
+	for _, cmd := range cmds {
+		if cmd.Err() != nil {
+			continue
+		}
+		dirty, deleted := backupTouchedKeys(cmd)
+		for _, key := range dirty {
+			dirtySet[key] = struct{}{}
+		}
+		for _, key := range deleted {
+			deletedSet[key] = struct{}{}
+		}
+	}
+	if len(dirtySet) == 0 && len(deletedSet) == 0 {
+		return
+	}
+	ctx = skipBackupTracking(ctx)
+	if len(dirtySet) > 0 {
+		if err := h.store.rdb.SAdd(ctx, keyBackupDirty(), stringSliceToAny(mapKeys(dirtySet))...).Err(); err != nil {
+			h.store.log().Warn("backup dirty tracking failed", "error", err)
+		}
+	}
+	if len(deletedSet) > 0 {
+		if err := h.store.rdb.SAdd(ctx, keyBackupDeleted(), stringSliceToAny(mapKeys(deletedSet))...).Err(); err != nil {
 			h.store.log().Warn("backup deleted tracking failed", "error", err)
 		}
 	}
@@ -268,7 +372,7 @@ func backupTouchedKeys(cmd redis.Cmder) (dirty []string, deleted []string) {
 	case "rename", "renamenx":
 		deleted = appendKey(deleted, 1)
 		dirty = appendKey(dirty, 2)
-	case "set", "setex", "psetex", "setnx", "hset", "hdel", "hmset", "sadd", "srem", "zadd", "zrem", "expire", "pexpire", "expireat", "pexpireat", "persist", "restore", "restore-asking":
+	case "set", "setex", "psetex", "setnx", "hset", "hdel", "hmset", redisCommandSAdd, "srem", "zadd", "zrem", "expire", "pexpire", "expireat", "pexpireat", "persist", "restore", "restore-asking":
 		dirty = appendKey(dirty, 1)
 	}
 	return dirty, deleted
@@ -278,6 +382,14 @@ func stringSliceToAny(values []string) []any {
 	out := make([]any, 0, len(values))
 	for _, value := range values {
 		out = append(out, value)
+	}
+	return out
+}
+
+func mapKeys(m map[string]struct{}) []string {
+	out := make([]string, 0, len(m))
+	for key := range m {
+		out = append(out, key)
 	}
 	return out
 }
