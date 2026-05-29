@@ -436,7 +436,7 @@ func Run() error {
 		return jobRunner.RunScheduled(gctx, jobs.Schedule{
 			Task:         creatorMetricsTask,
 			InitialDelay: jitteredDelay(60 * time.Second),
-			Interval:     5 * time.Minute,
+			Interval:     15 * time.Minute,
 			Timeout:      4 * time.Minute,
 		})
 	})
