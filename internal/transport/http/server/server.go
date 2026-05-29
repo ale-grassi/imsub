@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"imsub/internal/events"
 	"imsub/internal/platform/config"
 	"imsub/internal/platform/observability"
 	httphandlers "imsub/internal/transport/http/handlers"
@@ -58,12 +59,13 @@ func newMux(deps Dependencies) *http.ServeMux {
 		http.Redirect(w, r, repoHomepageURL, http.StatusFound)
 	})
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		ctx := events.WithForegroundOperationContext(r.Context(), "http_healthz")
 		if deps.Readiness != nil && !deps.Readiness.Ready() {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			_, _ = w.Write([]byte("starting"))
 			return
 		}
-		checkCtx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		checkCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 		defer cancel()
 		if err := deps.Store.Ping(checkCtx); err != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
@@ -75,17 +77,23 @@ func newMux(deps Dependencies) *http.ServeMux {
 		// A write error here only means the client connection closed early.
 		_, _ = w.Write([]byte("ok"))
 	})
-	mux.Handle("GET /auth/start/{state}", httphandlers.RateLimit(sensitiveLimiter, deps.Handlers.OAuthStart))
-	mux.Handle("GET /auth/callback", httphandlers.RateLimit(sensitiveLimiter, deps.Handlers.TwitchCallback))
-	mux.Handle("POST "+deps.Config.TwitchWebhookPath, httphandlers.RateLimit(sensitiveLimiter, deps.Handlers.EventSubWebhook))
+	mux.Handle("GET /auth/start/{state}", httphandlers.RateLimit(sensitiveLimiter, withForegroundOperation("http_oauth_start", deps.Handlers.OAuthStart)))
+	mux.Handle("GET /auth/callback", httphandlers.RateLimit(sensitiveLimiter, withForegroundOperation("http_oauth_callback", deps.Handlers.TwitchCallback)))
+	mux.Handle("POST "+deps.Config.TwitchWebhookPath, httphandlers.RateLimit(sensitiveLimiter, withForegroundOperation("http_eventsub_webhook", deps.Handlers.EventSubWebhook)))
 	if deps.Config.TelegramWebhookSecret != "" {
-		mux.Handle("POST "+deps.Config.TelegramWebhookPath, httphandlers.RateLimit(sensitiveLimiter, deps.Handlers.TelegramWebhook))
+		mux.Handle("POST "+deps.Config.TelegramWebhookPath, httphandlers.RateLimit(sensitiveLimiter, withForegroundOperation("http_telegram_webhook", deps.Handlers.TelegramWebhook)))
 	}
 	if deps.Config.MetricsEnabled && deps.Metrics != nil {
 		mux.Handle("GET "+deps.Config.MetricsPath, deps.Metrics.Handler())
 	}
 
 	return mux
+}
+
+func withForegroundOperation(operation string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r.WithContext(events.WithForegroundOperationContext(r.Context(), operation)))
+	})
 }
 
 func newHandler(deps Dependencies, logger *slog.Logger) http.Handler {

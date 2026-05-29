@@ -315,6 +315,51 @@ func TestRedisCommandMetricsHookRecordsJobContext(t *testing.T) {
 	}
 }
 
+func TestRedisCommandMetricsHookRecordsForegroundOperationContext(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	observer := &redisCommandObserverStub{}
+	s.SetCommandObserver(observer)
+	ctx := events.WithForegroundOperationContext(t.Context(), "telegram_command_start")
+
+	if err := s.rdb.Set(ctx, "imsub:foreground_metric", "value", 0).Err(); err != nil {
+		t.Fatalf("Set() error = %v", err)
+	}
+
+	for _, got := range observer.observed {
+		if got.job == "telegram_command_start" && got.command == "set" && got.result == "ok" {
+			return
+		}
+	}
+	t.Fatalf("missing foreground operation observation in %+v", observer.observed)
+}
+
+func TestRedisCommandMetricsHookPrefersBackgroundJobContext(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	observer := &redisCommandObserverStub{}
+	s.SetCommandObserver(observer)
+	ctx := events.WithForegroundOperationContext(t.Context(), "telegram_command_start")
+	ctx = events.WithBackgroundJobContext(ctx, "sync_member_tags", "run-1")
+
+	if err := s.rdb.Set(ctx, "imsub:background_metric", "value", 0).Err(); err != nil {
+		t.Fatalf("Set() error = %v", err)
+	}
+
+	for _, got := range observer.observed {
+		if got.command != "set" || got.result != "ok" {
+			continue
+		}
+		if got.job == "sync_member_tags" {
+			return
+		}
+		t.Fatalf("Set() job = %q, want sync_member_tags in %+v", got.job, observer.observed)
+	}
+	t.Fatalf("missing background job observation in %+v", observer.observed)
+}
+
 func TestBackupTrackingHookAggregatesPipelineTrackingCommands(t *testing.T) {
 	t.Parallel()
 

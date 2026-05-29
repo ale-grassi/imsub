@@ -403,7 +403,8 @@ func (c *Bot) RegisterTelegramHandlers() {
 	}
 	trackedCommand := func(command, chatType string, handler func(*tghandler.Context, telego.Message) error) func(*tghandler.Context, telego.Message) error {
 		return func(ctx *tghandler.Context, msg telego.Message) error {
-			ctx = ctx.WithContext(withTelegramCommandResponse(ctx, command, chatType, time.Now()))
+			baseCtx := events.WithForegroundOperationContext(ctx, "telegram_command_"+strings.TrimSpace(command))
+			ctx = ctx.WithContext(withTelegramCommandResponse(baseCtx, command, chatType, time.Now()))
 			if msg.From != nil {
 				c.recordTelegramCommand(ctx, msg.From.ID, command, chatType)
 			}
@@ -430,15 +431,24 @@ func (c *Bot) RegisterTelegramHandlers() {
 		c.onCallbackQuery(ctx, query)
 		return nil
 	}, tghandler.AnyCallbackQuery())
-	c.tgHandler.HandleChatJoinRequest(c.onChatJoinRequest)
-	c.tgHandler.HandleChatMemberUpdated(c.onChatMemberUpdated)
-	c.tgHandler.HandleMyChatMemberUpdated(c.onMyChatMemberUpdated)
-	c.tgHandler.HandleMessage(c.onGroupMessage, tghandler.And(tghandler.AnyMessage(), groupOnly))
-	c.tgHandler.HandleMessage(c.onUnknownMessage, tghandler.And(tghandler.AnyMessage(), privateOnly))
+	c.tgHandler.HandleChatJoinRequest(func(ctx *tghandler.Context, req telego.ChatJoinRequest) error {
+		return c.onChatJoinRequest(ctx.WithContext(events.WithForegroundOperationContext(ctx, "telegram_join_request")), req)
+	})
+	c.tgHandler.HandleChatMemberUpdated(func(ctx *tghandler.Context, update telego.ChatMemberUpdated) error {
+		return c.onChatMemberUpdated(ctx.WithContext(events.WithForegroundOperationContext(ctx, "telegram_chat_member_update")), update)
+	})
+	c.tgHandler.HandleMyChatMemberUpdated(func(ctx *tghandler.Context, update telego.ChatMemberUpdated) error {
+		return c.onMyChatMemberUpdated(ctx.WithContext(events.WithForegroundOperationContext(ctx, "telegram_my_chat_member_update")), update)
+	})
+	c.tgHandler.HandleMessage(func(ctx *tghandler.Context, msg telego.Message) error {
+		return c.onGroupMessage(ctx.WithContext(events.WithForegroundOperationContext(ctx, "telegram_group_message")), msg)
+	}, tghandler.And(tghandler.AnyMessage(), groupOnly))
+	c.tgHandler.HandleMessage(func(ctx *tghandler.Context, msg telego.Message) error {
+		return c.onUnknownMessage(ctx.WithContext(events.WithForegroundOperationContext(ctx, "telegram_private_message")), msg)
+	}, tghandler.And(tghandler.AnyMessage(), privateOnly))
 }
 
 func (c *Bot) onCallbackQuery(ctx context.Context, q telego.CallbackQuery) {
-	c.trackTelegramActiveUser(ctx, q.From.ID)
 	lang := i18n.NormalizeLanguage(q.From.LanguageCode)
 	exec := callbackExecution{
 		userID: q.From.ID,
@@ -452,12 +462,15 @@ func (c *Bot) onCallbackQuery(ctx context.Context, q telego.CallbackQuery) {
 
 	action, ok := parseCallbackAction(q.Data)
 	if !ok {
+		ctx = events.WithForegroundOperationContext(ctx, "telegram_callback_unknown")
+		c.trackTelegramActiveUser(ctx, q.From.ID)
 		c.log().Warn("ignore unknown callback data", "telegram_user_id", q.From.ID, "data", q.Data)
 		c.answerCallback(ctx, q.ID, "")
 		return
 	}
 
 	exec.action = action
+	ctx = events.WithForegroundOperationContext(ctx, "telegram_callback_"+string(action.domain)+"_"+string(action.verb))
 	ctx = withTelegramCallbackResponse(ctx, string(action.domain), string(action.verb), time.Now())
 	c.recordTelegramCallback(ctx, q.From.ID, action)
 	feedback := c.dispatchCallbackAction(ctx, exec)
@@ -671,6 +684,7 @@ var errSubscriptionStartSend = errors.New("send subscription start dm")
 
 // HandleSubscriptionStart proactively sends fresh invites after a Twitch subscription starts.
 func (c *Bot) HandleSubscriptionStart(ctx context.Context, broadcasterID, broadcasterLogin, twitchUserID, _ string) error {
+	ctx = events.WithForegroundOperationContext(ctx, "eventsub_subscription_start")
 	if c.viewerAccess == nil || c.store == nil {
 		return nil
 	}
@@ -719,6 +733,7 @@ func (c *Bot) HandleSubscriptionStart(ctx context.Context, broadcasterID, broadc
 
 // HandleSubscriptionEnd revokes Telegram group access after a Twitch subscription ends.
 func (c *Bot) HandleSubscriptionEnd(ctx context.Context, broadcasterID, broadcasterLogin, twitchUserID, twitchLogin string) error {
+	ctx = events.WithForegroundOperationContext(ctx, "eventsub_subscription_end")
 	res, err := c.subscriptionEnd.Prepare(ctx, broadcasterID, broadcasterLogin, twitchUserID, twitchLogin)
 	if err != nil {
 		c.log().Warn("process subscription end failed", "error", err)

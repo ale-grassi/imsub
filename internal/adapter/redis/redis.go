@@ -230,6 +230,8 @@ func (h redisCommandMetricsHook) observe(ctx context.Context, command, result st
 	job := "foreground"
 	if bg, ok := events.BackgroundJobFromContext(ctx); ok && strings.TrimSpace(bg.Job) != "" {
 		job = bg.Job
+	} else if op, ok := events.ForegroundOperationFromContext(ctx); ok && strings.TrimSpace(op) != "" {
+		job = strings.TrimSpace(op)
 	}
 	h.store.commandObserver.ObserveRedisCommand(ctx, job, command, result, count)
 }

@@ -3,10 +3,12 @@ package events
 
 import (
 	"context"
+	"strings"
 	"time"
 )
 
 type backgroundJobContextKey struct{}
+type foregroundOperationContextKey struct{}
 
 // BackgroundJobContext identifies the background job currently using a context.
 type BackgroundJobContext struct {
@@ -80,6 +82,24 @@ func BackgroundJobFromContext(ctx context.Context) (BackgroundJobContext, bool) 
 	}
 	job, ok := ctx.Value(backgroundJobContextKey{}).(BackgroundJobContext)
 	return job, ok
+}
+
+// WithForegroundOperationContext attaches a low-cardinality foreground
+// operation name to a context for lower-level instrumentation.
+func WithForegroundOperationContext(ctx context.Context, operation string) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, foregroundOperationContextKey{}, strings.TrimSpace(operation))
+}
+
+// ForegroundOperationFromContext returns foreground operation attribution, if present.
+func ForegroundOperationFromContext(ctx context.Context) (string, bool) {
+	if ctx == nil {
+		return "", false
+	}
+	operation, ok := ctx.Value(foregroundOperationContextKey{}).(string)
+	return operation, ok
 }
 
 // EventSink consumes emitted events.
