@@ -1394,3 +1394,60 @@ func TestRunScheduledAssignsUniqueRunIDPerExecution(t *testing.T) {
 		t.Fatalf("unique run_ids = %d, want at least 2; events=%+v", len(runIDs), obs.all())
 	}
 }
+
+type memberTagSyncerStub struct {
+	counts core.MemberTagSyncCounts
+	err    error
+}
+
+func (s memberTagSyncerStub) SyncEnabledGroups(context.Context) (core.MemberTagSyncCounts, error) {
+	return s.counts, s.err
+}
+
+func TestMemberTagSyncTaskReportsDiagnosticCounts(t *testing.T) {
+	t.Parallel()
+
+	task := NewMemberTagSyncTask(memberTagSyncerStub{counts: core.MemberTagSyncCounts{
+		Groups:                    1,
+		Set:                       2,
+		Cleared:                   3,
+		Noop:                      4,
+		Errors:                    5,
+		TrackedStored:             6,
+		UntrackedStored:           7,
+		DesiredTracked:            8,
+		DesiredUntracked:          9,
+		ExistingTags:              10,
+		SnapshotMembers:           11,
+		SnapshotFilteredTracked:   12,
+		SnapshotFilteredUntracked: 13,
+	}})
+	if err := task.Run(t.Context()); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	reporter, ok := task.(Reporter)
+	if !ok {
+		t.Fatal("NewMemberTagSyncTask() does not implement Reporter")
+	}
+	report := reporter.Report()
+	want := map[string]int{
+		"groups":                      1,
+		"set":                         2,
+		"cleared":                     3,
+		"noop":                        4,
+		"errors":                      5,
+		"tracked_stored":              6,
+		"untracked_stored":            7,
+		"desired_tracked":             8,
+		"desired_untracked":           9,
+		"existing_tags":               10,
+		"snapshot_members":            11,
+		"snapshot_filtered_tracked":   12,
+		"snapshot_filtered_untracked": 13,
+	}
+	for kind, n := range want {
+		if report[kind] != n {
+			t.Fatalf("report[%q] = %d, want %d in %+v", kind, report[kind], n, report)
+		}
+	}
+}

@@ -48,11 +48,19 @@ type MemberTagSyncService struct {
 
 // MemberTagSyncCounts reports a single sync run.
 type MemberTagSyncCounts struct {
-	Groups  int
-	Set     int
-	Cleared int
-	Noop    int
-	Errors  int
+	Groups                    int
+	Set                       int
+	Cleared                   int
+	Noop                      int
+	Errors                    int
+	TrackedStored             int
+	UntrackedStored           int
+	DesiredTracked            int
+	DesiredUntracked          int
+	ExistingTags              int
+	SnapshotMembers           int
+	SnapshotFilteredTracked   int
+	SnapshotFilteredUntracked int
 }
 
 // NewMemberTagSyncService creates a member-tag sync service.
@@ -233,6 +241,14 @@ func (s *MemberTagSyncService) SyncEnabledGroups(ctx context.Context) (MemberTag
 		total.Cleared += counts.Cleared
 		total.Noop += counts.Noop
 		total.Errors += counts.Errors
+		total.TrackedStored += counts.TrackedStored
+		total.UntrackedStored += counts.UntrackedStored
+		total.DesiredTracked += counts.DesiredTracked
+		total.DesiredUntracked += counts.DesiredUntracked
+		total.ExistingTags += counts.ExistingTags
+		total.SnapshotMembers += counts.SnapshotMembers
+		total.SnapshotFilteredTracked += counts.SnapshotFilteredTracked
+		total.SnapshotFilteredUntracked += counts.SnapshotFilteredUntracked
 		if syncErr != nil {
 			if IsMemberTagSyncDisabledError(syncErr) {
 				continue
@@ -257,10 +273,18 @@ func (s *MemberTagSyncService) syncKnownMembers(ctx context.Context, group Manag
 	if err != nil {
 		return MemberTagSyncCounts{}, fmt.Errorf("list untracked group members: %w", err)
 	}
+	counts := MemberTagSyncCounts{
+		TrackedStored:   len(trackedIDs),
+		UntrackedStored: len(untracked),
+	}
+	if hasSnapshot {
+		counts.SnapshotMembers = len(liveMembers)
+	}
 	desired := make(map[int64]string, len(trackedIDs)+len(untracked))
 	for _, telegramUserID := range trackedIDs {
 		if hasSnapshot {
 			if _, ok := liveMembers[telegramUserID]; !ok {
+				counts.SnapshotFilteredTracked++
 				continue
 			}
 		}
@@ -272,14 +296,17 @@ func (s *MemberTagSyncService) syncKnownMembers(ctx context.Context, group Manag
 			continue
 		}
 		desired[telegramUserID] = trackedMemberTag(identity)
+		counts.DesiredTracked++
 	}
 	for _, member := range untracked {
 		if hasSnapshot {
 			if _, ok := liveMembers[member.TelegramUserID]; !ok {
+				counts.SnapshotFilteredUntracked++
 				continue
 			}
 		}
 		desired[member.TelegramUserID] = untrackedMemberTag
+		counts.DesiredUntracked++
 	}
 
 	owned, err := s.store.ListManagedMemberTags(ctx, group.ChatID)
@@ -290,8 +317,8 @@ func (s *MemberTagSyncService) syncKnownMembers(ctx context.Context, group Manag
 	for _, item := range owned {
 		existing[item.TelegramUserID] = item.Tag
 	}
+	counts.ExistingTags = len(existing)
 
-	counts := MemberTagSyncCounts{}
 	for telegramUserID, tag := range desired {
 		if existing[telegramUserID] == tag {
 			counts.Noop++
@@ -332,7 +359,30 @@ func (s *MemberTagSyncService) syncKnownMembers(ctx context.Context, group Manag
 		}
 		counts.Cleared++
 	}
+	s.logSyncKnownMembersSummary(group, hasSnapshot, counts)
 	return counts, nil
+}
+
+func (s *MemberTagSyncService) logSyncKnownMembersSummary(group ManagedGroup, hasSnapshot bool, counts MemberTagSyncCounts) {
+	if s == nil || s.logger == nil {
+		return
+	}
+	s.logger.Info("member tag sync group summary",
+		"chat_id", group.ChatID,
+		"creator_id", group.CreatorID,
+		"snapshot_available", hasSnapshot,
+		"snapshot_members", counts.SnapshotMembers,
+		"tracked_stored", counts.TrackedStored,
+		"untracked_stored", counts.UntrackedStored,
+		"desired_tracked", counts.DesiredTracked,
+		"desired_untracked", counts.DesiredUntracked,
+		"existing_tags", counts.ExistingTags,
+		"snapshot_filtered_tracked", counts.SnapshotFilteredTracked,
+		"snapshot_filtered_untracked", counts.SnapshotFilteredUntracked,
+		"set", counts.Set,
+		"cleared", counts.Cleared,
+		"noop", counts.Noop,
+		"errors", counts.Errors)
 }
 
 func (s *MemberTagSyncService) disableMemberTagSync(ctx context.Context, group ManagedGroup, reason string, cause error) error {
