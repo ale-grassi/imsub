@@ -72,8 +72,11 @@ func TestTelegramRetryConstantsStayConservative(t *testing.T) {
 	if telegramRetryMaxDelay < telegramRetryStartDelay {
 		t.Fatalf("telegramRetryMaxDelay = %s, want >= %s", telegramRetryMaxDelay, telegramRetryStartDelay)
 	}
-	if telegramRetryMaxDelay > 10*time.Second {
-		t.Fatalf("telegramRetryMaxDelay = %s, want <= 10s", telegramRetryMaxDelay)
+	if telegramRetryMaxDelay < 45*time.Second {
+		t.Fatalf("telegramRetryMaxDelay = %s, want >= 45s", telegramRetryMaxDelay)
+	}
+	if telegramRetryMaxDelay > 2*time.Minute {
+		t.Fatalf("telegramRetryMaxDelay = %s, want <= 2m", telegramRetryMaxDelay)
 	}
 }
 

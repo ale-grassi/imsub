@@ -371,15 +371,15 @@ func TestMemberTagSyncServiceSyncGroupUsesLiveMemberSnapshot(t *testing.T) {
 	if counts.TrackedStored != 2 || counts.UntrackedStored != 1 || counts.DesiredTracked != 1 || counts.DesiredUntracked != 1 || counts.ExistingTags != 1 {
 		t.Fatalf("diagnostic counts = %+v, want stored tracked=2 untracked=1 desired tracked=1 untracked=1 existing=1", counts)
 	}
-	if counts.SnapshotMembers != 2 || counts.SnapshotFilteredTracked != 1 || counts.SnapshotFilteredUntracked != 0 {
-		t.Fatalf("snapshot diagnostic counts = %+v, want members=2 filtered tracked=1 filtered untracked=0", counts)
+	if counts.SnapshotMembers != 2 || counts.SnapshotMissingTracked != 1 || counts.SnapshotMissingUntracked != 0 {
+		t.Fatalf("snapshot diagnostic counts = %+v, want members=2 missing tracked=1 missing untracked=0", counts)
 	}
 	if len(store.removed) != 1 || store.removed[0] != [2]int64{100, 30} {
 		t.Fatalf("removed = %+v, want stale metadata removed without Telegram clear", store.removed)
 	}
 }
 
-func TestMemberTagSyncServiceSyncGroupReportsEmptyDesiredWhenSnapshotFiltersAll(t *testing.T) {
+func TestMemberTagSyncServiceSyncGroupSkipsDesiredWhenSnapshotMissesMembers(t *testing.T) {
 	t.Parallel()
 
 	store := &memberTagSyncStoreStub{
@@ -408,13 +408,13 @@ func TestMemberTagSyncServiceSyncGroupReportsEmptyDesiredWhenSnapshotFiltersAll(
 		t.Fatalf("SyncGroup() error = %v", err)
 	}
 	if counts.Set != 0 || counts.Cleared != 0 || counts.Noop != 0 || counts.Errors != 0 {
-		t.Fatalf("operation counts = %+v, want no operations", counts)
+		t.Fatalf("operation counts = %+v, want no tag operations", counts)
 	}
 	if counts.TrackedStored != 1 || counts.UntrackedStored != 1 || counts.DesiredTracked != 0 || counts.DesiredUntracked != 0 {
-		t.Fatalf("diagnostic counts = %+v, want stored tracked=1 untracked=1 desired=0", counts)
+		t.Fatalf("diagnostic counts = %+v, want stored tracked=1 untracked=1 desired tracked=0 untracked=0", counts)
 	}
-	if counts.SnapshotMembers != 1 || counts.SnapshotFilteredTracked != 1 || counts.SnapshotFilteredUntracked != 1 {
-		t.Fatalf("snapshot diagnostic counts = %+v, want members=1 filtered tracked=1 filtered untracked=1", counts)
+	if counts.SnapshotMembers != 1 || counts.SnapshotMissingTracked != 1 || counts.SnapshotMissingUntracked != 1 {
+		t.Fatalf("snapshot diagnostic counts = %+v, want members=1 missing tracked=1 missing untracked=1", counts)
 	}
 	if len(setter.calls) != 0 {
 		t.Fatalf("setter calls = %+v, want none", setter.calls)

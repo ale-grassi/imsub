@@ -301,8 +301,8 @@ func (t memberTagSyncTask) Run(ctx context.Context) error {
 	t.counts.add("desired_untracked", counts.DesiredUntracked)
 	t.counts.add("existing_tags", counts.ExistingTags)
 	t.counts.add("snapshot_members", counts.SnapshotMembers)
-	t.counts.add("snapshot_filtered_tracked", counts.SnapshotFilteredTracked)
-	t.counts.add("snapshot_filtered_untracked", counts.SnapshotFilteredUntracked)
+	t.counts.add("snapshot_missing_tracked", counts.SnapshotMissingTracked)
+	t.counts.add("snapshot_missing_untracked", counts.SnapshotMissingUntracked)
 	if err != nil {
 		return fmt.Errorf("sync enabled member tags: %w", err)
 	}

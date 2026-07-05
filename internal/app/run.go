@@ -44,7 +44,7 @@ const (
 	telegramRetryMaxAttempts = 3
 	telegramRetryExponent    = 2
 	telegramRetryStartDelay  = 250 * time.Millisecond
-	telegramRetryMaxDelay    = 3 * time.Second
+	telegramRetryMaxDelay    = 60 * time.Second
 )
 
 func telegramAllowedUpdates() []string {

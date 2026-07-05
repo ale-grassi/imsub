@@ -24,7 +24,7 @@ import (
 	"github.com/mymmrac/telego"
 )
 
-const adminMemberTagsRefreshUsage = "imsub admin member-tags-refresh -chat-id <group_chat_id> [-timeout 2m]"
+const adminMemberTagsRefreshUsage = "imsub admin member-tags-refresh -chat-id <group_chat_id> [-timeout 2m] [-enable]"
 
 var (
 	errAdminUsage                 = errors.New("admin usage")
@@ -35,6 +35,7 @@ var (
 type memberTagsRefreshOptions struct {
 	ChatID  int64
 	Timeout time.Duration
+	Enable  bool
 }
 
 // RunAdminCommand runs private operator-only commands for the app binary.
@@ -66,6 +67,7 @@ func parseMemberTagsRefreshOptions(args []string) (memberTagsRefreshOptions, err
 	opts := memberTagsRefreshOptions{Timeout: 2 * time.Minute}
 	fs.Int64Var(&opts.ChatID, "chat-id", 0, "managed group chat ID")
 	fs.DurationVar(&opts.Timeout, "timeout", opts.Timeout, "operation timeout")
+	fs.BoolVar(&opts.Enable, "enable", false, "enable member-tag sync before refreshing")
 	if err := fs.Parse(args); err != nil {
 		return memberTagsRefreshOptions{}, fmt.Errorf("parse member-tags-refresh flags: %w", err)
 	}
@@ -126,11 +128,16 @@ func runMemberTagsRefresh(opts memberTagsRefreshOptions, stdout io.Writer) error
 	bootstrap := core.NewGroupBootstrapService(store, tgGroups, mtprotoClient, godAccess, eventSink, logger)
 	syncer := core.NewMemberTagSyncService(store, tgGroups, bootstrap, mtprotoClient, logger)
 
+	if opts.Enable {
+		if err := store.UpdateManagedGroupMemberTagSyncEnabled(ctx, opts.ChatID, true); err != nil {
+			return fmt.Errorf("enable member-tag sync for chat %d: %w", opts.ChatID, err)
+		}
+	}
 	counts, err := syncer.SyncGroup(ctx, opts.ChatID, true)
 	if err != nil {
 		return fmt.Errorf("refresh member tags for chat %d: %w", opts.ChatID, err)
 	}
-	summary := fmt.Sprintf("chat_id=%d full_refresh=true groups=%d set=%d cleared=%d noop=%d errors=%d tracked_stored=%d untracked_stored=%d desired_tracked=%d desired_untracked=%d existing_tags=%d snapshot_members=%d snapshot_filtered_tracked=%d snapshot_filtered_untracked=%d\n", opts.ChatID, counts.Groups, counts.Set, counts.Cleared, counts.Noop, counts.Errors, counts.TrackedStored, counts.UntrackedStored, counts.DesiredTracked, counts.DesiredUntracked, counts.ExistingTags, counts.SnapshotMembers, counts.SnapshotFilteredTracked, counts.SnapshotFilteredUntracked)
+	summary := fmt.Sprintf("chat_id=%d full_refresh=true enabled=%t groups=%d set=%d cleared=%d noop=%d errors=%d tracked_stored=%d untracked_stored=%d desired_tracked=%d desired_untracked=%d existing_tags=%d snapshot_members=%d snapshot_missing_tracked=%d snapshot_missing_untracked=%d\n", opts.ChatID, opts.Enable, counts.Groups, counts.Set, counts.Cleared, counts.Noop, counts.Errors, counts.TrackedStored, counts.UntrackedStored, counts.DesiredTracked, counts.DesiredUntracked, counts.ExistingTags, counts.SnapshotMembers, counts.SnapshotMissingTracked, counts.SnapshotMissingUntracked)
 	// #nosec G705 -- private CLI writes fixed-format numeric diagnostics to the operator-provided stdout writer.
 	if _, err := io.WriteString(stdout, summary); err != nil {
 		return fmt.Errorf("write member-tags refresh summary: %w", err)

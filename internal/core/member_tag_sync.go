@@ -48,19 +48,19 @@ type MemberTagSyncService struct {
 
 // MemberTagSyncCounts reports a single sync run.
 type MemberTagSyncCounts struct {
-	Groups                    int
-	Set                       int
-	Cleared                   int
-	Noop                      int
-	Errors                    int
-	TrackedStored             int
-	UntrackedStored           int
-	DesiredTracked            int
-	DesiredUntracked          int
-	ExistingTags              int
-	SnapshotMembers           int
-	SnapshotFilteredTracked   int
-	SnapshotFilteredUntracked int
+	Groups                   int
+	Set                      int
+	Cleared                  int
+	Noop                     int
+	Errors                   int
+	TrackedStored            int
+	UntrackedStored          int
+	DesiredTracked           int
+	DesiredUntracked         int
+	ExistingTags             int
+	SnapshotMembers          int
+	SnapshotMissingTracked   int
+	SnapshotMissingUntracked int
 }
 
 // NewMemberTagSyncService creates a member-tag sync service.
@@ -247,8 +247,8 @@ func (s *MemberTagSyncService) SyncEnabledGroups(ctx context.Context) (MemberTag
 		total.DesiredUntracked += counts.DesiredUntracked
 		total.ExistingTags += counts.ExistingTags
 		total.SnapshotMembers += counts.SnapshotMembers
-		total.SnapshotFilteredTracked += counts.SnapshotFilteredTracked
-		total.SnapshotFilteredUntracked += counts.SnapshotFilteredUntracked
+		total.SnapshotMissingTracked += counts.SnapshotMissingTracked
+		total.SnapshotMissingUntracked += counts.SnapshotMissingUntracked
 		if syncErr != nil {
 			if IsMemberTagSyncDisabledError(syncErr) {
 				continue
@@ -284,7 +284,7 @@ func (s *MemberTagSyncService) syncKnownMembers(ctx context.Context, group Manag
 	for _, telegramUserID := range trackedIDs {
 		if hasSnapshot {
 			if _, ok := liveMembers[telegramUserID]; !ok {
-				counts.SnapshotFilteredTracked++
+				counts.SnapshotMissingTracked++
 				continue
 			}
 		}
@@ -301,7 +301,7 @@ func (s *MemberTagSyncService) syncKnownMembers(ctx context.Context, group Manag
 	for _, member := range untracked {
 		if hasSnapshot {
 			if _, ok := liveMembers[member.TelegramUserID]; !ok {
-				counts.SnapshotFilteredUntracked++
+				counts.SnapshotMissingUntracked++
 				continue
 			}
 		}
@@ -327,6 +327,13 @@ func (s *MemberTagSyncService) syncKnownMembers(ctx context.Context, group Manag
 		if err := s.setOwnedTag(ctx, group.ChatID, telegramUserID, tag); err != nil {
 			counts.Errors++
 			if isMemberTagPermissionFailure(err) {
+				s.logger.Warn("set managed member tag permission failure",
+					"chat_id", group.ChatID,
+					"creator_id", group.CreatorID,
+					"telegram_user_id", telegramUserID,
+					"tag", tag,
+					"reason", memberTagPermissionFailureReason(err),
+					"error", err)
 				return counts, s.disableMemberTagSync(ctx, group, memberTagPermissionFailureReason(err), err)
 			}
 			s.logger.Warn("set managed member tag failed", "chat_id", group.ChatID, "telegram_user_id", telegramUserID, "tag", tag, "error", err)
@@ -342,7 +349,7 @@ func (s *MemberTagSyncService) syncKnownMembers(ctx context.Context, group Manag
 			if _, ok := liveMembers[telegramUserID]; !ok {
 				if err := s.store.RemoveManagedMemberTag(ctx, group.ChatID, telegramUserID); err != nil {
 					counts.Errors++
-					s.logger.Warn("remove stale managed member tag failed", "chat_id", group.ChatID, "telegram_user_id", telegramUserID, "error", err)
+					s.logger.Warn("remove snapshot-missing managed member tag failed", "chat_id", group.ChatID, "telegram_user_id", telegramUserID, "error", err)
 					continue
 				}
 				counts.Cleared++
@@ -352,6 +359,12 @@ func (s *MemberTagSyncService) syncKnownMembers(ctx context.Context, group Manag
 		if err := s.ClearManagedTag(ctx, group.ChatID, telegramUserID); err != nil {
 			counts.Errors++
 			if isMemberTagPermissionFailure(err) {
+				s.logger.Warn("clear stale managed member tag permission failure",
+					"chat_id", group.ChatID,
+					"creator_id", group.CreatorID,
+					"telegram_user_id", telegramUserID,
+					"reason", memberTagPermissionFailureReason(err),
+					"error", err)
 				return counts, s.disableMemberTagSync(ctx, group, memberTagPermissionFailureReason(err), err)
 			}
 			s.logger.Warn("clear stale managed member tag failed", "chat_id", group.ChatID, "telegram_user_id", telegramUserID, "error", err)
@@ -377,8 +390,8 @@ func (s *MemberTagSyncService) logSyncKnownMembersSummary(group ManagedGroup, ha
 		"desired_tracked", counts.DesiredTracked,
 		"desired_untracked", counts.DesiredUntracked,
 		"existing_tags", counts.ExistingTags,
-		"snapshot_filtered_tracked", counts.SnapshotFilteredTracked,
-		"snapshot_filtered_untracked", counts.SnapshotFilteredUntracked,
+		"snapshot_missing_tracked", counts.SnapshotMissingTracked,
+		"snapshot_missing_untracked", counts.SnapshotMissingUntracked,
 		"set", counts.Set,
 		"cleared", counts.Cleared,
 		"noop", counts.Noop,

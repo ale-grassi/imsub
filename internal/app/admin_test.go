@@ -19,10 +19,10 @@ func TestParseMemberTagsRefreshOptionsRequiresChatID(t *testing.T) {
 	}
 }
 
-func TestParseMemberTagsRefreshOptionsParsesChatIDAndTimeout(t *testing.T) {
+func TestParseMemberTagsRefreshOptionsParsesChatIDTimeoutAndEnable(t *testing.T) {
 	t.Parallel()
 
-	opts, err := parseMemberTagsRefreshOptions([]string{"-chat-id", "-100123", "-timeout", "45s"})
+	opts, err := parseMemberTagsRefreshOptions([]string{"-chat-id", "-100123", "-timeout", "45s", "-enable"})
 	if err != nil {
 		t.Fatalf("parseMemberTagsRefreshOptions() error = %v", err)
 	}
@@ -31,6 +31,9 @@ func TestParseMemberTagsRefreshOptionsParsesChatIDAndTimeout(t *testing.T) {
 	}
 	if opts.Timeout != 45*time.Second {
 		t.Fatalf("Timeout = %v, want 45s", opts.Timeout)
+	}
+	if !opts.Enable {
+		t.Fatal("Enable = false, want true")
 	}
 }
 
