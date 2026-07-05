@@ -56,7 +56,9 @@ func TestBuildCreatorStatusViewWithSingleGroup(t *testing.T) {
 		t.Fatalf("buildCreatorStatusView() = %+v, want non-empty text and markup", view)
 	}
 	if !strings.Contains(view.text, i18n.Translate("en", msgCreatorBlocklistDisabled)) {
-		t.Fatalf("buildCreatorStatusView() text = %q, want disabled blocklist status", view.text)
+		if !strings.Contains(view.text, "Remove Twitch-banned users") || !strings.Contains(view.text, "Disabled") {
+			t.Fatalf("buildCreatorStatusView() text = %q, want disabled blocklist status", view.text)
+		}
 	}
 	if !strings.Contains(view.text, "Synced banned users") {
 		t.Fatalf("buildCreatorStatusView() text = %q, want synced banned users line", view.text)
@@ -80,7 +82,9 @@ func TestBuildCreatorStatusViewWithBlocklistEnabled(t *testing.T) {
 		BlocklistSyncEnabled: true,
 	}, core.Status{HasBannedUserCount: true, BannedUserCount: 4}, []core.ManagedGroup{{ChatID: 1, GroupName: "VIP"}})
 	if !strings.Contains(view.text, i18n.Translate("en", msgCreatorBlocklistEnabled)) {
-		t.Fatalf("buildCreatorStatusView() text = %q, want enabled blocklist status", view.text)
+		if !strings.Contains(view.text, "Remove Twitch-banned users") || !strings.Contains(view.text, "Enabled") {
+			t.Fatalf("buildCreatorStatusView() text = %q, want enabled blocklist status", view.text)
+		}
 	}
 	if !strings.Contains(view.text, "<b>4</b>") {
 		t.Fatalf("buildCreatorStatusView() text = %q, want banned user count", view.text)
@@ -190,6 +194,27 @@ func TestBuildCreatorGroupMemberTagsConfirmView(t *testing.T) {
 	}
 }
 
+func TestBuildCreatorGroupMemberTagsConfirmViewNoticeShowsRequirementAndHidesAction(t *testing.T) {
+	t.Parallel()
+
+	view := buildCreatorGroupMemberTagsConfirmView("en", core.ManagedGroup{ChatID: 1, GroupName: "VIP", MemberTagSyncEnabled: false}, i18n.Translate("en", msgCreatorGroupMemberTagsNeedTags))
+	if view.text == "" || view.opts.Markup == nil {
+		t.Fatalf("buildCreatorGroupMemberTagsConfirmView(..., notice) = %+v, want non-empty text and markup", view)
+	}
+	if !strings.Contains(view.text, "Member tag sync unavailable") {
+		t.Fatalf("buildCreatorGroupMemberTagsConfirmView(..., notice) text = %q, want warning requirement", view.text)
+	}
+	if !strings.Contains(view.text, "<b>Setup status</b>") {
+		t.Fatalf("buildCreatorGroupMemberTagsConfirmView(..., notice) text = %q, want setup status requirement section", view.text)
+	}
+	if len(view.opts.Markup.InlineKeyboard) != 1 {
+		t.Fatalf("buildCreatorGroupMemberTagsConfirmView(..., notice) markup = %+v, want only back navigation", view.opts.Markup.InlineKeyboard)
+	}
+	if got := view.opts.Markup.InlineKeyboard[0][0].CallbackData; got != creatorGroupPickCallback(1) {
+		t.Fatalf("buildCreatorGroupMemberTagsConfirmView(..., notice) callback = %q, want %q", got, creatorGroupPickCallback(1))
+	}
+}
+
 func TestBuildCreatorGroupLanguagePickerView(t *testing.T) {
 	t.Parallel()
 
@@ -241,5 +266,33 @@ func TestBuildCreatorGroupUnregisterConfirmView(t *testing.T) {
 	view := buildCreatorGroupUnregisterConfirmView("en", core.ManagedGroup{ChatID: 1, GroupName: "VIP"}, creatorMenuCallback())
 	if view.text == "" || view.opts.Markup == nil {
 		t.Fatalf("buildCreatorGroupUnregisterConfirmView() = %+v, want non-empty text and markup", view)
+	}
+}
+
+func TestSplitScreenText(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name  string
+		in    string
+		emoji string
+		title string
+		body  string
+	}{
+		{name: "empty", in: "  ", emoji: "", title: "", body: ""},
+		{name: "plain text without header", in: "just a line", emoji: "", title: "just a line", body: ""},
+		{name: "header and body", in: "✅ <b>Done</b>\n\nAll good.", emoji: "✅", title: "Done", body: "All good."},
+		{name: "header only", in: "✅ <b>Done</b>", emoji: "✅", title: "Done", body: ""},
+		{name: "text after closing bold joins body", in: "✅ <b>Done</b> extra\n\nAll good.", emoji: "✅", title: "Done", body: "extra\n\nAll good."},
+		{name: "tags stripped from title", in: "🔒 <b>Locked <i>now</i></b>\n\nBody", emoji: "🔒", title: "Locked now", body: "Body"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			emoji, title, body := splitScreenText(tc.in)
+			if emoji != tc.emoji || title != tc.title || body != tc.body {
+				t.Fatalf("splitScreenText(%q) = (%q, %q, %q), want (%q, %q, %q)", tc.in, emoji, title, body, tc.emoji, tc.title, tc.body)
+			}
+		})
 	}
 }

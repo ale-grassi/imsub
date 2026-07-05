@@ -151,12 +151,52 @@ func buildViewerPromptView(lang, userName, authURL string) sharedView {
 }
 
 func buildViewerLinkedView(lang string, identity core.UserIdentity, targets core.JoinTargets) sharedView {
-	joinRows := renderJoinButtons(targets, lang)
-	return sharedView{
-		text: ui.LinkedStatusWithJoinStateHTML(lang, identity.TwitchLogin, identity.TwitchDisplayName, targets.ActiveCreatorNames, len(joinRows) > 0),
-		opts: client.MessageOptions{
-			Markup:         ui.WithMainMenu(lang, viewerMainMenuCallbacks(), joinRows...),
-			DisablePreview: true,
+	joinActions := viewerJoinActionGroups(targets, lang)
+	emoji, title, _ := splitScreenText(i18n.Translate(lang, "linked_status_heading_html"))
+	return sharedViewFromRendered(ui.RenderScreen(ui.Screen{
+		Header: ui.HeaderSection{
+			Emoji: emoji,
+			Title: title,
 		},
+		Body: []ui.BodySection{
+			{TextHTML: ui.TrustedHTML(ui.LinkedStatusAccountHTML(lang, identity.TwitchLogin, identity.TwitchDisplayName))},
+			{TextHTML: ui.TrustedHTML(ui.LinkedStatusDetailsHTML(lang, targets.ActiveCreatorNames, len(joinActions) > 0))},
+		},
+		Actions:        append(joinActions, viewerMainMenuActionGroups(lang)...),
+		DisablePreview: true,
+	}))
+}
+
+func viewerJoinActionGroups(targets core.JoinTargets, lang string) []ui.ActionGroup {
+	groups := make([]ui.ActionGroup, 0, len(targets.JoinLinks))
+	for _, link := range targets.JoinLinks {
+		btnText := link.CreatorName + " - " + link.GroupName
+		groups = append(groups, ui.ActionGroup{Items: []ui.ActionItem{{
+			Kind:        ui.ActionKindURL,
+			Label:       fmt.Sprintf(i18n.Translate(lang, btnJoin), btnText),
+			Target:      link.InviteLink,
+			IconEmojiID: "5257991477358763590",
+			Available:   true,
+		}}})
+	}
+	return groups
+}
+
+func viewerMainMenuActionGroups(lang string) []ui.ActionGroup {
+	return []ui.ActionGroup{
+		{Items: []ui.ActionItem{{
+			Kind:        ui.ActionKindCallback,
+			Label:       i18n.Translate(lang, "btn_refresh"),
+			Target:      viewerRefreshCallback(),
+			IconEmojiID: "5258420634785947640",
+			Available:   true,
+		}}},
+		{Items: []ui.ActionItem{{
+			Kind:        ui.ActionKindCallback,
+			Label:       i18n.Translate(lang, "btn_reset"),
+			Target:      resetOpenCallback(resetOriginViewer),
+			IconEmojiID: "5258096772776991776",
+			Available:   true,
+		}}},
 	}
 }

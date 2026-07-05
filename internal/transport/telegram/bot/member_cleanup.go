@@ -8,6 +8,7 @@ import (
 
 	"imsub/internal/core"
 	"imsub/internal/platform/i18n"
+	"imsub/internal/transport/telegram/ui"
 )
 
 var errMemberCleanupNotificationSend = errors.New("send member cleanup completion dm")
@@ -41,5 +42,5 @@ func buildMemberCleanupResultView(lang string, result core.MemberCleanupResult) 
 		renderResetViewerGroups(lang, result.GroupNames),
 		result.FailedCount,
 	}
-	return sharedView{text: fmt.Sprintf(i18n.Translate(lang, msgCleanupResetWarningDM), args...)}, true
+	return sharedScreenViewFromHTML(ui.TrustedHTML(fmt.Sprintf(i18n.Translate(lang, msgCleanupResetWarningDM), args...)), nil, nil, false), true
 }

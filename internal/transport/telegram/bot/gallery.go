@@ -7,12 +7,9 @@ import (
 
 	"imsub/internal/core"
 	"imsub/internal/platform/i18n"
-	"imsub/internal/transport/telegram/client"
-	"imsub/internal/transport/telegram/ui"
 	"imsub/internal/usecase"
 
 	"github.com/mymmrac/telego"
-	tu "github.com/mymmrac/telego/telegoutil"
 )
 
 // PreviewButton is a gallery-friendly representation of one inline button.
@@ -425,7 +422,7 @@ func PreviewScenarios() []PreviewScenario {
 			Group: "Reset",
 			Title: "Reset empty state",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(buildResetEmptyView(lang))
+				return previewFromShared(buildResetEmptyView(lang, nil))
 			},
 		},
 		{
@@ -471,10 +468,7 @@ func PreviewScenarios() []PreviewScenario {
 			Group: "Reset",
 			Title: "Choose what to do with group members",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(sharedView{
-					text: i18n.Translate(lang, msgResetChooseCreatorActionBoth),
-					opts: buildResetCreatorActionMarkup(lang),
-				})
+				return previewFromShared(buildResetCreatorActionView(lang, resetOriginViewer, resetScopeBoth))
 			},
 		},
 		{
@@ -482,16 +476,12 @@ func PreviewScenarios() []PreviewScenario {
 			Group: "Reset",
 			Title: "Confirm viewer-data deletion",
 			Render: func(lang string) PreviewView {
-				groupNames := []string{"VIP Lounge", "Patrons", "Insiders"}
-				return previewFromShared(sharedView{
-					text: fmt.Sprintf(
-						i18n.Translate(lang, msgResetConfirmViewerHTML),
-						twitchProfileHTML("viewer_name", "Viewer Name"),
-						resetGroupSection(lang, i18n.Translate(lang, "reset_subscriber_groups_title"), groupNames),
-						resetViewerConsequenceLine(lang, len(groupNames)),
-					),
-					opts: clientResetConfirmMarkup(lang),
-				})
+				scopes := core.ScopeState{
+					HasIdentity: true,
+					Identity:    core.UserIdentity{TwitchLogin: "viewer_name", TwitchDisplayName: "Viewer Name"},
+				}
+				view := resetConfirmViewText(lang, scopes, resetScopeViewer, core.CreatorResetKeepMembers, []string{"VIP Lounge", "Patrons", "Insiders"}, nil)
+				return previewFromShared(buildResetConfirmReplyView(lang, view, resetOriginViewer, resetScopeViewer, core.CreatorResetKeepMembers, false))
 			},
 		},
 		{
@@ -499,16 +489,12 @@ func PreviewScenarios() []PreviewScenario {
 			Group: "Reset",
 			Title: "Confirm viewer-data deletion with no groups",
 			Render: func(lang string) PreviewView {
-				groupNames := []string(nil)
-				return previewFromShared(sharedView{
-					text: fmt.Sprintf(
-						i18n.Translate(lang, msgResetConfirmViewerHTML),
-						twitchProfileHTML("viewer_name", "Viewer Name"),
-						resetGroupSection(lang, i18n.Translate(lang, "reset_subscriber_groups_title"), groupNames),
-						resetViewerConsequenceLine(lang, len(groupNames)),
-					),
-					opts: clientResetConfirmMarkup(lang),
-				})
+				scopes := core.ScopeState{
+					HasIdentity: true,
+					Identity:    core.UserIdentity{TwitchLogin: "viewer_name", TwitchDisplayName: "Viewer Name"},
+				}
+				view := resetConfirmViewText(lang, scopes, resetScopeViewer, core.CreatorResetKeepMembers, nil, nil)
+				return previewFromShared(buildResetConfirmReplyView(lang, view, resetOriginViewer, resetScopeViewer, core.CreatorResetKeepMembers, false))
 			},
 		},
 		{
@@ -516,16 +502,9 @@ func PreviewScenarios() []PreviewScenario {
 			Group: "Reset",
 			Title: "Confirm creator-data deletion",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(sharedView{
-					text: fmt.Sprintf(
-						i18n.Translate(lang, msgResetConfirmCreatorHTML),
-						twitchProfileHTML("streamer_one", "Streamer One"),
-						resetGroupSection(lang, i18n.Translate(lang, "reset_managed_groups_title"), []string{"VIP Lounge", "Subscriber Chat"}),
-						resetCreatorConsequenceLine(lang, 2),
-						resetCreatorActionSummaryText(lang, core.CreatorResetKickTrackedMembers, 2),
-					),
-					opts: clientResetConfirmMarkup(lang),
-				})
+				scopes := core.ScopeState{HasCreator: true, Creator: sampleCreator()}
+				view := resetConfirmViewText(lang, scopes, resetScopeCreator, core.CreatorResetKickTrackedMembers, nil, []string{"VIP Lounge", "Subscriber Chat"})
+				return previewFromShared(buildResetConfirmReplyView(lang, view, resetOriginCreator, resetScopeCreator, core.CreatorResetKickTrackedMembers, true))
 			},
 		},
 		{
@@ -533,16 +512,9 @@ func PreviewScenarios() []PreviewScenario {
 			Group: "Reset",
 			Title: "Confirm creator-data deletion with no groups",
 			Render: func(lang string) PreviewView {
-				return previewFromShared(sharedView{
-					text: fmt.Sprintf(
-						i18n.Translate(lang, msgResetConfirmCreatorHTML),
-						twitchProfileHTML("streamer_one", "Streamer One"),
-						resetGroupSection(lang, i18n.Translate(lang, "reset_managed_groups_title"), nil),
-						resetCreatorConsequenceLine(lang, 0),
-						resetCreatorActionSummaryText(lang, core.CreatorResetKickTrackedMembers, 0),
-					),
-					opts: clientResetConfirmMarkup(lang),
-				})
+				scopes := core.ScopeState{HasCreator: true, Creator: sampleCreator()}
+				view := resetConfirmViewText(lang, scopes, resetScopeCreator, core.CreatorResetKickTrackedMembers, nil, nil)
+				return previewFromShared(buildResetConfirmReplyView(lang, view, resetOriginCreator, resetScopeCreator, core.CreatorResetKickTrackedMembers, false))
 			},
 		},
 		{
@@ -550,20 +522,14 @@ func PreviewScenarios() []PreviewScenario {
 			Group: "Reset",
 			Title: "Confirm deleting all linked data",
 			Render: func(lang string) PreviewView {
-				viewerGroups := []string{"VIP Lounge", "Patrons", "Insiders"}
-				return previewFromShared(sharedView{
-					text: fmt.Sprintf(
-						i18n.Translate(lang, msgResetConfirmBothHTML),
-						twitchProfileHTML("viewer_name", "Viewer Name"),
-						resetGroupSection(lang, i18n.Translate(lang, "reset_subscriber_groups_title"), viewerGroups),
-						twitchProfileHTML("streamer_one", "Streamer One"),
-						resetGroupSection(lang, i18n.Translate(lang, "reset_managed_groups_title"), []string{"VIP Lounge", "Subscriber Chat"}),
-						resetViewerConsequenceLine(lang, len(viewerGroups)),
-						resetCreatorConsequenceLine(lang, 2),
-						resetCreatorActionSummaryText(lang, core.CreatorResetKickTrackedMembers, 2),
-					),
-					opts: clientResetConfirmMarkup(lang),
-				})
+				scopes := core.ScopeState{
+					HasIdentity: true,
+					Identity:    core.UserIdentity{TwitchLogin: "viewer_name", TwitchDisplayName: "Viewer Name"},
+					HasCreator:  true,
+					Creator:     sampleCreator(),
+				}
+				view := resetConfirmViewText(lang, scopes, resetScopeBoth, core.CreatorResetKickTrackedMembers, []string{"VIP Lounge", "Patrons", "Insiders"}, []string{"VIP Lounge", "Subscriber Chat"})
+				return previewFromShared(buildResetConfirmReplyView(lang, view, resetOriginViewer, resetScopeBoth, core.CreatorResetKickTrackedMembers, true))
 			},
 		},
 		{
@@ -749,20 +715,4 @@ func sampleGroupIssues(lang string) []string {
 func sampleTime(offset time.Duration) time.Time {
 	base := time.Date(2026, time.March, 11, 10, 0, 0, 0, time.UTC)
 	return base.Add(offset)
-}
-
-func buildResetCreatorActionMarkup(lang string) client.MessageOptions {
-	return client.MessageOptions{
-		Markup: tu.InlineKeyboard(
-			tu.InlineKeyboardRow(ui.CallbackButton(i18n.Translate(lang, btnResetKeepMembers), resetActionPickCallback(resetOriginViewer, resetScopeBoth, core.CreatorResetKeepMembers))),
-			tu.InlineKeyboardRow(ui.IconCallbackButton(i18n.Translate(lang, btnResetKickTrackedMembers), resetActionPickCallback(resetOriginViewer, resetScopeBoth, core.CreatorResetKickTrackedMembers), "5258318620722733379").WithStyle("danger")),
-			tu.InlineKeyboardRow(ui.BackButton(i18n.Translate(lang, btnBack), resetBackCallback(resetOriginViewer))),
-		),
-	}
-}
-
-func clientResetConfirmMarkup(lang string) client.MessageOptions {
-	return client.MessageOptions{
-		Markup: ui.ResetConfirmMarkup(lang, "preview:confirm", "preview:back"),
-	}
 }

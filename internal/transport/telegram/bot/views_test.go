@@ -7,6 +7,7 @@ import (
 
 	"imsub/internal/core"
 	"imsub/internal/platform/i18n"
+	"imsub/internal/transport/telegram/ui"
 )
 
 func TestJoinNonEmptyLines(t *testing.T) {
@@ -150,10 +151,10 @@ func TestBuildSubscriptionStartViewIncludesJoinButtons(t *testing.T) {
 	if got, want := len(view.opts.Markup.InlineKeyboard), 3; got != want {
 		t.Fatalf("buildSubscriptionStartView() rows = %d, want %d", got, want)
 	}
-	if got, want := view.opts.Markup.InlineKeyboard[1][0].CallbackData, viewerMainMenuCallbacks().Refresh; got != want {
+	if got, want := view.opts.Markup.InlineKeyboard[1][0].CallbackData, viewerRefreshCallback(); got != want {
 		t.Fatalf("buildSubscriptionStartView() refresh callback = %q, want %q", got, want)
 	}
-	if got, want := view.opts.Markup.InlineKeyboard[2][0].CallbackData, viewerMainMenuCallbacks().Reset; got != want {
+	if got, want := view.opts.Markup.InlineKeyboard[2][0].CallbackData, resetOpenCallback(resetOriginViewer); got != want {
 		t.Fatalf("buildSubscriptionStartView() reset callback = %q, want %q", got, want)
 	}
 }
@@ -167,5 +168,27 @@ func TestBuildGroupBotRemovedOwnerViewEscapesGroupName(t *testing.T) {
 	}
 	if strings.Contains(view.text, "<VIP>") {
 		t.Fatalf("buildGroupBotRemovedOwnerView() text = %q, did not expect raw group name", view.text)
+	}
+}
+
+func TestSharedScreenViewFromHTMLNormalizesHeader(t *testing.T) {
+	t.Parallel()
+
+	view := sharedScreenViewFromHTML(ui.TrustedHTML("✅ <b>Done</b>\nBody line"), nil, nil, false)
+	if got, want := view.text, "✅ <b>Done</b>\n\nBody line"; got != want {
+		t.Fatalf("sharedScreenViewFromHTML() text = %q, want header normalized to %q", got, want)
+	}
+}
+
+func TestSharedScreenViewFromHTMLWithoutHeaderKeepsText(t *testing.T) {
+	t.Parallel()
+
+	const plain = "no header here, just <code>text</code>"
+	view := sharedScreenViewFromHTML(ui.TrustedHTML(plain), nil, nil, true)
+	if view.text != plain {
+		t.Fatalf("sharedScreenViewFromHTML() text = %q, want unchanged %q", view.text, plain)
+	}
+	if !view.opts.DisablePreview {
+		t.Fatal("sharedScreenViewFromHTML() DisablePreview = false, want true")
 	}
 }

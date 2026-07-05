@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -23,8 +24,6 @@ import (
 const (
 	msgErrCreatorLink                      = "err_creator_link"
 	msgCreatorRegisterInfo                 = "creator_register_info"
-	msgCreatorRegisteredNoGroup            = "creator_registered_no_group_html"
-	msgCreatorRegistered                   = "creator_registered_html"
 	msgCreatorRegisteredLinks              = "creator_registered_links"
 	msgCreatorAuthHealthy                  = "creator_auth_healthy"
 	msgCreatorAuthReconnect                = "creator_auth_reconnect_required"
@@ -33,13 +32,6 @@ const (
 	msgCreatorGroupsNone                   = "creator_groups_none"
 	msgCreatorReconnectInfo                = "creator_reconnect_info"
 	msgCreatorReconnectMismatch            = "creator_reconnect_mismatch"
-	msgCreatorManageGroupsHTML             = "creator_manage_groups_html"
-	msgCreatorGroupSettingsHTML            = "creator_group_settings_html"
-	msgCreatorGroupPolicyHTML              = "creator_group_policy_picker_html"
-	msgCreatorGroupPolicyConfirm           = "creator_group_policy_confirm_html"
-	msgCreatorGroupLanguageHTML            = "creator_group_language_picker_html"
-	msgCreatorGroupMemberTagsHTML          = "creator_group_member_tags_confirm_html"
-	msgCreatorUnregisterConfirm            = "creator_unregister_confirm_html"
 	msgCreatorGroupUnregistered            = "creator_group_unregistered_html"
 	msgCreatorGroupPolicyUpdated           = "creator_group_policy_updated_html"
 	msgCreatorGroupLanguageUpdated         = "creator_group_language_updated_html"
@@ -48,7 +40,6 @@ const (
 	msgCreatorGroupMemberTagsEnableNotice  = "creator_group_member_tags_enable_notice_html"
 	msgCreatorGroupMemberTagsDisableNotice = "creator_group_member_tags_disable_notice_html"
 	msgCreatorGroupMemberTagsNeedTags      = "creator_group_member_tags_need_tags_html"
-	msgCreatorGracePickerHTML              = "creator_grace_picker_html"
 	msgCreatorGraceEnabled                 = "creator_grace_enabled"
 	msgCreatorGraceDisabled                = "creator_grace_disabled"
 	msgCreatorGraceUpdated                 = "creator_grace_updated"
@@ -56,6 +47,32 @@ const (
 	msgCreatorBlocklistDisabled            = "creator_blocklist_disabled"
 	msgCreatorBlocklistOnNotice            = "creator_blocklist_on_notice"
 	msgCreatorBlocklistOffNotice           = "creator_blocklist_off_notice"
+
+	msgCreatorRegisteredTitle         = "creator_registered_title"
+	msgCreatorRegisteredBody          = "creator_registered_body"
+	msgCreatorRegisteredNoGroupTitle  = "creator_registered_no_group_title"
+	msgCreatorRegisteredNoGroupBody   = "creator_registered_no_group_body"
+	msgCreatorManageGroupsTitle       = "creator_manage_groups_title"
+	msgCreatorManageGroupsBody        = "creator_manage_groups_body"
+	msgCreatorGroupSettingsTitle      = "creator_group_settings_title"
+	msgCreatorGroupPolicyTitle        = "creator_group_policy_title"
+	msgCreatorGroupPolicyBody         = "creator_group_policy_body"
+	msgCreatorGroupPolicyConfirmTitle = "creator_group_policy_confirm_title"
+	msgCreatorGroupLanguageTitle      = "creator_group_language_title"
+	msgCreatorGroupLanguageBody       = "creator_group_language_body"
+	msgCreatorGroupMemberTagsTitle    = "creator_group_member_tags_title"
+	msgCreatorGroupMemberTagsBody     = "creator_group_member_tags_body"
+	msgCreatorUnregisterTitle         = "creator_unregister_title"
+	msgCreatorUnregisterBody          = "creator_unregister_body"
+	msgCreatorGraceTitle              = "creator_grace_title"
+	msgCreatorGraceBody               = "creator_grace_body"
+	msgCreatorSectionManagedGroups    = "creator_section_managed_groups"
+	labelGroup                        = "label_group"
+	labelCurrentPolicy                = "label_current_policy"
+	labelMemberTags                   = "label_member_tags"
+	labelCurrentSetting               = "label_current_setting"
+	labelNewPolicy                    = "label_new_policy"
+	labelAccount                      = "label_account"
 
 	btnRegisterCreatorOpen = "btn_register_creator_open"
 	btnReconnectCreator    = "btn_reconnect_creator"
@@ -72,6 +89,8 @@ const (
 	btnUnregisterGroup     = "btn_unregister_group"
 	labelCurrentLanguage   = "label_current_language"
 )
+
+var htmlTagPattern = regexp.MustCompile(`<[^>]+>`)
 
 // onCreatorCommand handles /creator by showing the creator home/status flow.
 func (c *Bot) onCreatorCommand(ctx *tghandler.Context, msg telego.Message) error {
@@ -338,13 +357,6 @@ func (c *Bot) sendCreatorReconnectPromptFallback(ctx context.Context, telegramUs
 		view := buildCreatorLinkErrorView(lang)
 		c.sendMsg(ctx, telegramUserID, view.text, &view.opts)
 	}
-}
-
-func creatorEventSubStatusText(status core.Status, lang string) string {
-	if status.LastSyncAt.IsZero() {
-		return ""
-	}
-	return fmt.Sprintf(i18n.Translate(lang, "creator_last_sync_at"), telegramDateTimeHTML(status.LastSyncAt, "Dt"))
 }
 
 func creatorSyncDisabledText(lang string) string {
@@ -910,131 +922,249 @@ func buildCreatorPromptView(lang, authURL string, reconnect bool) sharedView {
 	}
 }
 
+func splitScreenText(text string) (emoji, title, body string) {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return "", "", ""
+	}
+	headerLine, rest, hasBody := strings.Cut(text, "\n\n")
+	headerLine = strings.TrimSpace(headerLine)
+	if hasBody {
+		body = strings.TrimSpace(rest)
+	}
+	title = headerLine
+	if before, after, found := strings.Cut(headerLine, "<b>"); found {
+		emoji = strings.TrimSpace(before)
+		if boldTitle, headerBody, closed := strings.Cut(after, "</b>"); closed {
+			title = boldTitle
+			if headerBody = strings.TrimSpace(headerBody); headerBody != "" {
+				body = joinNonEmptySections(textSection{text: headerBody}, textSection{text: body})
+			}
+		}
+	}
+	title = htmlTagPattern.ReplaceAllString(title, "")
+	return strings.TrimSpace(emoji), strings.TrimSpace(title), body
+}
+
+func plainTranslatedText(lang, key string) string {
+	return strings.TrimSpace(i18n.Translate(lang, key))
+}
+
+func creatorDetailItem(text string) (ui.DetailItem, bool) {
+	raw := strings.TrimSpace(text)
+	if raw == "" {
+		return ui.DetailItem{}, false
+	}
+	raw = strings.TrimPrefix(raw, "• ")
+	rawLabel, rawValue, found := strings.Cut(raw, ":")
+	if !found {
+		return ui.DetailItem{ValueHTML: ui.TrustedHTML(raw)}, true
+	}
+	label := strings.TrimSpace(htmlTagPattern.ReplaceAllString(rawLabel, ""))
+	value := strings.TrimSpace(rawValue)
+	if label == "" && value == "" {
+		return ui.DetailItem{}, false
+	}
+	if label != "" {
+		label += ":"
+	}
+	return ui.DetailItem{Label: label, ValueHTML: ui.TrustedHTML(value)}, true
+}
+
 func buildCreatorStatusView(lang, reconnectURL, botUsername string, creator core.Creator, status core.Status, groups []core.ManagedGroup) sharedView {
 	profileDisplay := ui.TwitchProfileHTML(creator.TwitchLogin, creator.TwitchDisplayName)
-	groupLines := CreatorGroupLines(lang, groups)
-	eventSubStatus := creatorEventSubStatusText(status, lang)
-	authStatus := creatorAuthStatusText(status, lang)
-	statusDetails := creatorStatusDetailsText(status, lang)
+	requirements := creatorStatusRequirements(lang, status, groups)
 	isActive := len(groups) > 0
-	blocklistStatus := creatorBlocklistStatusText(lang, creator, isActive)
-	graceStatus := creatorGraceStatusText(lang, creator, isActive)
-	summarySections := []textSection{
-		creatorDashboardSection(lang, "creator_dashboard_setup_status", authStatus, eventSubStatus, statusDetails),
-		creatorDashboardSection(lang, "creator_dashboard_settings", graceStatus, blocklistStatus),
-		creatorDashboardSection(lang, "creator_dashboard_current_data", creatorCacheSummaryText(status, lang)),
-	}
-	summaryBlock := joinNonEmptySections(summarySections...)
-	statusMenuRows := creatorStatusMenuRows(lang, groups)
-
-	if len(groups) == 0 {
-		noGroupSummaryBlock := joinNonEmptySections(
-			creatorDashboardSection(lang, "creator_dashboard_setup_status", authStatus, creatorSyncDisabledText(lang), statusDetails),
-		)
-		return sharedView{
-			text: fmt.Sprintf(
-				i18n.Translate(lang, msgCreatorRegisteredNoGroup),
-				profileDisplay,
-				noGroupSummaryBlock,
-			),
-			opts: client.MessageOptions{
-				DisablePreview: true,
-				Markup:         ui.WithCreatorStatusMenu(lang, reconnectURL, creatorStatusMenuCallbacks(false, false, false, false), statusMenuRows...),
-			},
+	managedGroupsBody := CreatorGroupLines(lang, groups)
+	detailItems := []ui.DetailItem{{
+		Label:     i18n.Translate(lang, labelAccount) + ":",
+		ValueHTML: ui.TrustedHTML(profileDisplay),
+	}}
+	for _, line := range []string{
+		creatorGraceStatusText(lang, creator, isActive),
+		creatorBlocklistStatusText(lang, creator, isActive),
+	} {
+		if item, ok := creatorDetailItem(line); ok {
+			detailItems = append(detailItems, item)
 		}
+	}
+	for line := range strings.SplitSeq(creatorCacheSummaryText(status, lang), "\n") {
+		if item, ok := creatorDetailItem(line); ok {
+			detailItems = append(detailItems, item)
+		}
+	}
+	var extraRows []ui.ActionItem
+	if len(groups) == 1 {
+		label := fmt.Sprintf(i18n.Translate(lang, btnManageGroup), singleManagedGroupLabel(groups[0]))
+		extraRows = append(extraRows, creatorGroupedActionItem(label, creatorManageGroupsCallback()))
+	}
+	menuItems := make([]ui.ActionItem, 0, 5)
+	if strings.TrimSpace(reconnectURL) != "" {
+		menuItems = append(menuItems, ui.ActionItem{
+			Kind:        ui.ActionKindURL,
+			Label:       i18n.Translate(lang, "btn_reconnect_creator"),
+			Target:      reconnectURL,
+			IconEmojiID: "5257991477358763590",
+			Style:       "primary",
+			Available:   true,
+		})
+	} else {
+		menuItems = append(menuItems, creatorIconActionItem(i18n.Translate(lang, "btn_refresh"), creatorRefreshCallback(), "5258420634785947640"))
+	}
+	if len(groups) > 1 {
+		menuItems = append(menuItems, creatorIconActionItem(i18n.Translate(lang, "btn_manage_groups"), creatorManageGroupsCallback(), "5258096772776991776"))
+	}
+	if len(groups) > 0 {
+		grace := creatorIconActionItem(i18n.Translate(lang, "btn_grace_period"), creatorGraceOpenCallback(), "5258318620722733379")
+		if creator.SubscriptionEndGrace.Enabled() {
+			grace.Style = "success"
+		}
+		menuItems = append(menuItems, grace)
+		blocklist := creatorIconActionItem(i18n.Translate(lang, "btn_blocklist_sync"), creatorBlocklistToggleCallback(), "5275969776668134187")
+		if creator.BlocklistSyncEnabled {
+			blocklist.Style = "success"
+		}
+		menuItems = append(menuItems, blocklist)
+	}
+	menuItems = append(menuItems, creatorIconActionItem(i18n.Translate(lang, "btn_reset"), resetOpenCallback(resetOriginCreator), "5258096772776991776"))
+
+	bodySections := []ui.BodySection{{
+		Title:    plainTranslatedText(lang, msgCreatorSectionManagedGroups),
+		TextHTML: ui.TrustedHTML(managedGroupsBody),
+	}}
+	if len(groups) == 0 {
+		return sharedViewFromRendered(ui.RenderScreen(ui.Screen{
+			Header: ui.HeaderSection{
+				Emoji:    "⚠️",
+				Title:    i18n.Translate(lang, msgCreatorRegisteredNoGroupTitle),
+				BodyHTML: ui.TrustedHTML(i18n.Translate(lang, msgCreatorRegisteredNoGroupBody)),
+			},
+			Requirements: ui.RequirementsSection{Title: plainTranslatedText(lang, "creator_dashboard_setup_status"), Items: requirements},
+			Details:      ui.DetailsSection{Title: plainTranslatedText(lang, "creator_dashboard_current_data"), Items: detailItems},
+			Body:         bodySections,
+			Actions: []ui.ActionGroup{
+				{Items: extraRows},
+				{Items: menuItems},
+			},
+			DisablePreview: true,
+		}))
 	}
 
 	if finalStepBlock := creatorFinalStepText(lang, botUsername); finalStepBlock != "" {
-		summaryBlock = joinNonEmptySections(textSection{text: summaryBlock}, textSection{text: finalStepBlock})
+		managedGroupsBody = joinNonEmptyLines(managedGroupsBody, "", finalStepBlock)
 	}
+	bodySections[0].TextHTML = ui.TrustedHTML(managedGroupsBody)
 
-	return sharedView{
-		text: fmt.Sprintf(
-			i18n.Translate(lang, msgCreatorRegistered),
-			profileDisplay,
-			summaryBlock,
-			groupLines,
-		),
-		opts: client.MessageOptions{
-			DisablePreview: true,
-			Markup:         ui.WithCreatorStatusMenu(lang, reconnectURL, creatorStatusMenuCallbacks(len(groups) > 1, true, creator.SubscriptionEndGrace.Enabled(), creator.BlocklistSyncEnabled), statusMenuRows...),
+	return sharedViewFromRendered(ui.RenderScreen(ui.Screen{
+		Header: ui.HeaderSection{
+			Emoji:    "✅",
+			Title:    i18n.Translate(lang, msgCreatorRegisteredTitle),
+			BodyHTML: ui.TrustedHTML(i18n.Translate(lang, msgCreatorRegisteredBody)),
 		},
-	}
+		Requirements: ui.RequirementsSection{Title: plainTranslatedText(lang, "creator_dashboard_setup_status"), Items: requirements},
+		Details:      ui.DetailsSection{Title: plainTranslatedText(lang, "creator_dashboard_current_data"), Items: detailItems},
+		Body:         bodySections,
+		Actions: []ui.ActionGroup{
+			{Items: extraRows},
+			{Items: menuItems},
+		},
+		DisablePreview: true,
+	}))
 }
 
-func creatorDashboardSection(lang, titleKey string, lines ...string) textSection {
-	body := joinNonEmptyLines(lines...)
-	if strings.TrimSpace(body) == "" {
-		return textSection{}
+func creatorStatusRequirements(lang string, status core.Status, groups []core.ManagedGroup) []ui.RequirementItem {
+	items := make([]ui.RequirementItem, 0, 3)
+	authLine := creatorAuthStatusText(status, lang)
+	authItem, ok := creatorDetailItem(authLine)
+	switch {
+	case status.Auth == core.CreatorAuthReconnectRequired && ok:
+		items = append(items, ui.RequirementItem{
+			Label:      strings.TrimSuffix(authItem.Label, ":"),
+			State:      ui.RequirementStateBlocked,
+			DetailHTML: ui.TrustedHTML(joinNonEmptyLines(string(authItem.ValueHTML), creatorStatusDetailsText(status, lang))),
+		})
+	case ok:
+		items = append(items, ui.RequirementItem{
+			Label:      strings.TrimSuffix(authItem.Label, ":"),
+			State:      ui.RequirementStateReady,
+			DetailHTML: authItem.ValueHTML,
+		})
 	}
-	return textSection{text: joinNonEmptyLines(i18n.Translate(lang, titleKey), body)}
+	if len(groups) == 0 {
+		items = append(items, ui.RequirementItem{
+			Label:      plainTranslatedText(lang, msgCreatorSectionManagedGroups),
+			State:      ui.RequirementStateAttention,
+			DetailHTML: ui.TrustedHTML(joinNonEmptyLines(i18n.Translate(lang, msgCreatorGroupsNone), creatorSyncDisabledText(lang))),
+		})
+	}
+	return items
 }
 
 func buildCreatorGracePickerView(lang string, creator core.Creator) sharedView {
-	return sharedView{
-		text: fmt.Sprintf(
-			i18n.Translate(lang, msgCreatorGracePickerHTML),
-			html.EscapeString(formatCreatorGraceValue(lang, creator.SubscriptionEndGrace)),
-		),
-		opts: client.MessageOptions{
-			Markup: tu.InlineKeyboard(
-				tu.InlineKeyboardRow(ui.CallbackButton(i18n.Translate(lang, btnGracePeriodOff), creatorGraceExecuteCallback(core.SubscriptionEndGraceOff))),
-				tu.InlineKeyboardRow(ui.CallbackButton(i18n.Translate(lang, btnGracePeriod24h), creatorGraceExecuteCallback(core.SubscriptionEndGrace24h))),
-				tu.InlineKeyboardRow(ui.CallbackButton(i18n.Translate(lang, btnGracePeriod48h), creatorGraceExecuteCallback(core.SubscriptionEndGrace48h))),
-				tu.InlineKeyboardRow(ui.CallbackButton(i18n.Translate(lang, btnGracePeriod72h), creatorGraceExecuteCallback(core.SubscriptionEndGrace72h))),
-				tu.InlineKeyboardRow(ui.BackButton(i18n.Translate(lang, btnBack), creatorMenuCallback())),
-			),
+	return sharedViewFromRendered(ui.RenderScreen(ui.Screen{
+		Header: ui.HeaderSection{
+			Emoji:    "⏳",
+			Title:    i18n.Translate(lang, msgCreatorGraceTitle),
+			BodyHTML: ui.TrustedHTML(i18n.Translate(lang, msgCreatorGraceBody)),
 		},
-	}
+		Details: ui.DetailsSection{Title: plainTranslatedText(lang, "creator_dashboard_current_data"), Items: []ui.DetailItem{{
+			Label:     i18n.Translate(lang, labelCurrentSetting) + ":",
+			ValueHTML: ui.EscapeHTML(formatCreatorGraceValue(lang, creator.SubscriptionEndGrace)),
+		}}},
+		Actions: []ui.ActionGroup{
+			{Items: []ui.ActionItem{creatorCallbackActionItem(i18n.Translate(lang, btnGracePeriodOff), creatorGraceExecuteCallback(core.SubscriptionEndGraceOff))}},
+			{Items: []ui.ActionItem{creatorCallbackActionItem(i18n.Translate(lang, btnGracePeriod24h), creatorGraceExecuteCallback(core.SubscriptionEndGrace24h))}},
+			{Items: []ui.ActionItem{creatorCallbackActionItem(i18n.Translate(lang, btnGracePeriod48h), creatorGraceExecuteCallback(core.SubscriptionEndGrace48h))}},
+			{Items: []ui.ActionItem{creatorCallbackActionItem(i18n.Translate(lang, btnGracePeriod72h), creatorGraceExecuteCallback(core.SubscriptionEndGrace72h))}},
+		},
+		Navigation: []ui.NavigationItem{{Label: i18n.Translate(lang, btnBack), Target: creatorMenuCallback()}},
+	}))
 }
 
 func buildCreatorManagedGroupsView(lang string, groups []core.ManagedGroup, notice string) sharedView {
-	text := i18n.Translate(lang, msgCreatorManageGroupsHTML)
-	if strings.TrimSpace(notice) != "" {
-		text = notice + "\n\n" + text
-	}
-
-	rows := make([][]telego.InlineKeyboardButton, 0, len(groups)+1)
+	rows := make([]ui.ActionItem, 0, len(groups))
 	nameCounts := creatorManagedGroupNameCounts(groups)
 	for _, group := range groups {
-		rows = append(rows, tu.InlineKeyboardRow(
-			ui.GroupButton(creatorManagedGroupButtonLabel(group, nameCounts), creatorGroupPickCallback(group.ChatID)),
-		))
+		rows = append(rows, creatorGroupedActionItem(creatorManagedGroupButtonLabel(group, nameCounts), creatorGroupPickCallback(group.ChatID)))
 	}
-	rows = append(rows, tu.InlineKeyboardRow(ui.BackButton(i18n.Translate(lang, btnBack), creatorMenuCallback())))
-
-	return sharedView{
-		text: text,
-		opts: client.MessageOptions{
-			Markup: tu.InlineKeyboard(rows...),
+	actionGroups := make([]ui.ActionGroup, 0, len(rows))
+	for _, row := range rows {
+		actionGroups = append(actionGroups, ui.ActionGroup{Items: []ui.ActionItem{row}})
+	}
+	return sharedViewFromRendered(ui.RenderScreen(ui.Screen{
+		Header: ui.HeaderSection{
+			NoticeHTML: ui.TrustedHTML(notice),
+			Emoji:      "🗂️",
+			Title:      i18n.Translate(lang, msgCreatorManageGroupsTitle),
+			BodyHTML:   ui.TrustedHTML(i18n.Translate(lang, msgCreatorManageGroupsBody)),
 		},
-	}
+		Actions:    actionGroups,
+		Navigation: []ui.NavigationItem{{Label: i18n.Translate(lang, btnBack), Target: creatorMenuCallback()}},
+	}))
 }
 
 func buildCreatorGroupSettingsView(lang string, group core.ManagedGroup, backCallback, notice string) sharedView {
 	groupLabel := singleManagedGroupLabel(group)
-	text := fmt.Sprintf(
-		i18n.Translate(lang, msgCreatorGroupSettingsHTML),
-		html.EscapeString(groupLabel),
-		html.EscapeString(formatCreatorGroupPolicyValue(lang, group.Policy)),
-		html.EscapeString(formatGroupLanguageValue(lang, group.Language)),
-		html.EscapeString(formatCreatorGroupMemberTagsState(lang, group.MemberTagSyncEnabled)),
-	)
-	if strings.TrimSpace(notice) != "" {
-		text = notice + "\n\n" + text
-	}
-	return sharedView{
-		text: text,
-		opts: client.MessageOptions{
-			Markup: tu.InlineKeyboard(
-				tu.InlineKeyboardRow(ui.IconCallbackButton(i18n.Translate(lang, btnChangeGroupPolicy), creatorGroupPolicyOpenCallback(group.ChatID), "5258318620722733379")),
-				tu.InlineKeyboardRow(ui.IconCallbackButton(i18n.Translate(lang, btnChangeGroupLanguage), creatorGroupLanguageOpenCallback(group.ChatID), "5879585266426973039")),
-				tu.InlineKeyboardRow(groupMemberTagButton(lang, group)),
-				tu.InlineKeyboardRow(ui.UnregisterButton(i18n.Translate(lang, btnUnregisterGroup), creatorGroupConfirmCallback(group.ChatID))),
-				tu.InlineKeyboardRow(ui.BackButton(i18n.Translate(lang, btnBack), backCallback)),
-			),
+	return sharedViewFromRendered(ui.RenderScreen(ui.Screen{
+		Header: ui.HeaderSection{
+			NoticeHTML: ui.TrustedHTML(notice),
+			Emoji:      "⚙️",
+			Title:      i18n.Translate(lang, msgCreatorGroupSettingsTitle),
 		},
-	}
+		Details: ui.DetailsSection{Title: plainTranslatedText(lang, "creator_dashboard_current_data"), Items: []ui.DetailItem{
+			{Label: i18n.Translate(lang, labelGroup) + ":", ValueHTML: ui.EscapeHTML(groupLabel)},
+			{Label: i18n.Translate(lang, labelCurrentPolicy) + ":", ValueHTML: ui.EscapeHTML(formatCreatorGroupPolicyValue(lang, group.Policy))},
+			{Label: i18n.Translate(lang, labelCurrentLanguage) + ":", ValueHTML: ui.EscapeHTML(formatGroupLanguageValue(lang, group.Language))},
+			{Label: i18n.Translate(lang, labelMemberTags) + ":", ValueHTML: ui.EscapeHTML(formatCreatorGroupMemberTagsState(lang, group.MemberTagSyncEnabled))},
+		}},
+		Actions: []ui.ActionGroup{
+			{Items: []ui.ActionItem{creatorIconActionItem(i18n.Translate(lang, btnChangeGroupPolicy), creatorGroupPolicyOpenCallback(group.ChatID), "5258318620722733379")}},
+			{Items: []ui.ActionItem{creatorIconActionItem(i18n.Translate(lang, btnChangeGroupLanguage), creatorGroupLanguageOpenCallback(group.ChatID), "5879585266426973039")}},
+			{Items: []ui.ActionItem{creatorGroupMemberTagActionItem(lang, group)}},
+			{Items: []ui.ActionItem{creatorDangerActionItem(i18n.Translate(lang, btnUnregisterGroup), creatorGroupConfirmCallback(group.ChatID), "5258084656674250503")}},
+		},
+		Navigation: []ui.NavigationItem{{Label: i18n.Translate(lang, btnBack), Target: backCallback}},
+	}))
 }
 
 func buildCreatorGroupMemberTagsConfirmView(lang string, group core.ManagedGroup, notice string) sharedView {
@@ -1045,101 +1175,152 @@ func buildCreatorGroupMemberTagsConfirmView(lang string, group core.ManagedGroup
 		toggle = "off"
 		buttonKey = btnMemberTagSyncDisable
 	}
-	text := fmt.Sprintf(
-		i18n.Translate(lang, msgCreatorGroupMemberTagsHTML),
-		html.EscapeString(groupLabel),
-		html.EscapeString(formatCreatorGroupMemberTagsState(lang, group.MemberTagSyncEnabled)),
-	)
+	requirements := []ui.RequirementItem(nil)
 	if strings.TrimSpace(notice) != "" {
-		parts := strings.SplitN(text, "\n\n", 2)
-		if len(parts) == 2 {
-			text = notice + "\n\n" + parts[1]
-		} else {
-			text = notice
-		}
+		_, requirementTitle, requirementBody := splitScreenText(notice)
+		requirements = append(requirements, ui.RequirementItem{
+			Label:      requirementTitle,
+			State:      ui.RequirementStateBlocked,
+			DetailHTML: ui.TrustedHTML(requirementBody),
+		})
 	}
-	return sharedView{
-		text: text,
-		opts: client.MessageOptions{
-			Markup: tu.InlineKeyboard(
-				tu.InlineKeyboardRow(ui.IconCallbackButton(i18n.Translate(lang, buttonKey), creatorGroupMemberTagsExecuteCallback(group.ChatID, toggle), "5296348778012361146")),
-				tu.InlineKeyboardRow(ui.BackButton(i18n.Translate(lang, btnBack), creatorGroupPickCallback(group.ChatID))),
-			),
+	return sharedViewFromRendered(ui.RenderScreen(ui.Screen{
+		Header: ui.HeaderSection{
+			Emoji:    "🏷️",
+			Title:    i18n.Translate(lang, msgCreatorGroupMemberTagsTitle),
+			BodyHTML: ui.TrustedHTML(i18n.Translate(lang, msgCreatorGroupMemberTagsBody)),
 		},
-	}
+		Requirements: ui.RequirementsSection{Title: plainTranslatedText(lang, "creator_dashboard_setup_status"), Items: requirements},
+		Details: ui.DetailsSection{Title: plainTranslatedText(lang, "creator_dashboard_current_data"), Items: []ui.DetailItem{
+			{Label: i18n.Translate(lang, labelGroup) + ":", ValueHTML: ui.EscapeHTML(groupLabel)},
+			{Label: i18n.Translate(lang, labelCurrentSetting) + ":", ValueHTML: ui.EscapeHTML(formatCreatorGroupMemberTagsState(lang, group.MemberTagSyncEnabled))},
+		}},
+		Actions: []ui.ActionGroup{
+			{Items: []ui.ActionItem{func() ui.ActionItem {
+				item := creatorIconActionItem(i18n.Translate(lang, buttonKey), creatorGroupMemberTagsExecuteCallback(group.ChatID, toggle), "5296348778012361146")
+				item.Available = strings.TrimSpace(notice) == ""
+				return item
+			}()}},
+		},
+		Navigation: []ui.NavigationItem{{Label: i18n.Translate(lang, btnBack), Target: creatorGroupPickCallback(group.ChatID)}},
+	}))
 }
 
 func buildCreatorGroupLanguagePickerView(lang string, group core.ManagedGroup) sharedView {
 	groupLabel := singleManagedGroupLabel(group)
-	return sharedView{
-		text: fmt.Sprintf(
-			i18n.Translate(lang, msgCreatorGroupLanguageHTML),
-			html.EscapeString(groupLabel),
-			html.EscapeString(formatGroupLanguageValue(lang, group.Language)),
-		),
-		opts: client.MessageOptions{
-			Markup: tu.InlineKeyboard(
-				tu.InlineKeyboardRow(ui.CallbackButton(i18n.Translate(lang, btnLanguageEnglish), creatorGroupLanguageExecuteCallback(group.ChatID, "en"))),
-				tu.InlineKeyboardRow(ui.CallbackButton(i18n.Translate(lang, btnLanguageItalian), creatorGroupLanguageExecuteCallback(group.ChatID, "it"))),
-				tu.InlineKeyboardRow(ui.BackButton(i18n.Translate(lang, btnBack), creatorGroupPickCallback(group.ChatID))),
-			),
+	return sharedViewFromRendered(ui.RenderScreen(ui.Screen{
+		Header: ui.HeaderSection{
+			Emoji:    "🌐",
+			Title:    i18n.Translate(lang, msgCreatorGroupLanguageTitle),
+			BodyHTML: ui.TrustedHTML(i18n.Translate(lang, msgCreatorGroupLanguageBody)),
 		},
-	}
+		Details: ui.DetailsSection{Title: plainTranslatedText(lang, "creator_dashboard_current_data"), Items: []ui.DetailItem{
+			{Label: i18n.Translate(lang, labelGroup) + ":", ValueHTML: ui.EscapeHTML(groupLabel)},
+			{Label: i18n.Translate(lang, labelCurrentLanguage) + ":", ValueHTML: ui.EscapeHTML(formatGroupLanguageValue(lang, group.Language))},
+		}},
+		Actions: []ui.ActionGroup{
+			{Items: []ui.ActionItem{creatorCallbackActionItem(i18n.Translate(lang, btnLanguageEnglish), creatorGroupLanguageExecuteCallback(group.ChatID, "en"))}},
+			{Items: []ui.ActionItem{creatorCallbackActionItem(i18n.Translate(lang, btnLanguageItalian), creatorGroupLanguageExecuteCallback(group.ChatID, "it"))}},
+		},
+		Navigation: []ui.NavigationItem{{Label: i18n.Translate(lang, btnBack), Target: creatorGroupPickCallback(group.ChatID)}},
+	}))
 }
 
 func buildCreatorGroupPolicyPickerView(lang string, group core.ManagedGroup) sharedView {
 	groupLabel := singleManagedGroupLabel(group)
-	return sharedView{
-		text: fmt.Sprintf(
-			i18n.Translate(lang, msgCreatorGroupPolicyHTML),
-			html.EscapeString(groupLabel),
-			html.EscapeString(formatCreatorGroupPolicyValue(lang, group.Policy)),
-		),
-		opts: client.MessageOptions{
-			Markup: tu.InlineKeyboard(
-				tu.InlineKeyboardRow(ui.IconCallbackButton(i18n.Translate(lang, btnGroupPolicyObserve), creatorGroupPolicyPickCallback(group.ChatID, core.GroupPolicyObserve), "5253959125838090076")),
-				tu.InlineKeyboardRow(ui.IconCallbackButton(i18n.Translate(lang, btnGroupPolicyObserveWarn), creatorGroupPolicyPickCallback(group.ChatID, core.GroupPolicyObserveWarn), "5253959125838090076")),
-				tu.InlineKeyboardRow(ui.IconCallbackButton(i18n.Translate(lang, btnGroupPolicyKick), creatorGroupPolicyPickCallback(group.ChatID, core.GroupPolicyKick), "5258318620722733379").WithStyle("danger")),
-				tu.InlineKeyboardRow(ui.IconCallbackButton(i18n.Translate(lang, btnGroupPolicyGrace), creatorGroupPolicyPickCallback(group.ChatID, core.GroupPolicyGraceWeek), "5258123337149717894").WithStyle("danger")),
-				tu.InlineKeyboardRow(ui.BackButton(i18n.Translate(lang, btnBack), creatorGroupPickCallback(group.ChatID))),
-			),
+	return sharedViewFromRendered(ui.RenderScreen(ui.Screen{
+		Header: ui.HeaderSection{
+			Emoji:    "🛡️",
+			Title:    i18n.Translate(lang, msgCreatorGroupPolicyTitle),
+			BodyHTML: ui.TrustedHTML(i18n.Translate(lang, msgCreatorGroupPolicyBody)),
 		},
-	}
+		Details: ui.DetailsSection{Title: plainTranslatedText(lang, "creator_dashboard_current_data"), Items: []ui.DetailItem{
+			{Label: i18n.Translate(lang, labelGroup) + ":", ValueHTML: ui.EscapeHTML(groupLabel)},
+			{Label: i18n.Translate(lang, labelCurrentPolicy) + ":", ValueHTML: ui.EscapeHTML(formatCreatorGroupPolicyValue(lang, group.Policy))},
+		}},
+		Actions: []ui.ActionGroup{
+			{Items: []ui.ActionItem{creatorIconActionItem(i18n.Translate(lang, btnGroupPolicyObserve), creatorGroupPolicyPickCallback(group.ChatID, core.GroupPolicyObserve), "5253959125838090076")}},
+			{Items: []ui.ActionItem{creatorIconActionItem(i18n.Translate(lang, btnGroupPolicyObserveWarn), creatorGroupPolicyPickCallback(group.ChatID, core.GroupPolicyObserveWarn), "5253959125838090076")}},
+			{Items: []ui.ActionItem{creatorDangerActionItem(i18n.Translate(lang, btnGroupPolicyKick), creatorGroupPolicyPickCallback(group.ChatID, core.GroupPolicyKick), "5258318620722733379")}},
+			{Items: []ui.ActionItem{creatorDangerActionItem(i18n.Translate(lang, btnGroupPolicyGrace), creatorGroupPolicyPickCallback(group.ChatID, core.GroupPolicyGraceWeek), "5258123337149717894")}},
+		},
+		Navigation: []ui.NavigationItem{{Label: i18n.Translate(lang, btnBack), Target: creatorGroupPickCallback(group.ChatID)}},
+	}))
 }
 
 func buildCreatorGroupPolicyConfirmView(lang string, group core.ManagedGroup, selectedPolicy core.GroupPolicy) sharedView {
 	groupLabel := singleManagedGroupLabel(group)
-	return sharedView{
-		text: fmt.Sprintf(
-			i18n.Translate(lang, msgCreatorGroupPolicyConfirm),
-			html.EscapeString(groupLabel),
-			html.EscapeString(formatCreatorGroupPolicyValue(lang, group.Policy)),
-			html.EscapeString(formatCreatorGroupPolicyValue(lang, selectedPolicy)),
-		),
-		opts: client.MessageOptions{
-			Markup: tu.InlineKeyboard(
-				tu.InlineKeyboardRow(ui.CallbackButton(i18n.Translate(lang, btnConfirmGroupPolicy), creatorGroupPolicyExecuteCallback(group.ChatID, selectedPolicy))),
-				tu.InlineKeyboardRow(ui.BackButton(i18n.Translate(lang, btnBack), creatorGroupPolicyOpenCallback(group.ChatID))),
-			),
+	return sharedViewFromRendered(ui.RenderScreen(ui.Screen{
+		Header: ui.HeaderSection{
+			Emoji: "⚠️",
+			Title: i18n.Translate(lang, msgCreatorGroupPolicyConfirmTitle),
 		},
-	}
+		Details: ui.DetailsSection{Title: plainTranslatedText(lang, "creator_dashboard_current_data"), Items: []ui.DetailItem{
+			{Label: i18n.Translate(lang, labelGroup) + ":", ValueHTML: ui.EscapeHTML(groupLabel)},
+			{Label: i18n.Translate(lang, labelCurrentPolicy) + ":", ValueHTML: ui.EscapeHTML(formatCreatorGroupPolicyValue(lang, group.Policy))},
+			{Label: i18n.Translate(lang, labelNewPolicy) + ":", ValueHTML: ui.EscapeHTML(formatCreatorGroupPolicyValue(lang, selectedPolicy))},
+		}},
+		Actions: []ui.ActionGroup{
+			{Items: []ui.ActionItem{creatorCallbackActionItem(i18n.Translate(lang, btnConfirmGroupPolicy), creatorGroupPolicyExecuteCallback(group.ChatID, selectedPolicy))}},
+		},
+		Navigation: []ui.NavigationItem{{Label: i18n.Translate(lang, btnBack), Target: creatorGroupPolicyOpenCallback(group.ChatID)}},
+	}))
 }
 
 func buildCreatorGroupUnregisterConfirmView(lang string, group core.ManagedGroup, backCallback string) sharedView {
 	groupLabel := singleManagedGroupLabel(group)
-	return sharedView{
-		text: fmt.Sprintf(
-			i18n.Translate(lang, msgCreatorUnregisterConfirm),
-			html.EscapeString(groupLabel),
-		),
-		opts: client.MessageOptions{
-			Markup: tu.InlineKeyboard(
-				tu.InlineKeyboardRow(ui.CallbackButton(i18n.Translate(lang, btnResetKeepMembers), creatorGroupExecuteWithActionCallback(group.ChatID, core.CreatorResetKeepMembers))),
-				tu.InlineKeyboardRow(ui.IconCallbackButton(i18n.Translate(lang, btnResetKickTrackedMembers), creatorGroupExecuteWithActionCallback(group.ChatID, core.CreatorResetKickTrackedMembers), "5258318620722733379").WithStyle("danger")),
-				tu.InlineKeyboardRow(ui.BackButton(i18n.Translate(lang, btnBack), backCallback)),
-			),
+	return sharedViewFromRendered(ui.RenderScreen(ui.Screen{
+		Header: ui.HeaderSection{
+			Emoji:    "⚠️",
+			Title:    i18n.Translate(lang, msgCreatorUnregisterTitle),
+			BodyHTML: ui.TrustedHTML(i18n.Translate(lang, msgCreatorUnregisterBody)),
 		},
+		Details: ui.DetailsSection{Title: plainTranslatedText(lang, "creator_dashboard_current_data"), Items: []ui.DetailItem{
+			{Label: i18n.Translate(lang, labelGroup) + ":", ValueHTML: ui.EscapeHTML(groupLabel)},
+		}},
+		Actions: []ui.ActionGroup{
+			{Items: []ui.ActionItem{creatorCallbackActionItem(i18n.Translate(lang, btnResetKeepMembers), creatorGroupExecuteWithActionCallback(group.ChatID, core.CreatorResetKeepMembers))}},
+			{Items: []ui.ActionItem{creatorDangerActionItem(i18n.Translate(lang, btnResetKickTrackedMembers), creatorGroupExecuteWithActionCallback(group.ChatID, core.CreatorResetKickTrackedMembers), "5258318620722733379")}},
+		},
+		Navigation: []ui.NavigationItem{{Label: i18n.Translate(lang, btnBack), Target: backCallback}},
+	}))
+}
+
+func creatorCallbackActionItem(label, callback string) ui.ActionItem {
+	return ui.ActionItem{
+		Kind:      ui.ActionKindCallback,
+		Label:     label,
+		Target:    callback,
+		Available: true,
 	}
+}
+
+func creatorIconActionItem(label, callback, icon string) ui.ActionItem {
+	return ui.ActionItem{
+		Kind:        ui.ActionKindCallback,
+		Label:       label,
+		Target:      callback,
+		IconEmojiID: icon,
+		Available:   true,
+	}
+}
+
+func creatorDangerActionItem(label, callback, icon string) ui.ActionItem {
+	item := creatorIconActionItem(label, callback, icon)
+	item.Style = "danger"
+	return item
+}
+
+func creatorGroupedActionItem(label, callback string) ui.ActionItem {
+	return creatorIconActionItem(label, callback, "5258513401784573443")
+}
+
+func creatorGroupMemberTagActionItem(lang string, group core.ManagedGroup) ui.ActionItem {
+	item := creatorIconActionItem(groupMemberTagButtonText(lang, group.MemberTagSyncEnabled), creatorGroupMemberTagsOpenCallback(group.ChatID), "5296348778012361146")
+	if group.MemberTagSyncEnabled {
+		item.Style = "success"
+	}
+	return item
 }
 
 func formatCreatorGroupPolicyValue(lang string, policy core.GroupPolicy) string {
@@ -1171,14 +1352,6 @@ func groupMemberTagButtonText(lang string, enabled bool) string {
 	return i18n.Translate(lang, btnMemberTagSyncEnable)
 }
 
-func groupMemberTagButton(lang string, group core.ManagedGroup) telego.InlineKeyboardButton {
-	button := ui.IconCallbackButton(groupMemberTagButtonText(lang, group.MemberTagSyncEnabled), creatorGroupMemberTagsOpenCallback(group.ChatID), "5296348778012361146")
-	if group.MemberTagSyncEnabled {
-		return button.WithStyle("success")
-	}
-	return button
-}
-
 func formatGroupLanguageValue(lang, groupLang string) string {
 	switch groupLang {
 	case "it":
@@ -1198,14 +1371,4 @@ func creatorManagedGroupNameCounts(groups []core.ManagedGroup) map[string]int {
 		counts[name]++
 	}
 	return counts
-}
-
-func creatorStatusMenuRows(lang string, groups []core.ManagedGroup) [][]telego.InlineKeyboardButton {
-	if len(groups) != 1 {
-		return nil
-	}
-	label := fmt.Sprintf(i18n.Translate(lang, btnManageGroup), singleManagedGroupLabel(groups[0]))
-	return [][]telego.InlineKeyboardButton{
-		tu.InlineKeyboardRow(ui.GroupButton(label, creatorManageGroupsCallback())),
-	}
 }

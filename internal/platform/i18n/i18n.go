@@ -31,6 +31,7 @@ var (
 	errMissingKey      = errors.New("i18n: missing key in language")
 	errExtraKey        = errors.New("i18n: extra key in language")
 	errMissingDict     = errors.New("i18n: supported language has no dictionary")
+	errEmptyMessage    = errors.New("i18n: message has no localized content")
 
 	defaultBundlePtr atomic.Pointer[goi18n.Bundle]
 	defaultInitOnce  sync.Once
@@ -70,19 +71,26 @@ func NormalizeLanguage(code string) string {
 	return DefaultLanguage
 }
 
-// Translate translates the given key for the specified language.
+// Translate translates the given key for the specified language using the
+// default "other" form and no template data.
 func Translate(lang, key string) string {
-	bundle := defaultBundlePtr.Load()
-	if bundle == nil {
-		return key
-	}
-	localizer := goi18n.NewLocalizer(bundle, NormalizeLanguage(lang), DefaultLanguage)
-	msg, err := localizer.Localize(&goi18n.LocalizeConfig{
+	return Localize(lang, &goi18n.LocalizeConfig{
 		MessageID:      key,
 		DefaultMessage: &goi18n.Message{ID: key, Other: key},
 	})
+}
+
+// Localize resolves a message using the full go-i18n LocalizeConfig so callers
+// can opt into plural forms and template data when needed.
+func Localize(lang string, cfg *goi18n.LocalizeConfig) string {
+	bundle := defaultBundlePtr.Load()
+	if bundle == nil {
+		return fallbackLocalizedText(cfg)
+	}
+	localizer := goi18n.NewLocalizer(bundle, NormalizeLanguage(lang), DefaultLanguage)
+	msg, err := localizer.Localize(cfg)
 	if err != nil {
-		return key
+		return fallbackLocalizedText(cfg)
 	}
 	return msg
 }
@@ -109,14 +117,14 @@ func AllKeys() ([]string, error) {
 }
 
 // loadCatalogs reads all embedded locale/*.toml files and returns them
-// as a map[lang]map[key]value.
-func loadCatalogs() (map[string]map[string]string, error) {
+// as a map[lang]map[key]message.
+func loadCatalogs() (map[string]map[string]goi18n.Message, error) {
 	entries, err := localeFS.ReadDir("locale")
 	if err != nil {
 		return nil, fmt.Errorf("i18n: reading locale dir: %w", err)
 	}
 
-	catalogs := make(map[string]map[string]string, len(entries))
+	catalogs := make(map[string]map[string]goi18n.Message, len(entries))
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".toml") {
 			continue
@@ -126,15 +134,14 @@ func loadCatalogs() (map[string]map[string]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("i18n: reading %s: %w", e.Name(), err)
 		}
-		var raw map[string]struct {
-			Other string `toml:"other"`
-		}
+		var raw map[string]goi18n.Message
 		if _, err := toml.Decode(string(data), &raw); err != nil {
 			return nil, fmt.Errorf("i18n: parsing %s: %w", e.Name(), err)
 		}
-		dict := make(map[string]string, len(raw))
+		dict := make(map[string]goi18n.Message, len(raw))
 		for k, msg := range raw {
-			dict[k] = msg.Other
+			msg.ID = k
+			dict[k] = msg
 		}
 		catalogs[lang] = dict
 	}
@@ -169,8 +176,8 @@ func loadBundle() (*goi18n.Bundle, error) {
 }
 
 // ValidateMessageCatalogs checks that all catalogs have the same set of keys
-// as the base language.
-func ValidateMessageCatalogs(all map[string]map[string]string, baseLang string) error {
+// as the base language and that each key has at least one localized form.
+func ValidateMessageCatalogs(all map[string]map[string]goi18n.Message, baseLang string) error {
 	base, ok := all[baseLang]
 	if !ok {
 		return fmt.Errorf("%w %q", errMissingBaseLang, baseLang)
@@ -183,8 +190,12 @@ func ValidateMessageCatalogs(all map[string]map[string]string, baseLang string) 
 
 	for lang, dict := range all {
 		for key := range baseKeys {
-			if _, exists := dict[key]; !exists {
+			msg, exists := dict[key]
+			if !exists {
 				return fmt.Errorf("%w: key %q in lang %q", errMissingKey, key, lang)
+			}
+			if !hasLocalizedContent(msg) {
+				return fmt.Errorf("%w: key %q in lang %q", errEmptyMessage, key, lang)
 			}
 		}
 		for key := range dict {
@@ -200,4 +211,23 @@ func ValidateMessageCatalogs(all map[string]map[string]string, baseLang string) 
 		}
 	}
 	return nil
+}
+
+func fallbackLocalizedText(cfg *goi18n.LocalizeConfig) string {
+	if cfg == nil {
+		return ""
+	}
+	if cfg.DefaultMessage != nil && cfg.DefaultMessage.Other != "" {
+		return cfg.DefaultMessage.Other
+	}
+	return cfg.MessageID
+}
+
+func hasLocalizedContent(msg goi18n.Message) bool {
+	return msg.Other != "" ||
+		msg.Zero != "" ||
+		msg.One != "" ||
+		msg.Two != "" ||
+		msg.Few != "" ||
+		msg.Many != ""
 }

@@ -15,7 +15,6 @@ import (
 	"imsub/internal/events"
 	"imsub/internal/platform/i18n"
 	"imsub/internal/transport/telegram/client"
-	telegramui "imsub/internal/transport/telegram/ui"
 
 	"github.com/mymmrac/telego"
 	tghandler "github.com/mymmrac/telego/telegohandler"
@@ -320,15 +319,6 @@ func normalizeTelegramChatType(chatType string) string {
 	}
 }
 
-func renderJoinButtons(targets core.JoinTargets, lang string) [][]telego.InlineKeyboardButton {
-	rows := make([][]telego.InlineKeyboardButton, 0, len(targets.JoinLinks))
-	for _, link := range targets.JoinLinks {
-		btnText := link.CreatorName + " - " + link.GroupName
-		rows = append(rows, tu.InlineKeyboardRow(telegramui.LinkButton(fmt.Sprintf(i18n.Translate(lang, btnJoin), btnText), link.InviteLink)))
-	}
-	return rows
-}
-
 func (c *Bot) answerCallback(ctx context.Context, callbackID, text string) {
 	c.answerCallbackOpts(ctx, callbackID, text, false)
 }
@@ -338,34 +328,6 @@ func (c *Bot) answerCallbackOpts(ctx context.Context, callbackID, text string, s
 		return
 	}
 	c.telegramClient.AnswerCallback(ctx, callbackID, text, showAlert)
-}
-
-func viewerMainMenuCallbacks() telegramui.MainMenuCallbacks {
-	return telegramui.MainMenuCallbacks{
-		Refresh: viewerRefreshCallback(),
-		Reset:   resetOpenCallback(resetOriginViewer),
-	}
-}
-
-func viewerMainMenuMarkup(lang string) *telego.InlineKeyboardMarkup {
-	return telegramui.MainMenuMarkup(lang, viewerMainMenuCallbacks())
-}
-
-func creatorStatusMenuCallbacks(hasManageGroups, isActive bool, graceActive, blocklistActive bool) telegramui.CreatorMenuCallbacks {
-	callbacks := telegramui.CreatorMenuCallbacks{
-		Refresh: creatorRefreshCallback(),
-		Reset:   resetOpenCallback(resetOriginCreator),
-	}
-	if hasManageGroups {
-		callbacks.ManageGroups = creatorManageGroupsCallback()
-	}
-	if isActive {
-		callbacks.Grace = creatorGraceOpenCallback()
-		callbacks.GraceActive = graceActive
-		callbacks.Blocklist = creatorBlocklistToggleCallback()
-		callbacks.BlocklistActive = blocklistActive
-	}
-	return callbacks
 }
 
 func (c *Bot) createOAuthState(ctx context.Context, payload core.OAuthStatePayload, ttl time.Duration) (string, error) {

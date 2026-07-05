@@ -573,7 +573,6 @@ func telegramUserDisplayName(user telego.User) string {
 type groupRegistrationView struct {
 	text             string
 	opts             client.MessageOptions
-	groupBaseText    string
 	dispatchFollowUp bool
 }
 
@@ -583,7 +582,9 @@ func buildGroupRegistrationView(lang string, replyToMessageID int, botUsername s
 
 	switch regRes.Outcome {
 	case usecase.RegisterGroupOutcomeNotCreator:
-		view.text = i18n.Translate(lang, msgGroupNotCreator)
+		shared := buildGroupReplyView(lang, msgGroupNotCreator, replyToMessageID)
+		view.text = shared.text
+		view.opts = shared.opts
 	case usecase.RegisterGroupOutcomeTakenByOther:
 		return groupRegistrationView{}, false
 	case usecase.RegisterGroupOutcomeAlreadyLinked:
@@ -594,19 +595,24 @@ func buildGroupRegistrationView(lang string, replyToMessageID int, botUsername s
 		if handle != "" && link != "" {
 			linksLine = fmt.Sprintf(i18n.Translate(lang, msgGroupRegisteredLinks), html.EscapeString(handle), html.EscapeString(link))
 		}
-		view.groupBaseText = joinNonEmptySections(
+		text := joinNonEmptySections(
 			textSection{text: i18n.Translate(lang, msgGroupRegistered)},
 			textSection{text: linksLine},
-		)
-		view.text = joinNonEmptySections(
-			textSection{text: view.groupBaseText},
 			textSection{text: policyLine},
 		)
+		var actions []telegramui.ActionGroup
 		if link != "" {
-			view.opts.Markup = telegoutil.InlineKeyboard(
-				telegoutil.InlineKeyboardRow(telegramui.CopyLinkButton(i18n.Translate(lang, btnCopyLink), "https://"+link)),
-			)
+			actions = []telegramui.ActionGroup{{Items: []telegramui.ActionItem{{
+				Kind:      telegramui.ActionKindCopy,
+				Label:     i18n.Translate(lang, btnCopyLink),
+				Target:    "https://" + link,
+				Available: true,
+			}}}}
 		}
+		shared := sharedScreenViewFromHTML(telegramui.TrustedHTML(text), actions, nil, false)
+		view.text = shared.text
+		view.opts = shared.opts
+		view.opts.ReplyToMessageID = replyToMessageID
 		view.dispatchFollowUp = true
 	default:
 		return groupRegistrationView{}, false
@@ -690,13 +696,6 @@ func (c *Bot) emitGroupBootstrapOutcome(ctx context.Context, group core.ManagedG
 
 func formatGroupSettingWarnings(lang string, issues []string) string {
 	return renderWarningBlock(i18n.Translate(lang, msgGroupWarnSettingsIntro), issues)
-}
-
-func formatGroupSettingsResult(lang string, issues []string) string {
-	if len(issues) > 0 {
-		return formatGroupSettingWarnings(lang, issues)
-	}
-	return ""
 }
 
 type groupSettingsEvaluation struct {
@@ -996,48 +995,49 @@ func buildGroupRegistrationPolicyPromptView(lang string, replyToMessageID int, c
 		)
 	}
 
-	return sharedView{
-		text: text,
-		opts: client.MessageOptions{
-			ReplyToMessageID: replyToMessageID,
-			Markup: telegoutil.InlineKeyboard(
-				telegoutil.InlineKeyboardRow(telegramui.IconCallbackButton(i18n.Translate(lang, btnGroupPolicyObserve), groupRegisterPolicyCallback(chatID, threadID, core.GroupPolicyObserve), "5253959125838090076")),
-				telegoutil.InlineKeyboardRow(telegramui.IconCallbackButton(i18n.Translate(lang, btnGroupPolicyObserveWarn), groupRegisterPolicyCallback(chatID, threadID, core.GroupPolicyObserveWarn), "5253959125838090076")),
-				telegoutil.InlineKeyboardRow(telegramui.IconCallbackButton(i18n.Translate(lang, btnGroupPolicyKick), groupRegisterPolicyCallback(chatID, threadID, core.GroupPolicyKick), "5258318620722733379").WithStyle("danger")),
-				telegoutil.InlineKeyboardRow(telegramui.IconCallbackButton(i18n.Translate(lang, btnGroupPolicyGrace), groupRegisterPolicyCallback(chatID, threadID, core.GroupPolicyGraceWeek), "5258123337149717894").WithStyle("danger")),
-			),
-		},
-	}
+	view := sharedScreenViewFromHTML(telegramui.TrustedHTML(text), []telegramui.ActionGroup{
+		groupPolicyActionGroup(i18n.Translate(lang, btnGroupPolicyObserve), groupRegisterPolicyCallback(chatID, threadID, core.GroupPolicyObserve), "5253959125838090076", ""),
+		groupPolicyActionGroup(i18n.Translate(lang, btnGroupPolicyObserveWarn), groupRegisterPolicyCallback(chatID, threadID, core.GroupPolicyObserveWarn), "5253959125838090076", ""),
+		groupPolicyActionGroup(i18n.Translate(lang, btnGroupPolicyKick), groupRegisterPolicyCallback(chatID, threadID, core.GroupPolicyKick), "5258318620722733379", "danger"),
+		groupPolicyActionGroup(i18n.Translate(lang, btnGroupPolicyGrace), groupRegisterPolicyCallback(chatID, threadID, core.GroupPolicyGraceWeek), "5258123337149717894", "danger"),
+	}, nil, false)
+	view.opts.ReplyToMessageID = replyToMessageID
+	return view
+}
+
+func groupPolicyActionGroup(label, target, icon, style string) telegramui.ActionGroup {
+	return telegramui.ActionGroup{Items: []telegramui.ActionItem{{
+		Kind:        telegramui.ActionKindCallback,
+		Label:       label,
+		Target:      target,
+		IconEmojiID: icon,
+		Style:       style,
+		Available:   true,
+	}}}
 }
 
 func buildGroupSettingWarningsView(lang string, replyToMessageID int, issues []string) sharedView {
-	return sharedView{
-		text: formatGroupSettingWarnings(lang, issues),
-		opts: client.MessageOptions{
-			ReplyToMessageID: replyToMessageID,
-		},
-	}
+	view := sharedScreenViewFromHTML(telegramui.TrustedHTML(formatGroupSettingWarnings(lang, issues)), nil, nil, false)
+	view.opts.ReplyToMessageID = replyToMessageID
+	return view
 }
 
 func buildGroupSetupPermissionsView(lang string) sharedView {
-	return sharedView{text: i18n.Translate(lang, msgGroupSetupPermissions)}
+	return sharedScreenViewFromHTML(telegramui.TrustedHTML(i18n.Translate(lang, msgGroupSetupPermissions)), nil, nil, false)
 }
 
 func buildGroupPermissionsBlockedView(lang string, replyToMessageID int) sharedView {
-	return sharedView{
-		text: i18n.Translate(lang, msgGroupPermissionsBlocked),
-		opts: client.MessageOptions{ReplyToMessageID: replyToMessageID},
-	}
+	view := sharedScreenViewFromHTML(telegramui.TrustedHTML(i18n.Translate(lang, msgGroupPermissionsBlocked)), nil, nil, false)
+	view.opts.ReplyToMessageID = replyToMessageID
+	return view
 }
 
 func buildGroupCompromisedView(lang, missing string) sharedView {
-	return sharedView{text: fmt.Sprintf(i18n.Translate(lang, msgGroupCompromised), missing)}
+	return sharedScreenViewFromHTML(telegramui.TrustedHTML(fmt.Sprintf(i18n.Translate(lang, msgGroupCompromised), missing)), nil, nil, false)
 }
 
 func buildGroupCompromisedOwnerView(lang, groupName, missing string) sharedView {
-	return sharedView{
-		text: fmt.Sprintf(i18n.Translate(lang, msgGroupCompromisedOwnerDM), html.EscapeString(groupName), missing),
-	}
+	return sharedScreenViewFromHTML(telegramui.TrustedHTML(fmt.Sprintf(i18n.Translate(lang, msgGroupCompromisedOwnerDM), html.EscapeString(groupName), missing)), nil, nil, false)
 }
 
 func formatMissingRequiredPermissions(lang string, caps membershipCapabilitySnapshot) string {
@@ -1069,7 +1069,7 @@ func buildGroupUntrackedJoinWarningView(lang string, memberUserID int64, memberL
 	if memberLabel == "" {
 		memberLabel = i18n.Translate(lang, msgUserGenericName)
 	}
-	return sharedView{text: fmt.Sprintf(i18n.Translate(lang, msgGroupUntrackedJoinWarning), telegramUserMentionHTML(memberUserID, memberLabel))}
+	return sharedScreenViewFromHTML(telegramui.TrustedHTML(fmt.Sprintf(i18n.Translate(lang, msgGroupUntrackedJoinWarning), telegramUserMentionHTML(memberUserID, memberLabel))), nil, nil, false)
 }
 
 func telegramUserMentionHTML(userID int64, label string) string {
@@ -1077,16 +1077,24 @@ func telegramUserMentionHTML(userID int64, label string) string {
 }
 
 func buildGroupUnregisterPromptView(lang string, replyToMessageID int, chatID int64) sharedView {
-	return sharedView{
-		text: i18n.Translate(lang, msgGroupUnregisterPrompt),
-		opts: client.MessageOptions{
-			ReplyToMessageID: replyToMessageID,
-			Markup: telegoutil.InlineKeyboard(
-				telegoutil.InlineKeyboardRow(telegramui.CallbackButton(i18n.Translate(lang, btnResetKeepMembers), groupUnregisterExecuteCallback(chatID, core.CreatorResetKeepMembers))),
-				telegoutil.InlineKeyboardRow(telegramui.IconCallbackButton(i18n.Translate(lang, btnResetKickTrackedMembers), groupUnregisterExecuteCallback(chatID, core.CreatorResetKickTrackedMembers), "5258318620722733379").WithStyle("danger")),
-			),
-		},
-	}
+	view := sharedScreenViewFromHTML(telegramui.TrustedHTML(i18n.Translate(lang, msgGroupUnregisterPrompt)), []telegramui.ActionGroup{
+		{Items: []telegramui.ActionItem{{
+			Kind:      telegramui.ActionKindCallback,
+			Label:     i18n.Translate(lang, btnResetKeepMembers),
+			Target:    groupUnregisterExecuteCallback(chatID, core.CreatorResetKeepMembers),
+			Available: true,
+		}}},
+		{Items: []telegramui.ActionItem{{
+			Kind:        telegramui.ActionKindCallback,
+			Label:       i18n.Translate(lang, btnResetKickTrackedMembers),
+			Target:      groupUnregisterExecuteCallback(chatID, core.CreatorResetKickTrackedMembers),
+			IconEmojiID: "5258318620722733379",
+			Style:       "danger",
+			Available:   true,
+		}}},
+	}, nil, false)
+	view.opts.ReplyToMessageID = replyToMessageID
+	return view
 }
 
 func buildGroupUnregisteredView(lang string, replyToMessageID int) sharedView {

@@ -2,6 +2,7 @@ package bot
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"imsub/internal/core"
@@ -31,13 +32,6 @@ func TestCheckGroupSettingsIncludesBotCapabilityWarnings(t *testing.T) {
 	}
 }
 
-func TestFormatGroupSettingsResultWithWarnings(t *testing.T) {
-	t.Parallel()
-	if got := formatGroupSettingsResult("en", []string{"warning"}); got == "" {
-		t.Fatal("formatGroupSettingsResult() = empty, want text")
-	}
-}
-
 func TestBuildGroupRegistrationViewTakenByOther(t *testing.T) {
 	t.Parallel()
 	if _, ok := buildGroupRegistrationView("en", 1, "imsub_bot", usecase.RegisterGroupResult{
@@ -60,11 +54,32 @@ func TestBuildGroupRegistrationViewAlreadyLinked(t *testing.T) {
 
 func TestBuildGroupRegistrationViewRegistered(t *testing.T) {
 	t.Parallel()
-	if _, ok := buildGroupRegistrationView("en", 1, "imsub_bot", usecase.RegisterGroupResult{
-		Outcome: usecase.RegisterGroupOutcomeRegistered,
-		Creator: core.Creator{TwitchLogin: "creator"},
-	}); !ok {
+	view, ok := buildGroupRegistrationView("en", 1, "imsub_bot", usecase.RegisterGroupResult{
+		Outcome:       usecase.RegisterGroupOutcomeRegistered,
+		Creator:       core.Creator{TwitchLogin: "creator"},
+		ExistingGroup: core.ManagedGroup{Policy: core.GroupPolicyObserve},
+	})
+	if !ok {
 		t.Fatal("buildGroupRegistrationView() ok = false, want true")
+	}
+	if view.opts.ReplyToMessageID != 1 {
+		t.Errorf("buildGroupRegistrationView() reply_to = %d, want 1", view.opts.ReplyToMessageID)
+	}
+	if !strings.Contains(view.text, formatGroupPolicyLine("en", core.GroupPolicyObserve)) {
+		t.Errorf("buildGroupRegistrationView() text = %q, want policy line", view.text)
+	}
+	copyFound := false
+	if view.opts.Markup != nil {
+		for _, row := range view.opts.Markup.InlineKeyboard {
+			for _, button := range row {
+				if button.CopyText != nil && button.CopyText.Text == "https://t.me/imsub_bot" {
+					copyFound = true
+				}
+			}
+		}
+	}
+	if !copyFound {
+		t.Errorf("buildGroupRegistrationView() markup = %+v, want copy-link button", view.opts.Markup)
 	}
 }
 

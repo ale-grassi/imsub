@@ -1,5 +1,6 @@
 # Slash-command wrapping rule: see internal/transport/telegram/bot/i18n_authoring.go.
 
+# Shared button labels
 [btn_back]
 other = "Back"
 
@@ -105,6 +106,7 @@ other = "Privacy policy"
 [btn_subscribe]
 other = "Subscribe on Twitch"
 
+# Shared callback acknowledgements
 [cb_refreshed]
 other = "✅ Status refreshed"
 
@@ -117,6 +119,7 @@ other = "ℹ️ Group already linked"
 [cb_group_taken_by_other]
 other = "ℹ️ This group is linked to another creator"
 
+# Shared help and info command copy
 [cmd_help]
 other = "Use /start to connect your viewer account, /creator to set up a creator account, <code>/linkgroup</code> in your Telegram group, and /reset to delete linked data."
 
@@ -129,133 +132,368 @@ other = "Your creator setup is active. Use /creator to review status, <code>/lin
 [cmd_help_viewer]
 other = "Your viewer account is connected. Use /start to refresh your access or /reset to delete linked data."
 
-[creator_auth_healthy]
-other = "• Twitch connection: ✅ <b>Connected</b>"
-
-[creator_auth_reconnect_required]
-other = "• Twitch connection: ⚠️ <b>Reconnect required</b>"
-
-[creator_groups_none]
-other = "No groups linked yet."
-
-[creator_manage_groups_html]
-other = "🗂️ <b>Manage groups</b>\n\nSelect a group to review its settings, change how unverified members are handled, or unlink it."
-
-[creator_group_settings_html]
-other = "⚙️ <b>Group settings</b>\n\n<b>Group:</b> %s\n<b>Current policy:</b> %s\n<b>Current language:</b> %s\n<b>Member tags:</b> %s"
-
-[creator_group_policy_picker_html]
-other = "🛡️ <b>Change group policy</b>\n\nChoose what should happen when the bot sees an unverified member in this group.\n\n<b>Group:</b> %s\n<b>Current policy:</b> %s"
-
-[creator_group_policy_confirm_html]
-other = "⚠️ <b>Change group policy?</b>\n\n<b>Group:</b> %s\n<b>Current policy:</b> %s\n<b>New policy:</b> %s"
-
-[creator_group_language_picker_html]
-other = "🌐 <b>Change group language</b>\n\nChoose the language for bot messages sent in this group.\n\n<b>Group:</b> %s\n<b>Current language:</b> %s"
-
-[creator_group_member_tags_confirm_html]
-other = "🏷️ <b>Member tag sync</b>\n\n<b>Group:</b> %s\n<b>Current setting:</b> %s\n\nImSub will overwrite existing member tags in this group, set tracked members to their Twitch usernames, and mark untracked members as <code>Untracked</code>. If you disable this later, ImSub will clear only the tags it previously wrote."
-
-[creator_group_member_tags_state]
-other = "Enabled"
-
-[creator_group_member_tags_state_off]
-other = "Disabled"
-
-[creator_group_member_tags_enable_notice_html]
-other = "✅ <b>Member tag sync enabled</b>\n\nImSub is syncing current members now. Existing member tags in this group may be overwritten."
-
-[creator_group_member_tags_disable_notice_html]
-other = "✅ <b>Member tag sync disabled</b>\n\nImSub is clearing the tags it previously wrote in this group."
-
-[creator_group_member_tags_need_tags_html]
-other = "⚠️ <b>Member tag sync unavailable</b>\n\nGrant the bot the <b>Manage Tags</b> admin permission in this group, then try again."
-
+# Creator auth / onboarding prompts
 [creator_register_info]
+description = "Private-chat onboarding prompt for starting creator setup"
 other = "🎙️ <b>Set up your creator account</b>\n\n⚠️ <b>Creator only</b>\nThese steps are only for creators who want to protect a group. If you want to join a group as a subscriber, use /start instead.\n\n➡️ <b>Step 1 of 4</b>\nConnect your <b>Twitch creator account</b>.\n\n<b>Setup flow</b>\n1. Link Twitch account\n2. Add the bot to the group\n3. Give the bot the required permissions\n4. Run <code>/linkgroup</code> and choose the group policy\n\n<b>Privacy notice</b>\nImSub stores your Telegram ID, linked Twitch creator account, creator OAuth tokens, and managed-group settings to operate access control. Use /reset to export or delete your bot data.\n\n<i>Authorization links expire and can only be used once. If the link has expired or was already used, come back here and use /creator to get a new one.\n\nIf the button below does not open Twitch, copy the link and open it in your browser. If Twitch still does not open, try to open the link in an incognito window or on a different device.</i>"
 
 [creator_reconnect_info]
+description = "Private-chat prompt shown when a creator must reconnect Twitch auth"
 other = "🔄 <b>Reconnect Creator Account</b>\n\n<b>Reconnect</b> your creator account to continue managing your groups.\n\n<b>Privacy notice</b>\nImSub stores your Telegram ID, linked Twitch creator account, creator OAuth tokens, and managed-group settings to operate access control. Use /reset to export or delete your bot data.\n\n<i>Authorization links expire and can only be used once. If the link has expired or was already used, come back here and use /creator to get a new one.\n\nIf the button below does not open Twitch, copy the link and open it in your browser. If Twitch still does not open, try to open the link in an incognito window or on a different device.</i>"
 
-[creator_registered_html]
-other = "✅ <b>Setup completed</b>\n🎙️ <b>Account:</b> %s\n\n%s\n\n<b>Managed groups</b>\n%s\n\n<i>Use the buttons below to manage your groups or change access settings.</i>"
+# Creator status menu
+# Header
+[creator_registered_title]
+description = "Header title for creator status when setup is complete"
+other = "Setup completed"
 
-[creator_registered_no_group_html]
-other = "⚠️ <b>Creator setup not completed</b>\n🎙️ <b>Account:</b> %s\n\n%s\n\n➡️ <b>Step 2 of 4</b>\nAdd the bot to the group you want to protect."
+[creator_registered_no_group_title]
+description = "Header title for creator status when no managed groups are linked yet"
+other = "Creator setup not completed"
 
-[creator_registered_links]
-other = "Subscribers can now use the bot to connect to your group through <b>%s</b> or <b>%s</b>."
-
+# Requirements
 [creator_dashboard_setup_status]
-other = "<b>Setup status</b>"
+description = "Section title for creator setup requirements and blockers"
+other = "Setup status"
 
-[creator_dashboard_settings]
-other = "<b>Current settings</b>"
+[creator_auth_healthy]
+description = "Requirement row showing the creator Twitch connection is healthy"
+other = "Twitch connection: <b>Connected</b>"
 
-[creator_dashboard_current_data]
-other = "<b>Current data</b>"
+[creator_auth_reconnect_required]
+description = "Requirement row showing the creator Twitch connection must be reconnected"
+other = "Twitch connection: <b>Reconnect required</b>"
 
-[creator_reconnect_mismatch]
-other = "⚠️ <b>Wrong Twitch creator account</b>\n\nYou reconnected with a different Twitch creator account than the one already linked to this Telegram account.\n\nTo replace the current creator account, use /reset first."
-
-[creator_unregister_confirm_html]
-other = "⚠️ <b>Unlink this group?</b>\n\nChoose what to do with current group members.\n\n<b>Group:</b> %s"
-
-[creator_group_unregistered_html]
-other = "✅ <b>Group unlinked</b>\n\n<b>Group:</b> %s"
-
-[creator_group_policy_updated_html]
-other = "✅ <b>Group policy saved</b>\n\n<b>Group:</b> %s\n<b>Current policy:</b> %s"
-
-[creator_group_language_updated_html]
-other = "✅ <b>Group language saved</b>\n\n<b>Group:</b> %s\n<b>Current language:</b> %s"
-
-[creator_grace_picker_html]
-other = "⏳ <b>Subscription grace period</b>\n\nChoose how long viewers can keep access to your subscribers-only groups after their Twitch subscription expires.\n\n<b>Current setting:</b> %s\n\n<i>During grace, users cannot get new invite links, but they stay in the group until the selected time expires.</i>"
-
-[creator_grace_enabled]
-other = "• Grace period after subscription ends: ▶️ <b>%s</b>"
-
-[creator_grace_disabled]
-other = "• Grace period after subscription ends: ⏸️ <b>Off, remove immediately</b>"
-
-[creator_grace_updated]
-other = "✅ <b>Grace period updated</b>\n\n<b>Current setting:</b> %s"
-
-[creator_blocklist_enabled]
-other = "• Remove Twitch-banned users: ▶️ <b>Enabled</b>"
-
-[creator_blocklist_disabled]
-other = "• Remove Twitch-banned users: ⏸️ <b>Disabled</b>"
-
-[creator_blocklist_on_notice]
-other = "▶️ <b>Remove Twitch-banned users enabled</b>\n\nUsers banned on Twitch will no longer keep access to these groups."
-
-[creator_blocklist_off_notice]
-other = "⏸️ <b>Remove Twitch-banned users disabled</b>\n\nUsers banned on Twitch will no longer be removed automatically from these groups."
+[creator_groups_none]
+description = "Requirement/detail text indicating the creator has no managed groups"
+other = "No groups linked yet."
 
 [creator_last_sync_at]
+description = "Requirement/detail row showing the last creator sync timestamp"
 other = "• Last sync: %s"
 
 [creator_last_sync_disabled]
+description = "Requirement/detail row shown when creator sync status is unavailable or disabled"
 other = "• Last sync: ⏸️ <b>Disabled</b>"
 
 [creator_reconnect_since]
+description = "Requirement/detail row showing since when creator reconnect is required"
 other = "• Reconnect required since: <b>%s</b>"
 
+# Details
+[creator_dashboard_current_data]
+description = "Section title for current creator/group state details"
+other = "Current data"
+
+[label_account]
+description = "Details label for the connected creator account"
+other = "Account"
+
+[creator_grace_enabled]
+description = "Details row showing grace period is enabled with a selected duration"
+other = "• Grace period after subscription ends: ▶️ <b>%s</b>"
+
+[creator_grace_disabled]
+description = "Details row showing grace period is disabled"
+other = "• Grace period after subscription ends: ⏸️ <b>Off, remove immediately</b>"
+
+[creator_blocklist_enabled]
+description = "Details row showing Twitch ban removal sync is enabled"
+other = "• Remove Twitch-banned users: ▶️ <b>Enabled</b>"
+
+[creator_blocklist_disabled]
+description = "Details row showing Twitch ban removal sync is disabled"
+other = "• Remove Twitch-banned users: ⏸️ <b>Disabled</b>"
+
 [creator_subscribers_pending]
+description = "Details value shown while active subscriber count is still syncing"
 other = "<b>⏳ syncing...</b>"
 
 [creator_subscribers_ready]
+description = "Details value for active subscriber count once available"
 other = "<b>%d</b>"
 
 [creator_subscribers_cached]
+description = "Details row showing the cached active subscriber count"
 other = "• Active subscribers: %s"
 
 [creator_banned_users_cached]
+description = "Details row showing the cached count of synced banned users"
 other = "• Synced banned users: <b>%d</b>"
 
+# Body
+[creator_registered_body]
+description = "Body text on creator status when setup is complete"
+other = "Use the buttons below to manage your groups or change access settings."
+
+[creator_registered_no_group_body]
+description = "Body text on creator status when the next setup step is to add the bot to a group"
+other = "Step 2 of 4\nAdd the bot to the group you want to protect."
+
+[creator_section_managed_groups]
+description = "Body section title listing the creator's managed groups"
+other = "Managed groups"
+
+# Actions / Navigation
+# Uses shared button keys defined at the top of the file:
+# btn_refresh, btn_reconnect_creator, btn_manage_groups, btn_manage_group,
+# btn_grace_period, btn_blocklist_sync, btn_reset.
+
+# Managed groups menu
+# Header
+[creator_manage_groups_title]
+description = "Header title for the managed groups picker menu"
+other = "Manage groups"
+
+# Body
+[creator_manage_groups_body]
+description = "Body text for the managed groups picker menu"
+other = "Select a group to review its settings, change how unverified members are handled, or unlink it."
+
+# Actions / Navigation
+# Uses shared button keys:
+# btn_back, btn_manage_group.
+
+# Group settings menu
+# Header
+[creator_group_settings_title]
+description = "Header title for the per-group settings menu"
+other = "Group settings"
+
+# Details
+[label_group]
+description = "Details label for a Telegram group name in creator menus"
+other = "Group"
+
+[label_current_policy]
+description = "Details label for the currently selected group policy"
+other = "Current policy"
+
+[label_current_language]
+description = "Details label for the current group language"
+other = "Current language"
+
+[label_member_tags]
+description = "Details label for the member tag sync state"
+other = "Member tags"
+
+# Actions / Navigation
+# Uses shared button keys:
+# btn_change_group_policy, btn_change_group_language,
+# btn_member_tag_sync_enable, btn_member_tag_sync_disable,
+# btn_unregister_group, btn_back.
+
+# Member tag sync menu
+# Header
+[creator_group_member_tags_title]
+description = "Header title for the member tag sync confirmation menu"
+other = "Member tag sync"
+
+# Requirements
+[creator_group_member_tags_need_tags_html]
+description = "Blocking requirement notice shown when Telegram Manage Tags permission is missing"
+other = "⚠️ <b>Member tag sync unavailable</b>\n\nGrant the bot the <b>Manage Tags</b> admin permission in this group, then try again."
+
+# Details
+[label_current_setting]
+description = "Details label for a current toggle or current grace setting"
+other = "Current setting"
+
+[creator_group_member_tags_state]
+description = "State label meaning member tag sync is enabled"
+other = "Enabled"
+
+[creator_group_member_tags_state_off]
+description = "State label meaning member tag sync is disabled"
+other = "Disabled"
+
+# Body
+[creator_group_member_tags_body]
+description = "Body text explaining what enabling or disabling member tag sync does"
+other = "ImSub will overwrite existing member tags in this group, set tracked members to their Twitch usernames, and mark untracked members as <code>Untracked</code>. If you disable this later, ImSub will clear only the tags it previously wrote."
+
+# Actions / Navigation
+# Uses shared button keys:
+# btn_member_tag_sync_enable, btn_member_tag_sync_disable, btn_back.
+
+# Group language menu
+# Header
+[creator_group_language_title]
+description = "Header title for the group language picker menu"
+other = "Change group language"
+
+# Details
+# Uses shared detail labels:
+# label_group, label_current_language.
+
+# Body
+[creator_group_language_body]
+description = "Body text for the group language picker menu"
+other = "Choose the language for bot messages sent in this group."
+
+# Actions / Navigation
+# Uses shared button keys:
+# btn_language_english, btn_language_italian, btn_back.
+
+# Group policy picker menu
+# Header
+[creator_group_policy_title]
+description = "Header title for the group policy picker menu"
+other = "Change group policy"
+
+# Details
+# Uses shared detail labels:
+# label_group, label_current_policy.
+
+# Body
+[creator_group_policy_body]
+description = "Body text for the group policy picker menu"
+other = "Choose what should happen when the bot sees an unverified member in this group."
+
+# Actions / Navigation
+# Uses shared button keys:
+# btn_group_policy_observe, btn_group_policy_observe_warn,
+# btn_group_policy_kick, btn_group_policy_grace, btn_back.
+
+# Group policy confirm menu
+# Header
+[creator_group_policy_confirm_title]
+description = "Header title for confirming a new group policy"
+other = "Change group policy?"
+
+# Details
+[label_new_policy]
+description = "Details label for the new policy selected before confirmation"
+other = "New policy"
+
+# Actions / Navigation
+# Uses shared button keys:
+# btn_confirm_group_policy, btn_back.
+
+# Grace period menu
+# Header
+[creator_grace_title]
+description = "Header title for the subscription grace period menu"
+other = "Subscription grace period"
+
+# Details
+# Uses shared detail label:
+# label_current_setting.
+
+# Body
+[creator_grace_body]
+description = "Body text explaining how the subscription grace period works"
+other = "Choose how long viewers can keep access to your subscribers-only groups after their Twitch subscription expires.\n\n<i>During grace, users cannot get new invite links, but they stay in the group until the selected time expires.</i>"
+
+# Actions / Navigation
+# Uses shared button keys:
+# btn_grace_period_off, btn_grace_period_24h,
+# btn_grace_period_48h, btn_grace_period_72h, btn_back.
+
+# Unregister group menu
+# Header
+[creator_unregister_title]
+description = "Header title for the unlink-group confirmation menu"
+other = "Unlink this group?"
+
+# Details
+# Uses shared detail label:
+# label_group.
+
+# Body
+[creator_unregister_body]
+description = "Body text explaining the unlink-group confirmation menu"
+other = "Choose what to do with current group members."
+
+# Actions / Navigation
+# Uses shared reset + navigation keys:
+# btn_back. Action labels come from reset-related shared keys.
+
+# Creator notices / follow-up messages
+[creator_reconnect_mismatch]
+description = "Error notice shown when reconnecting with the wrong Twitch creator account"
+other = "⚠️ <b>Wrong Twitch creator account</b>\n\nYou reconnected with a different Twitch creator account than the one already linked to this Telegram account.\n\nTo replace the current creator account, use /reset first."
+
+[creator_group_unregistered_html]
+description = "Success notice after unlinking a managed group"
+other = "✅ <b>Group unlinked</b>\n\n<b>Group:</b> %s"
+
+[creator_group_policy_updated_html]
+description = "Success notice after saving a new group policy"
+other = "✅ <b>Group policy saved</b>\n\n<b>Group:</b> %s\n<b>Current policy:</b> %s"
+
+[creator_group_language_updated_html]
+description = "Success notice after saving a new group language"
+other = "✅ <b>Group language saved</b>\n\n<b>Group:</b> %s\n<b>Current language:</b> %s"
+
+[creator_grace_updated]
+description = "Success notice after updating the creator grace period"
+other = "✅ <b>Grace period updated</b>\n\n<b>Current setting:</b> %s"
+
+[creator_blocklist_on_notice]
+description = "Success notice after enabling Twitch ban removal sync"
+other = "▶️ <b>Remove Twitch-banned users enabled</b>\n\nUsers banned on Twitch will no longer keep access to these groups."
+
+[creator_blocklist_off_notice]
+description = "Success notice after disabling Twitch ban removal sync"
+other = "⏸️ <b>Remove Twitch-banned users disabled</b>\n\nUsers banned on Twitch will no longer be removed automatically from these groups."
+
+[creator_group_member_tags_enable_notice_html]
+description = "Success notice after enabling member tag sync"
+other = "✅ <b>Member tag sync enabled</b>\n\nImSub is syncing current members now. Existing member tags in this group may be overwritten."
+
+[creator_group_member_tags_disable_notice_html]
+description = "Success notice after disabling member tag sync"
+other = "✅ <b>Member tag sync disabled</b>\n\nImSub is clearing the tags it previously wrote in this group."
+
+[creator_registered_links]
+description = "Footer copy explaining where subscribers can find the bot entry links"
+other = "Subscribers can now use the bot to connect to your group through <b>%s</b> or <b>%s</b>."
+
+# Legacy creator templates kept for compatibility / migration
+[creator_manage_groups_html]
+description = "Creator flow text for manage groups html."
+other = "🗂️ <b>Manage groups</b>\n\nSelect a group to review its settings, change how unverified members are handled, or unlink it."
+
+[creator_group_settings_html]
+description = "Creator flow text for group settings html."
+other = "⚙️ <b>Group settings</b>\n\n<b>Group:</b> %s\n<b>Current policy:</b> %s\n<b>Current language:</b> %s\n<b>Member tags:</b> %s"
+
+[creator_group_policy_picker_html]
+description = "Creator flow text for group policy picker html."
+other = "🛡️ <b>Change group policy</b>\n\nChoose what should happen when the bot sees an unverified member in this group.\n\n<b>Group:</b> %s\n<b>Current policy:</b> %s"
+
+[creator_group_policy_confirm_html]
+description = "Creator flow text for group policy confirm html."
+other = "⚠️ <b>Change group policy?</b>\n\n<b>Group:</b> %s\n<b>Current policy:</b> %s\n<b>New policy:</b> %s"
+
+[creator_group_language_picker_html]
+description = "Creator flow text for group language picker html."
+other = "🌐 <b>Change group language</b>\n\nChoose the language for bot messages sent in this group.\n\n<b>Group:</b> %s\n<b>Current language:</b> %s"
+
+[creator_group_member_tags_confirm_html]
+description = "Creator flow text for group member tags confirm html."
+other = "🏷️ <b>Member tag sync</b>\n\n<b>Group:</b> %s\n<b>Current setting:</b> %s\n\nImSub will overwrite existing member tags in this group, set tracked members to their Twitch usernames, and mark untracked members as <code>Untracked</code>. If you disable this later, ImSub will clear only the tags it previously wrote."
+
+[creator_registered_html]
+description = "Legacy full-screen creator status message used when creator setup is complete; includes account, requirements/details summary, managed groups, and footer guidance"
+other = "✅ <b>Setup completed</b>\n🎙️ <b>Account:</b> %s\n\n%s\n\n<b>Managed groups</b>\n%s\n\n<i>Use the buttons below to manage your groups or change access settings.</i>"
+
+[creator_registered_no_group_html]
+description = "Legacy full-screen creator status message used when creator auth is connected but no Telegram group has been linked yet"
+other = "⚠️ <b>Creator setup not completed</b>\n🎙️ <b>Account:</b> %s\n\n%s\n\n➡️ <b>Step 2 of 4</b>\nAdd the bot to the group you want to protect."
+
+[creator_unregister_confirm_html]
+description = "Legacy full-screen confirmation prompt before unlinking a managed Telegram group from the creator account"
+other = "⚠️ <b>Unlink this group?</b>\n\nChoose what to do with current group members.\n\n<b>Group:</b> %s"
+
+[creator_grace_picker_html]
+description = "Legacy full-screen grace-period picker message explaining how long expired subscribers keep group access"
+other = "⏳ <b>Subscription grace period</b>\n\nChoose how long viewers can keep access to your subscribers-only groups after their Twitch subscription expires.\n\n<b>Current setting:</b> %s\n\n<i>During grace, users cannot get new invite links, but they stay in the group until the selected time expires.</i>"
+
+# Subscription grace reminders, shared errors, consent, and export
 [sub_grace_start]
+description = "Direct message sent to a viewer when a subscription expires but the creator has a grace period configured; includes creator name and remaining grace hours"
 other = "⚠️ <b>Subscription expired</b>\n\nYour subscription to <b>%s</b> has expired.\n\nRenew within <b>%d hours</b> to keep access to this creator's subscribers-only Telegram group(s)."
 
 [err_creator_link]
@@ -268,297 +506,398 @@ other = "I couldn't load your account status right now. Tap Refresh in a moment 
 other = "‼️⚠️ Something went wrong.\n\nPlease try again in a moment. If this keeps happening, use /start to restart or /reset to delete your linked data."
 
 [viewer_god_html]
+description = "Viewer status message shown for global-access accounts that can join every managed group without linking Twitch"
 other = "👑 <b>Global access enabled</b>\n\nYou can join every managed group without linking Twitch.\n\n<b>Active creators</b>\n%s"
 
 [err_reset]
 other = "‼️⚠️ Something went wrong while updating your reset request. Use the buttons below to try again."
 
 [consent_prompt_html]
+description = "Consent screen shown before storing personal data; lists data categories and why consent is required"
 other = "🔐 <b>Consent required</b>\n\nBefore ImSub stores your personal data, you need to agree to the privacy notice.\n\n<b>Data collected</b>\n• Telegram user ID\n• Linked Twitch account details\n• Group membership state used to grant or revoke access\n• Creator OAuth data when you set up creator features\n\n<b>Why</b>\nTo connect your Twitch account, manage subscribers-only access, and process account deletion/export requests.\n\nTap <b>I agree</b> to continue."
 
 [consent_saved_html]
+description = "Short success message shown after the user accepts the privacy consent prompt"
 other = "✅ <b>Consent saved</b>\n\nYou can continue with the connection flow now."
 
 [export_sent_html]
+description = "Confirmation message shown after a personal-data export file has been sent to the user in chat"
 other = "Your JSON export was sent here."
 
+# OAuth web launch / result pages
 [web_oauth_launch_viewer_title]
+description = "Web page title for the viewer OAuth launch screen before redirecting to Twitch"
 other = "Connect Twitch"
 
 [web_oauth_launch_viewer_message]
+description = "Web page body copy on the viewer OAuth launch screen explaining why Twitch connection is needed"
 other = "Connect your Twitch account to check your access in Telegram."
 
 [web_oauth_launch_creator_title]
+description = "Web page title for the creator OAuth launch screen before redirecting to Twitch"
 other = "Connect Creator Account"
 
 [web_oauth_launch_creator_message]
+description = "Web page body copy on the creator OAuth launch screen explaining subscriber verification and group protection"
 other = "Connect your Twitch creator account so ImSub can verify subscribers and protect your groups."
 
 [web_oauth_launch_creator_reconnect_title]
+description = "Web page title for the creator reauthorization screen when Twitch access must be refreshed"
 other = "Reconnect Creator Account"
 
 [web_oauth_launch_creator_reconnect_message]
+description = "Web page body copy on the creator reauthorization screen explaining continued group management depends on reconnecting Twitch"
 other = "Reconnect your Twitch creator account to keep managing your protected groups."
 
 [web_oauth_launch_button]
+description = "Primary button label on OAuth launch pages that opens Twitch authorization"
 other = "Continue to Twitch"
 
 [web_oauth_launch_copy_button]
+description = "Secondary button label on OAuth launch pages used to copy the authorization link"
 other = "Copy link"
 
 [web_oauth_launch_copy_idle]
+description = "Helper text on OAuth launch pages explaining what to do if automatic Twitch opening fails"
 other = "If Twitch does not open, copy the link and paste it into a browser or open it on another device."
 
 [web_oauth_launch_copy_done]
+description = "Short confirmation text shown after the OAuth launch link has been copied"
 other = "Link copied."
 
 [web_oauth_success_viewer_title]
+description = "Web page title shown after a viewer successfully links Twitch"
 other = "Account linked"
 
 [web_oauth_success_viewer_message]
+description = "Web page success message shown after a viewer Twitch account is linked"
 other = "Your Twitch account is now connected."
 
 [web_oauth_success_viewer_next]
+description = "Instruction on the viewer OAuth success page telling the user what to do next in Telegram"
 other = "Return to Telegram to see your groups."
 
 [web_oauth_success_creator_title]
+description = "Web page title shown after a creator successfully links Twitch"
 other = "Creator account connected"
 
 [web_oauth_success_creator_message]
+description = "Web page success message shown after a creator Twitch account is linked and ready for setup"
 other = "Your creator account is ready."
 
 [web_oauth_success_creator_next]
+description = "Instruction on the creator OAuth success page telling the user to return to Telegram for setup and management"
 other = "Return to Telegram to continue setup and manage groups."
 
 [web_oauth_success_creator_reconnect_title]
+description = "Web page title shown after a creator successfully refreshes an expired or revoked Twitch connection"
 other = "Creator account reconnected"
 
 [web_oauth_success_creator_reconnect_message]
+description = "Web page success message shown after a creator Twitch connection has been restored"
 other = "Your creator account is connected again."
 
 [web_oauth_success_creator_reconnect_next]
+description = "Instruction on the creator reconnect success page telling the user to return to Telegram and continue managing groups"
 other = "Return to Telegram to keep managing your groups."
 
 [web_oauth_invalid_link_title]
+description = "Web page title shown when an OAuth link is expired, already consumed, or otherwise invalid"
 other = "Link unavailable"
 
 [web_oauth_invalid_link_message]
+description = "Web page body copy explaining that the Twitch authorization link can no longer be used"
 other = "This Twitch link is expired, already used, or invalid."
 
 [web_oauth_auth_incomplete_title]
+description = "Web page title shown when the user closes or abandons Twitch OAuth before completion"
 other = "Connection not completed"
 
 [web_oauth_auth_incomplete_message]
+description = "Web page message shown when Twitch authorization did not complete successfully"
 other = "Twitch did not finish the connection."
 
 [web_oauth_temporary_failure_title]
+description = "Web page title shown when ImSub hits a transient backend failure during OAuth completion"
 other = "Try again in a moment"
 
 [web_oauth_temporary_failure_message]
+description = "Web page message shown when OAuth completion fails temporarily and the user should retry later"
 other = "ImSub could not finish the connection right now."
 
 [web_oauth_creator_mismatch_title]
+description = "Web page title shown when the Telegram account is trying to connect a different Twitch creator than the one already linked"
 other = "Wrong creator account"
 
 [web_oauth_creator_mismatch_message]
+description = "Web page explanation for a creator-account mismatch during OAuth"
 other = "This Telegram account is already linked to a different Twitch creator account."
 
 [web_oauth_problem_next_generic]
+description = "Generic next-step instruction on OAuth failure pages telling the user to return to Telegram and restart"
 other = "Return to Telegram and start again."
 
 [web_oauth_problem_next_command]
+description = "Next-step instruction on OAuth pages telling the user to return to Telegram and rerun a specific bot command"
 other = "Return to Telegram and use %s again."
 
 [web_oauth_problem_next_retry_command]
+description = "Next-step instruction on OAuth pages telling the user to retry a specific bot command after waiting briefly"
 other = "Return to Telegram and try again with %s in a moment."
 
 [web_oauth_problem_next_creator_permissions]
+description = "Next-step instruction on creator OAuth error pages telling the user to rerun the command and approve Twitch scopes"
 other = "Return to Telegram, use %s again, and approve the Twitch permissions."
 
 [web_oauth_creator_mismatch_next]
+description = "Next-step instruction on creator mismatch pages explaining how to proceed with the already linked creator or reset first"
 other = "Return to Telegram, use %s with the creator account already linked, or use %s first to replace it."
 
 [export_failed_html]
+description = "Error message shown when ImSub cannot prepare the personal-data export archive"
 other = "I couldn't prepare your data export right now. Try again in a moment."
 
+# Group setup, validation, and admin warnings
 [group_not_admin]
+description = "Reply shown when /linkgroup is used by someone who is not an administrator of the current Telegram group"
 other = "⚠️ You must be a group admin to make this group subscribers-only."
 
 [group_not_creator]
+description = "Reply shown in a Telegram group when the user tries to link a group before completing creator setup in private chat"
 other = "⚠️ Set up your creator account first in private chat with <code>/creator</code>."
 
 [group_not_group]
+description = "Reply shown when a group-linking command is used outside of a Telegram group chat"
 other = "⚠️ Use this command in a group to make it subscribers-only."
 
 [group_registered]
+description = "Success message posted in a Telegram group after the creator completes Step 4 and the group is linked"
 other = "✅ <b>Step 4 of 4 completed</b>\nGroup linked."
 
 [group_registered_links]
+description = "Follow-up line after a group is linked, explaining which bot commands subscribers can use to get access"
 other = "Subscribers can now use the bot to connect to this group through <b>%s</b> or <b>%s</b>."
 
 [group_setup_permissions_html]
+description = "Step 3 setup message telling a creator which Telegram admin permissions the bot must receive before the group can be linked"
 other = "➡️ <b>Step 3 of 4</b>\nGive the bot the permissions it needs before linking this group.\n\n<b>Required permissions</b>\n• Administrator\n• Invite Users\n• Ban Users\n\nAfter that, run <code>/linkgroup</code> to continue with Step 4."
 
 [group_permissions_blocked_html]
+description = "Step 3 blocking message shown when the bot is missing required Telegram admin permissions in the group"
 other = "➡️ <b>Step 3 of 4</b>\nThis group is missing the required bot permissions.\n\n<b>Required permissions</b>\n• Administrator\n• Invite Users\n• Ban Users\n\nGrant the missing permissions, then retry <code>/linkgroup</code> to continue with Step 4."
 
 [group_functionality_compromised_html]
+description = "Warning sent in the Telegram group when required bot permissions were lost and subscription-based access control may no longer work correctly"
 other = "⚠️ <b>Group functionality compromised</b>\n\nImSub is missing required permissions in this group. Subscription-based access control may not work correctly until the permissions are restored.\n\n<b>Missing permissions</b>\n%s"
 
 [group_functionality_compromised_owner_dm_html]
+description = "Direct message sent to the creator when a managed group loses required bot permissions; includes group name and missing permissions"
 other = "⚠️ <b>Group functionality compromised</b>\n\nImSub is missing required permissions in <b>%s</b>. Subscription-based access control may not work correctly until the permissions are restored.\n\n<b>Missing permissions</b>\n%s"
 
 [group_policy_prompt_html]
+description = "Step 4 setup prompt asking the creator to choose how unverified members should be handled in the linked group"
 other = "➡️ <b>Step 4 of 4</b>\nChoose the group policy.\n\nChoose what should happen when the bot sees an unverified member in this group."
 
 [group_policy_existing_members_html]
+description = "Warning shown during policy selection when the group already contains non-admin members who were present before linking"
 other = "⚠️ <b>%d existing non-admin members detected</b>\nMembers who were already in this group before linking are not verified immediately.\n\n<i>Linked eligible members are verified when they open <code>/start</code> or when the bot sees them again. Members who remain unlinked or ineligible stay subject to this policy and may still need to rejoin through the bot.</i>"
 
 [group_policy_observe_line]
+description = "One-line summary of the current group policy when unverified members are allowed with no warning"
 other = "<b>Current policy:</b> Allow"
 
 [group_policy_observe_warn_line]
+description = "One-line summary of the current group policy when unverified members are allowed but warned"
 other = "<b>Current policy:</b> Allow, but warn when an unverified member joins"
 
 [group_policy_kick_line]
+description = "One-line summary of the current group policy when unverified members are removed immediately"
 other = "<b>Current policy:</b> Remove immediately"
 
 [group_policy_grace_line]
+description = "One-line summary of the current group policy when unverified members are allowed temporarily before removal"
 other = "<b>Current policy:</b> Allow 7 days, then remove"
 
 [group_untracked_join_warning_html]
+description = "Warning posted in a Telegram group when someone joins without subscription verification under a non-blocking policy"
 other = "⚠️ <b>Unverified member</b>\n%s joined without subscription verification."
 
 [group_checking_settings]
+description = "Temporary status message shown while the bot checks Telegram group settings and permissions during setup"
 other = "⏳ <b>Checking group settings...</b>"
 
 [group_warn_settings_intro]
+description = "Heading for the group-settings warning screen that summarizes configuration problems the creator should fix"
 other = "⚙️ <b>Group settings need attention</b>"
 
 [group_warn_public]
+description = "Bullet warning explaining the group should be private because a public username bypasses ImSub access control"
 other = "• <b>Make the group private.</b> It currently has a username, so anyone can find and join it outside ImSub."
 
 [group_warn_untracked_users]
+description = "Bullet warning explaining some existing group members joined before ImSub setup and are not verified"
 other = "• <b>Review existing members.</b> There are <b>%d non-admin members</b> who joined before ImSub was set up and are not verified."
 
 [group_warn_join_by_request]
+description = "Bullet warning telling creators to rely only on bot-generated invite links because other invite paths bypass subscription checks"
 other = "• <b>Use only bot invite links.</b> Other invite links can let users join without subscription verification."
 
 [group_warn_bot_not_admin]
+description = "Bullet warning that the bot must be promoted to Telegram administrator before the group can be linked safely"
 other = "• <b>Promote the bot to administrator.</b> This is required before linking this group."
 
 [group_warn_bot_no_invite]
+description = "Bullet warning that the bot needs the Invite Users admin permission to create join-request invite links"
 other = "• <b>Grant the Invite Users admin permission.</b> This is required to create join-request invite links."
 
 [group_warn_bot_no_restrict]
+description = "Bullet warning that the bot needs the Ban Users admin permission to remove users after subscription expiry"
 other = "• <b>Grant the Ban Users admin permission.</b> This is required to remove users whose subscription ends."
 
 [group_bot_removed_owner_dm]
+description = "Direct message sent to the creator when ImSub is removed from a managed group and the group is automatically unlinked"
 other = "⚠️ <b>Group unlinked automatically</b>\n\nImSub was removed from <b>%s</b>, so this group is no longer linked to your creator setup."
 
 [group_already_linked]
+description = "Reply shown when a creator tries to link a Telegram group that is already linked to the same creator account"
 other = "⚠️ This group is already linked to <b>%s</b>.\n\nUse <code>/unlinkgroup</code> first if you want to make changes."
 
 [group_different_linked]
+description = "Reply shown when the creator account already manages a different Telegram group and must unlink it first"
 other = "⚠️ Your creator account <b>%s</b> is already linked to group <b>%s</b>.\n\nUse <code>/unlinkgroup</code> in that group before linking a new one."
 
 [group_taken_by_other]
+description = "Reply shown when a Telegram group is already linked to another creator account"
 other = "⚠️ This group is already linked to another creator account (<b>%s</b>).\n\nEach group can only be linked to one creator. The other creator must use <code>/unlinkgroup</code> first."
 
 [link_prompt_html]
+description = "Viewer onboarding message in Telegram private chat explaining how to connect Twitch and why the bot stores access data"
 other = "😊 <b>Welcome, %s</b>\n\nConnect your <b>Twitch account</b> to see which <b>Telegram groups</b> you can join.\n\n<b>Get started</b>\n1. Tap <b>Connect Twitch</b>\n2. Log in on Twitch and approve access\n3. Come back here to see your available groups\n\n<b>Privacy notice</b>\nImSub stores your Telegram ID, linked Twitch account, and group-access state to verify subscriptions and manage Telegram access. Use /reset to export or delete your bot data.\n\n<i>Authorization links expire and can only be used once. If the link has expired or was already used, come back here and use /start to get a new one.\n\nIf the button below does not open Twitch, copy the link and open it in your browser. If Twitch still does not open, try to open the link in an incognito window or on a different device.</i>"
 
+# Viewer account linking and linked-status screens
 [linked_status_heading_html]
+description = "Heading shown on the viewer status screen when Twitch is already connected"
 other = "✅ <b>Twitch connected</b>"
 
 [linked_status_account_html]
+description = "Viewer status line showing the linked Twitch account name"
 other = "🔗 <b>Account:</b> %s"
 
 [linked_status_no_subs_body_html_no_account]
+description = "Viewer status body shown when Twitch is linked but there are no active subscriptions granting Telegram access"
 other = "<b>No active subscriptions found</b>\nYou don't have any active subscriptions linked to subscribers-only Telegram groups right now.\n\n<i>Tap <b>Refresh</b> to check again, or use /reset if this is the wrong Twitch account.</i>"
 
 [linked_status_with_subs_body_html_no_account]
+description = "Viewer status body listing active subscriptions and available Telegram group links"
 other = "<b>Active subscriptions</b>\n%s\n\n<i>If a link expires, tap <b>Refresh</b> to load updated links, use /start to restart, or use /reset if this is the wrong Twitch account.</i>"
 
 [linked_status_with_subs_no_groups_body_html_no_account]
+description = "Viewer status body shown when subscriptions exist but there are no additional Telegram groups available to join"
 other = "<b>No new Telegram groups available</b>\nYou have active subscriptions, but there are no new subscribers-only Telegram groups to join right now.\n\n<b>Active subscriptions</b>\n%s\n\n<i>Tap <b>Refresh</b> to check again, or use /reset if this is the wrong Twitch account.</i>"
 
+# Reset / export / account deletion flow
 [reset_choose_scope_html]
+description = "Reset flow heading prompting the user to choose between deleting viewer data, creator data, or both"
 other = "🗑️ <b>Choose what to delete</b>"
 
 [reset_choose_scope_viewer_html]
+description = "Reset/export screen for a viewer-only account showing the linked account and available data actions"
 other = "🗑️ <b>Manage your data</b>\n\nChoose whether to export your bot data or delete this linked viewer account.\n\n<b>Account:</b> %s"
 
 [reset_choose_scope_creator_html]
+description = "Reset/export screen for a creator-only account showing the linked account and available data actions"
 other = "🗑️ <b>Manage your data</b>\n\nChoose whether to export your bot data or delete this linked creator account.\n\n<b>Account:</b> %s"
 
 [reset_confirm_both_html]
+description = "Destructive confirmation screen shown before deleting both viewer and creator data, including side effects"
 other = "⚠️ <b>Delete all linked data?</b>\n\n<b>Viewer account:</b> %s%s\n\n<b>Creator account:</b> %s%s\n\n<b>If you continue:</b>\n• Your viewer data will be deleted%s\n• Your creator data will be deleted%s\n%s"
 
 [reset_confirm_creator_html]
+description = "Destructive confirmation screen shown before deleting only creator data and unlinking managed groups"
 other = "⚠️ <b>Delete creator data?</b>\n\n<b>Account:</b> %s%s\n\n<b>If you continue:</b>\n• Your creator data will be deleted%s\n%s"
 
 [reset_confirm_viewer_html]
+description = "Destructive confirmation screen shown before deleting only viewer data and removing group access"
 other = "⚠️ <b>Delete viewer data?</b>\n\n<b>Account:</b> %s%s\n\n<b>If you continue:</b>\n• Your viewer data will be deleted%s"
 
 [reset_done_both_html]
+description = "Completion message shown after deleting both viewer and creator data, including affected groups and cleanup summary"
 other = "✅ <b>All linked data deleted</b>\n\n<b>Viewer account:</b> %s\n<b>Removed from subscribers-only groups:</b>\n%s\n\n<b>Creator account:</b> %s\n<b>Managed groups:</b>\n%s\n\n<b>What changed:</b>\n• ImSub no longer checks subscriptions for these groups\n• ImSub no longer controls access to these groups\n%s"
 
 [reset_done_creator_html]
+description = "Completion message shown after deleting creator data and unlinking managed groups"
 other = "✅ <b>Creator data deleted</b>\n\n<b>Account:</b> %s\n<b>Managed groups:</b>\n%s\n\n<b>What changed:</b>\n• ImSub no longer checks subscriptions for these groups\n• ImSub no longer controls access to these groups\n%s"
 
 [reset_done_viewer_html]
+description = "Completion message shown after deleting viewer data and removing the user from subscriber-only groups"
 other = "✅ <b>Viewer data deleted</b>\n\n<b>Account:</b> %s\n<b>Removed from subscribers-only groups:</b>\n%s"
 
 [reset_exit_html]
+description = "Short message shown when the user exits the reset flow without deleting anything"
 other = "❗️ <b>Nothing was deleted</b>"
 
 [reset_nothing_html]
+description = "Short message shown when there is currently no viewer or creator data to export or delete"
 other = "✅ <b>Nothing to reset right now.</b>"
 
 [reset_choose_creator_action_creator_html]
+description = "Prompt shown during creator-data deletion asking what should happen to current group members"
 other = "🗑️ <b>Choose what to do with group members</b>"
 
 [reset_choose_creator_action_both_html]
+description = "Prompt shown during full-account deletion asking what should happen to current creator-managed group members"
 other = "🗑️ <b>Choose what to do with group members</b>"
 
 [reset_action_keep_line]
+description = "Bullet line used in reset confirmations to indicate current group members will remain in the group"
 other = "• Current group members will not be removed"
 
 [reset_action_kick_line]
+description = "Bullet line used in reset confirmations to indicate current tracked group members will be removed"
 other = "• Current group members will be removed"
 
 [reset_viewer_remove_groups_line]
+description = "Bullet line used in reset confirmations to indicate the viewer will be removed from subscriber-only groups"
 other = "• You will be removed from these subscribers-only groups"
 
 [reset_viewer_no_groups_line]
+description = "Bullet line used in reset confirmations when the viewer is not currently in any subscriber-only groups"
 other = "• No subscribers-only groups found, so you will not be removed from any groups"
 
 [reset_creator_stop_checks_line]
+description = "Bullet line used in reset confirmations to explain subscription checks will stop for creator-managed groups"
 other = "• ImSub will no longer check subscriptions for these groups"
 
 [reset_creator_stop_control_line]
+description = "Bullet line used in reset confirmations to explain access enforcement will stop for creator-managed groups"
 other = "• ImSub will no longer control access to these groups"
 
 [reset_creator_no_groups_line]
+description = "Bullet line used in reset confirmations when the creator has no managed groups to unlink"
 other = "• No managed groups found, so no group access will be changed"
 
 [reset_subscriber_groups_title]
+description = "Section title listing subscriber-only groups affected by viewer data deletion"
 other = "Subscribers-only groups"
 
 [reset_managed_groups_title]
+description = "Section title listing creator-managed groups affected by creator data deletion"
 other = "Managed groups"
 
 [reset_creator_kick_targets_line]
+description = "Completion bullet indicating that tracked group-member removals are happening asynchronously in the background"
 other = "• Current group members are being removed in the background"
 
 [reset_creator_kick_failures_line]
+description = "Completion bullet showing how many tracked member removals failed during creator cleanup"
 other = "• Failed removals: %d"
 
 [reset_creator_cleanup_queue_failed]
+description = "Completion bullet shown when creator member-removal jobs could not be enqueued and must be checked manually"
 other = "• Current group members could not be scheduled for removal. Check these groups manually."
 
 [reset_no_groups_line]
+description = "Fallback list item used when a reset summary has no groups to show"
 other = "No groups"
 
 [btn_reset_keep_members]
@@ -567,32 +906,41 @@ other = "Keep members"
 [btn_reset_kick_tracked_members]
 other = "Remove members"
 
+# Subscription lifecycle and remaining shared copy
 [sub_end_partial]
+description = "Direct message sent to a viewer after access has been revoked because a subscription expired and no grace period remained"
 other = "⚠️ <b>Subscription expired</b>\n\nYour subscription to <b>%s</b> has expired, so you were removed from this creator's subscribers-only Telegram group(s).\n\n🔄 <b>Access again</b>\n1. Resubscribe on Twitch\n2. Come back here and use /start"
 
 [sub_start_heading]
+description = "Heading for a subscription-start direct message sent when a viewer becomes eligible again"
 other = "🎉 <b>New subscription active</b>"
 
 [sub_start_body_html]
+description = "Body text for a subscription-start direct message confirming the viewer now has an active subscription"
 other = "Your subscription to <b>%s</b> is active."
 
 [user_generic_name]
 other = "there"
 
 [group_unregistered]
+description = "Short success notice shown after a managed Telegram group has been unlinked"
 other = "✅ <b>Group unlinked</b>"
 
 [group_unregister_prompt_html]
+description = "Confirmation prompt shown before unlinking a Telegram group, asking what should happen to current group members"
 other = "⚠️ <b>Unlink this group?</b>\n\nChoose what to do with current group members before this group is unlinked."
 
 [cleanup_reset_warning_dm_html]
+description = "Direct message sent to the creator after reset cleanup when some tracked members could not be removed from affected groups"
 other = "⚠️ <b>Cleanup warning</b>\n\n<b>Creator:</b> %s\n<b>Groups:</b>\n%s\n\n<b>%d members</b> could not be removed automatically and are still in these groups."
 
 [group_unregister_not_owner]
+description = "Reply shown when someone other than the creator who linked the group tries to unlink it"
 other = "⚠️ Only the creator who linked this group can unlink it."
 
 [btn_unregister_group]
 other = "Unlink group"
 
 [cmd_info_html]
+description = "Informational /info screen describing what ImSub does, the main bot commands, and the project link"
 other = "ℹ️ <b>About ImSub</b>\n\nImSub manages access to private Telegram groups based on active Twitch subscriptions.\n\n<b>How it works</b>\n• Creators link a Twitch channel and a Telegram group\n• Viewers connect their Twitch account and get invite links\n• Access is granted and revoked automatically\n\n<b>Commands</b>\n/start — connect Twitch and see available groups\n/creator — set up a creator account\n/reset — delete your linked data\n/info — this screen\n\n<b>Project</b>\n<a href=\"https://github.com/ale-grassi/imsub\">github.com/ale-grassi/imsub</a>\nLicense: MIT"
