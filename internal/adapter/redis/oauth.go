@@ -17,7 +17,7 @@ func (s *Store) SaveOAuthState(ctx context.Context, state string, payload core.O
 	if err != nil {
 		return fmt.Errorf("json marshal oauth state: %w", err)
 	}
-	pipe := s.rdb.TxPipeline()
+	pipe := s.rdb.Pipeline()
 	pipe.Set(ctx, keyOAuthState(state), string(raw), ttl)
 	if payload.TelegramUserID != 0 {
 		pipe.SAdd(ctx, keyPrivacyOAuthStates(payload.TelegramUserID), keyOAuthState(state))

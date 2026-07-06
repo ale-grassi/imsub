@@ -16,7 +16,7 @@ func (s *Store) AddTrackedGroupMember(ctx context.Context, chatID, telegramUserI
 	chatStr := strconv.FormatInt(chatID, 10)
 	metaKey := keyTrackedGroupMemberMeta(chatID, telegramUserID)
 
-	pipe := s.rdb.TxPipeline()
+	pipe := s.rdb.Pipeline()
 	pipe.SAdd(ctx, keyTrackedGroupMembers(chatID), tgStr)
 	pipe.SRem(ctx, keyUntrackedGroupMembers(chatID), tgStr)
 	pipe.SAdd(ctx, keyUserTrackedGroups(telegramUserID), chatStr)
@@ -38,7 +38,7 @@ func (s *Store) AddTrackedGroupMember(ctx context.Context, chatID, telegramUserI
 // RemoveTrackedGroupMember removes telegramUserID from the tracked set for chatID.
 func (s *Store) RemoveTrackedGroupMember(ctx context.Context, chatID, telegramUserID int64) error {
 	tgStr := strconv.FormatInt(telegramUserID, 10)
-	pipe := s.rdb.TxPipeline()
+	pipe := s.rdb.Pipeline()
 	pipe.SRem(ctx, keyTrackedGroupMembers(chatID), tgStr)
 	pipe.SRem(ctx, keyUserTrackedGroups(telegramUserID), strconv.FormatInt(chatID, 10))
 	pipe.Del(ctx, keyTrackedGroupMemberMeta(chatID, telegramUserID))

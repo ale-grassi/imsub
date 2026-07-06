@@ -19,7 +19,7 @@ func (s *Store) UpsertUntrackedGroupMember(ctx context.Context, chatID, telegram
 	tgStr := strconv.FormatInt(telegramUserID, 10)
 	metaKey := keyTrackedGroupMemberMeta(chatID, telegramUserID)
 
-	pipe := s.rdb.TxPipeline()
+	pipe := s.rdb.Pipeline()
 	pipe.SAdd(ctx, keyUntrackedGroupMembers(chatID), tgStr)
 	// HSETNX keeps the original first_seen_at without a read round trip and
 	// without a read-modify-write race between concurrent upserts.
@@ -40,7 +40,7 @@ func (s *Store) UpsertUntrackedGroupMember(ctx context.Context, chatID, telegram
 
 // RemoveUntrackedGroupMember removes telegramUserID from the untracked set for chatID.
 func (s *Store) RemoveUntrackedGroupMember(ctx context.Context, chatID, telegramUserID int64) error {
-	pipe := s.rdb.TxPipeline()
+	pipe := s.rdb.Pipeline()
 	pipe.SRem(ctx, keyUntrackedGroupMembers(chatID), strconv.FormatInt(telegramUserID, 10))
 	pipe.Del(ctx, keyTrackedGroupMemberMeta(chatID, telegramUserID))
 	if _, err := pipe.Exec(ctx); err != nil {

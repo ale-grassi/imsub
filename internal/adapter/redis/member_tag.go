@@ -20,7 +20,7 @@ func (s *Store) UpsertManagedMemberTag(ctx context.Context, item core.ManagedMem
 		item.UpdatedAt = time.Now().UTC()
 	}
 	tgStr := strconv.FormatInt(item.TelegramUserID, 10)
-	pipe := s.rdb.TxPipeline()
+	pipe := s.rdb.Pipeline()
 	pipe.SAdd(ctx, keyManagedMemberTags(item.ChatID), tgStr)
 	pipe.HSet(ctx, keyManagedMemberTag(item.ChatID, item.TelegramUserID), map[string]string{
 		"chat_id":          strconv.FormatInt(item.ChatID, 10),
@@ -36,7 +36,7 @@ func (s *Store) UpsertManagedMemberTag(ctx context.Context, item core.ManagedMem
 
 // RemoveManagedMemberTag removes ImSub ownership metadata for a member tag.
 func (s *Store) RemoveManagedMemberTag(ctx context.Context, chatID, telegramUserID int64) error {
-	pipe := s.rdb.TxPipeline()
+	pipe := s.rdb.Pipeline()
 	pipe.SRem(ctx, keyManagedMemberTags(chatID), strconv.FormatInt(telegramUserID, 10))
 	pipe.Del(ctx, keyManagedMemberTag(chatID, telegramUserID))
 	if _, err := pipe.Exec(ctx); err != nil {
@@ -51,7 +51,7 @@ func (s *Store) RemoveManagedMemberTagsForGroup(ctx context.Context, chatID int6
 	if err != nil {
 		return fmt.Errorf("redis smembers managed member tags: %w", err)
 	}
-	pipe := s.rdb.TxPipeline()
+	pipe := s.rdb.Pipeline()
 	for _, rawID := range rawIDs {
 		telegramUserID, parseErr := strconv.ParseInt(rawID, 10, 64)
 		if parseErr != nil {

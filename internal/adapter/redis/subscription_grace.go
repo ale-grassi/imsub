@@ -33,7 +33,7 @@ func (s *Store) UpsertSubscriptionEndGrace(ctx context.Context, job core.Pending
 	if err != nil {
 		return core.PendingSubscriptionEndGrace{}, fmt.Errorf("marshal pending subscription-end grace: %w", err)
 	}
-	pipe := s.rdb.TxPipeline()
+	pipe := s.rdb.Pipeline()
 	pipe.Set(ctx, keySubscriptionEndGraceJob(job.ID), blob, 0)
 	pipe.ZAdd(ctx, keySubscriptionEndGraceDue(), redis.Z{
 		Score:  float64(job.DueAt.UTC().Unix()),
@@ -48,7 +48,7 @@ func (s *Store) UpsertSubscriptionEndGrace(ctx context.Context, job core.Pending
 // DeleteSubscriptionEndGrace deletes a pending delayed sub-end job.
 func (s *Store) DeleteSubscriptionEndGrace(ctx context.Context, creatorID, twitchUserID string) error {
 	jobID := s.SubscriptionEndGraceJobID(creatorID, twitchUserID)
-	pipe := s.rdb.TxPipeline()
+	pipe := s.rdb.Pipeline()
 	pipe.Del(ctx, keySubscriptionEndGraceJob(jobID))
 	pipe.ZRem(ctx, keySubscriptionEndGraceDue(), jobID)
 	if _, err := pipe.Exec(ctx); err != nil {
@@ -76,20 +76,35 @@ func (s *Store) ListDueSubscriptionEndGrace(ctx context.Context, now time.Time, 
 	if len(ids) == 0 {
 		return nil, nil
 	}
+	keys := make([]string, len(ids))
+	for i, id := range ids {
+		keys[i] = keySubscriptionEndGraceJob(id)
+	}
+	blobs, err := s.rdb.MGet(ctx, keys...).Result()
+	if err != nil {
+		return nil, fmt.Errorf("redis mget subscription-end grace jobs: %w", err)
+	}
+
 	out := make([]core.PendingSubscriptionEndGrace, 0, len(ids))
-	for _, id := range ids {
-		raw, err := s.rdb.Get(ctx, keySubscriptionEndGraceJob(id)).Bytes()
-		if err != nil {
-			if errors.Is(err, redis.Nil) {
-				continue
-			}
-			return nil, fmt.Errorf("redis get subscription-end grace job %s: %w", id, err)
+	var stale []any
+	for i, id := range ids {
+		raw, ok := blobs[i].(string)
+		if !ok {
+			// Due entry without a job blob: drop it so the sweep does not
+			// re-read it forever.
+			stale = append(stale, id)
+			continue
 		}
 		var job core.PendingSubscriptionEndGrace
-		if err := json.Unmarshal(raw, &job); err != nil {
+		if err := json.Unmarshal([]byte(raw), &job); err != nil {
 			return nil, fmt.Errorf("unmarshal subscription-end grace job %s: %w", id, err)
 		}
 		out = append(out, job)
+	}
+	if len(stale) > 0 {
+		if err := s.rdb.ZRem(ctx, keySubscriptionEndGraceDue(), stale...).Err(); err != nil {
+			s.log().Warn("prune stale subscription-end grace due entries failed", "count", len(stale), "error", err)
+		}
 	}
 	return out, nil
 }

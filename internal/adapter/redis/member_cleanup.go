@@ -51,13 +51,25 @@ func (s *Store) ListPendingMemberCleanupJobs(ctx context.Context) ([]core.Member
 	if len(ids) == 0 {
 		return nil, nil
 	}
+	keys := make([]string, len(ids))
+	for i, id := range ids {
+		keys[i] = keyMemberCleanupJob(id)
+	}
+	blobs, err := s.rdb.MGet(ctx, keys...).Result()
+	if err != nil {
+		return nil, fmt.Errorf("redis mget pending member cleanup jobs: %w", err)
+	}
 	out := make([]core.MemberCleanupJob, 0, len(ids))
-	for _, id := range ids {
-		job, ok, err := s.MemberCleanupJob(ctx, id)
-		if err != nil {
-			return nil, err
+	for i, id := range ids {
+		raw, ok := blobs[i].(string)
+		if !ok {
+			continue
 		}
-		if ok && job.Status == core.MemberCleanupStatusPending {
+		var job core.MemberCleanupJob
+		if err := json.Unmarshal([]byte(raw), &job); err != nil {
+			return nil, fmt.Errorf("unmarshal member cleanup job %s: %w", id, err)
+		}
+		if job.Status == core.MemberCleanupStatusPending {
 			out = append(out, job)
 		}
 	}
@@ -114,7 +126,7 @@ func (s *Store) SaveMemberCleanupJob(ctx context.Context, job core.MemberCleanup
 	if err != nil {
 		return fmt.Errorf("marshal member cleanup job: %w", err)
 	}
-	pipe := s.rdb.TxPipeline()
+	pipe := s.rdb.Pipeline()
 	pipe.Set(ctx, keyMemberCleanupJob(job.ID), raw, 0)
 	if job.Status == core.MemberCleanupStatusPending {
 		pipe.SAdd(ctx, keyPendingMemberCleanupJobs(), job.ID)
