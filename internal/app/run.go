@@ -420,7 +420,7 @@ func Run() error {
 	g.Go(func() error {
 		return jobRunner.RunScheduled(gctx, jobs.Schedule{
 			Task:     memberCleanupTask,
-			Interval: 1 * time.Minute,
+			Interval: 3 * time.Minute,
 			Timeout:  45 * time.Second,
 		})
 	})
