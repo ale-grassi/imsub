@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"imsub/internal/core"
+	"imsub/internal/events"
 	"imsub/internal/platform/config"
 )
 
@@ -484,5 +485,56 @@ func TestListEventSubsRetriesOnServerError(t *testing.T) {
 	}
 	if len(slept) != 1 || slept[0] != helixRetryBaseDelay {
 		t.Fatalf("sleeps = %v, want one base-delay back-off", slept)
+	}
+}
+
+type recordingSink struct {
+	mu     sync.Mutex
+	events []events.Event
+}
+
+func (r *recordingSink) Emit(_ context.Context, evt events.Event) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.events = append(r.events, evt)
+}
+
+func (r *recordingSink) named(name string) []events.Event {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]events.Event, 0, len(r.events))
+	for _, evt := range r.events {
+		if evt.Name == name {
+			out = append(out, evt)
+		}
+	}
+	return out
+}
+
+func TestHelixRetryEmitsObserverEvent(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+	client := NewClient(testConfig(), &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if calls.Add(1) == 1 {
+				return response(http.StatusTooManyRequests, "slow down"), nil
+			}
+			return response(http.StatusOK, `{"data":[],"pagination":{}}`), nil
+		}),
+	})
+	client.sleep = func(context.Context, time.Duration) error { return nil }
+	sink := &recordingSink{}
+	client.SetObserver(sink)
+
+	if _, _, err := client.ListSubscriberPage(t.Context(), "access", "broadcaster", ""); err != nil {
+		t.Fatalf("ListSubscriberPage returned error: %v", err)
+	}
+	retries := sink.named(events.NameTwitchHelixRetry)
+	if len(retries) != 1 {
+		t.Fatalf("helix retry events = %d, want 1", len(retries))
+	}
+	if got := retries[0].Fields["reason"]; got != "rate_limited" {
+		t.Fatalf("retry reason = %q, want rate_limited", got)
 	}
 }

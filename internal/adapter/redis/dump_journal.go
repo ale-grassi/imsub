@@ -2,7 +2,10 @@ package redis
 
 import (
 	"context"
+	"strings"
 	"sync"
+
+	"imsub/internal/events"
 )
 
 // dumpJournal captures individual set mutations (webhook-driven subscriber or
@@ -119,7 +122,21 @@ func (s *Store) replayDumpJournal(ctx context.Context, tmpKey string) {
 	if len(removes) > 0 {
 		pipe.SRem(ctx, destKey, stringSliceToAny(removes)...)
 	}
+	outcome := "applied"
 	if _, err := pipe.Exec(ctx); err != nil {
+		outcome = "failed"
 		s.log().Warn("replay dump journal failed", "dest_key", destKey, "adds", len(adds), "removes", len(removes), "error", err)
+	}
+	if s.eventSink != nil {
+		set := "blocklist"
+		if strings.HasPrefix(destKey, "imsub:creator:subscribers:") {
+			set = "subscribers"
+		}
+		s.eventSink.Emit(ctx, events.Event{
+			Name:    events.NameDumpJournalReplay,
+			Outcome: outcome,
+			Fields:  map[string]string{"set": set},
+			Count:   len(adds) + len(removes),
+		})
 	}
 }

@@ -61,6 +61,9 @@ type Metrics struct {
 	redisBackupKeys         prometheus.Gauge
 	redisBackupBytes        prometheus.Gauge
 	redisCommands           *prometheus.CounterVec
+	redisReadCache          *prometheus.CounterVec
+	dumpJournalReplays      *prometheus.CounterVec
+	twitchHelixRetries      *prometheus.CounterVec
 	creatorTokenRefresh     *prometheus.CounterVec
 	creatorBlocklistSync    *prometheus.CounterVec
 	creatorBlockEnforce     *prometheus.CounterVec
@@ -341,6 +344,27 @@ func New() *Metrics {
 			},
 			[]string{"job", "command", "result"},
 		),
+		redisReadCache: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "imsub_redis_read_cache_total",
+				Help: "In-process Redis read-cache lookups by cache and outcome.",
+			},
+			[]string{"cache", "outcome"},
+		),
+		dumpJournalReplays: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "imsub_dump_journal_replays_total",
+				Help: "Members replayed onto a rebuilt subscriber or blocklist set after their events raced the dump.",
+			},
+			[]string{"set", "outcome"},
+		),
+		twitchHelixRetries: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "imsub_twitch_helix_retries_total",
+				Help: "Twitch Helix request retries by trigger reason.",
+			},
+			[]string{"reason"},
+		),
 		creatorTokenRefresh: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Name: "imsub_creator_token_refresh_total",
@@ -598,6 +622,9 @@ func New() *Metrics {
 		m.redisBackupKeys,
 		m.redisBackupBytes,
 		m.redisCommands,
+		m.redisReadCache,
+		m.dumpJournalReplays,
+		m.twitchHelixRetries,
 		m.creatorTokenRefresh,
 		m.creatorBlocklistSync,
 		m.creatorBlockEnforce,
@@ -1132,6 +1159,12 @@ func (m *Metrics) Emit(_ context.Context, evt events.Event) {
 		m.TelegramKickAction(evt.Fields["reason"], evt.Outcome)
 	case events.NameTelegramMTProtoBootstrap:
 		m.TelegramMTProtoBootstrap(evt.Outcome)
+	case events.NameTwitchHelixRetry:
+		m.TwitchHelixRetry(evt.Fields["reason"])
+	case events.NameRedisReadCache:
+		m.RedisReadCache(evt.Fields["cache"], evt.Outcome, evt.Count)
+	case events.NameDumpJournalReplay:
+		m.DumpJournalReplay(evt.Fields["set"], evt.Outcome, evt.Count)
 	}
 }
 
@@ -1328,6 +1361,36 @@ func (m *Metrics) ObserveRedisCommand(_ context.Context, job, command, result st
 		httputil.LabelOrUnknown(command),
 		httputil.LabelOrUnknown(result),
 	).Add(float64(count))
+}
+
+// RedisReadCache records an in-process read-cache lookup outcome.
+func (m *Metrics) RedisReadCache(cache, outcome string, count int) {
+	if m == nil || count <= 0 {
+		return
+	}
+	m.redisReadCache.WithLabelValues(
+		httputil.LabelOrUnknown(cache),
+		httputil.LabelOrUnknown(outcome),
+	).Add(float64(count))
+}
+
+// DumpJournalReplay records members replayed after racing a set dump.
+func (m *Metrics) DumpJournalReplay(set, outcome string, count int) {
+	if m == nil || count <= 0 {
+		return
+	}
+	m.dumpJournalReplays.WithLabelValues(
+		httputil.LabelOrUnknown(set),
+		httputil.LabelOrUnknown(outcome),
+	).Add(float64(count))
+}
+
+// TwitchHelixRetry records one Twitch Helix request retry.
+func (m *Metrics) TwitchHelixRetry(reason string) {
+	if m == nil {
+		return
+	}
+	m.twitchHelixRetries.WithLabelValues(httputil.LabelOrUnknown(reason)).Inc()
 }
 
 // Middleware returns HTTP middleware that records request metrics and

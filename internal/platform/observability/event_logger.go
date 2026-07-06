@@ -28,7 +28,7 @@ func (l *EventLogger) Emit(ctx context.Context, evt events.Event) {
 
 	level := slog.LevelDebug
 	switch evt.Name {
-	case events.NameBackgroundJob, events.NameBackgroundJobStarted, events.NameReconciliationRepair, events.NameCreatorActivation, events.NameSubscriptionEnd, events.NameCreatorAuthTransition, events.NameCreatorReconnectNotice, events.NameCreatorTokenRefresh:
+	case events.NameBackgroundJob, events.NameBackgroundJobStarted, events.NameReconciliationRepair, events.NameCreatorActivation, events.NameSubscriptionEnd, events.NameCreatorAuthTransition, events.NameCreatorReconnectNotice, events.NameCreatorTokenRefresh, events.NameDumpJournalReplay:
 		level = slog.LevelInfo
 	}
 

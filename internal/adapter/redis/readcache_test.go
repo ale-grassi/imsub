@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"imsub/internal/core"
+	"imsub/internal/events"
 )
 
 type countingObserver struct {
@@ -131,5 +132,92 @@ func TestCreatorReadsServedFromCacheUntilWrite(t *testing.T) {
 	}
 	if creator.AccessToken != "fresh-access" {
 		t.Fatalf("creator access token = %q, want fresh-access", creator.AccessToken)
+	}
+}
+
+type recordingSink struct {
+	mu     sync.Mutex
+	events []events.Event
+}
+
+func (r *recordingSink) Emit(_ context.Context, evt events.Event) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.events = append(r.events, evt)
+}
+
+func (r *recordingSink) named(name string) []events.Event {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]events.Event, 0, len(r.events))
+	for _, evt := range r.events {
+		if evt.Name == name {
+			out = append(out, evt)
+		}
+	}
+	return out
+}
+
+func TestReadCacheEmitsHitAndMissEvents(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	ctx := t.Context()
+
+	if err := s.UpsertManagedGroup(ctx, core.ManagedGroup{ChatID: 100, CreatorID: "c1", GroupName: "One"}); err != nil {
+		t.Fatalf("UpsertManagedGroup failed: %v", err)
+	}
+	sink := &recordingSink{}
+	s.SetEventSink(sink)
+	if _, err := s.ListManagedGroups(ctx); err != nil {
+		t.Fatalf("ListManagedGroups (miss) failed: %v", err)
+	}
+	if _, err := s.ListManagedGroups(ctx); err != nil {
+		t.Fatalf("ListManagedGroups (hit) failed: %v", err)
+	}
+
+	var hits, misses int
+	for _, evt := range sink.named(events.NameRedisReadCache) {
+		if evt.Fields["cache"] != "groups" {
+			continue
+		}
+		switch evt.Outcome {
+		case "hit":
+			hits++
+		case "miss":
+			misses++
+		}
+	}
+	if hits != 1 || misses != 1 {
+		t.Fatalf("groups cache events = %d hits / %d misses, want 1/1", hits, misses)
+	}
+}
+
+func TestDumpJournalReplayEmitsEvent(t *testing.T) {
+	t.Parallel()
+
+	s := newTestStore(t)
+	ctx := t.Context()
+	sink := &recordingSink{}
+	s.SetEventSink(sink)
+
+	tmpKey := s.NewSubscriberDumpKey("c1")
+	if err := s.AddToSubscriberDump(ctx, tmpKey, []string{"u-snap"}); err != nil {
+		t.Fatalf("AddToSubscriberDump failed: %v", err)
+	}
+	if err := s.AddCreatorSubscriber(ctx, "c1", "u-new"); err != nil {
+		t.Fatalf("mid-dump AddCreatorSubscriber failed: %v", err)
+	}
+	if err := s.FinalizeSubscriberDump(ctx, "c1", tmpKey, true); err != nil {
+		t.Fatalf("FinalizeSubscriberDump failed: %v", err)
+	}
+
+	replays := sink.named(events.NameDumpJournalReplay)
+	if len(replays) != 1 {
+		t.Fatalf("dump journal replay events = %d, want 1", len(replays))
+	}
+	evt := replays[0]
+	if evt.Outcome != "applied" || evt.Fields["set"] != "subscribers" || evt.Count != 1 {
+		t.Fatalf("replay event = outcome=%q set=%q count=%d, want applied/subscribers/1", evt.Outcome, evt.Fields["set"], evt.Count)
 	}
 }

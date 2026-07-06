@@ -55,6 +55,9 @@ const (
 	NameOAuthCallback               = "oauth_callback"
 	NameEventSubMessage             = "eventsub_message"
 	NameTelegramWebhook             = "telegram_webhook"
+	NameTwitchHelixRetry            = "twitch_helix_retry"
+	NameRedisReadCache              = "redis_read_cache"
+	NameDumpJournalReplay           = "dump_journal_replay"
 )
 
 // Event is a small cross-layer event emitted by application and domain workflows.

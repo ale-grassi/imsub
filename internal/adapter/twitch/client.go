@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"imsub/internal/core"
+	"imsub/internal/events"
 	"imsub/internal/platform/config"
 )
 
@@ -51,15 +52,24 @@ var _ core.TwitchAPI = (*Client)(nil)
 
 // Client is the production Twitch API client that makes real HTTP calls.
 type Client struct {
-	cfg    config.Config
-	client *http.Client
-	now    func() time.Time
-	sleep  func(ctx context.Context, d time.Duration) error
+	cfg      config.Config
+	client   *http.Client
+	now      func() time.Time
+	sleep    func(ctx context.Context, d time.Duration) error
+	observer events.EventSink
 
 	appTokenMu      sync.Mutex
 	appToken        string
 	appTokenExpires time.Time
 	appTokenFetchCh chan struct{}
+}
+
+// SetObserver wires metrics/observability hooks into Helix request handling.
+func (c *Client) SetObserver(observer events.EventSink) {
+	if c == nil {
+		return
+	}
+	c.observer = observer
 }
 
 // NewClient creates a Twitch API client backed by real HTTP requests.
@@ -105,6 +115,17 @@ func (c *Client) doHelixRequest(ctx context.Context, build func() (*http.Request
 		}
 		delay := helixRetryDelay(resp.Header, c.now(), attempt)
 		_ = resp.Body.Close()
+		if c.observer != nil {
+			reason := "server_error"
+			if resp.StatusCode == http.StatusTooManyRequests {
+				reason = "rate_limited"
+			}
+			c.observer.Emit(ctx, events.Event{
+				Name:     events.NameTwitchHelixRetry,
+				Fields:   map[string]string{"reason": reason},
+				Duration: delay,
+			})
+		}
 		if err := c.sleep(ctx, delay); err != nil {
 			return nil, fmt.Errorf("wait for twitch retry: %w", err)
 		}

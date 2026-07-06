@@ -51,7 +51,7 @@ func (s *Store) parseManagedGroup(vals map[string]string, chatID int64) core.Man
 // A fresh read-cache copy of the full group list is authoritative for both
 // hits and misses: every group hash is indexed in the managed-groups set.
 func (s *Store) ManagedGroupByChatID(ctx context.Context, chatID int64) (core.ManagedGroup, bool, error) {
-	if groups, _, ok := s.reads.cachedGroups(); ok {
+	if groups, _, ok := s.cachedGroupsObserved(ctx); ok {
 		for _, group := range groups {
 			if group.ChatID == chatID {
 				return group, true, nil
@@ -71,7 +71,7 @@ func (s *Store) ManagedGroupByChatID(ctx context.Context, chatID int64) (core.Ma
 
 // ListManagedGroupsByCreator returns all managed groups linked to creatorID.
 func (s *Store) ListManagedGroupsByCreator(ctx context.Context, creatorID string) ([]core.ManagedGroup, error) {
-	if groups, _, ok := s.reads.cachedGroups(); ok {
+	if groups, _, ok := s.cachedGroupsObserved(ctx); ok {
 		out := make([]core.ManagedGroup, 0, len(groups))
 		for _, group := range groups {
 			if group.CreatorID == creatorID {
@@ -92,7 +92,7 @@ func (s *Store) ListManagedGroupsByCreator(ctx context.Context, creatorID string
 
 // ListManagedGroups returns all managed groups.
 func (s *Store) ListManagedGroups(ctx context.Context) ([]core.ManagedGroup, error) {
-	cached, gen, ok := s.reads.cachedGroups()
+	cached, gen, ok := s.cachedGroupsObserved(ctx)
 	if ok {
 		return slices.Clone(cached), nil
 	}
@@ -106,6 +106,17 @@ func (s *Store) ListManagedGroups(ctx context.Context) ([]core.ManagedGroup, err
 	}
 	s.reads.storeGroups(gen, slices.Clone(groups))
 	return groups, nil
+}
+
+// cachedGroupsObserved consults the group read cache and records the outcome.
+func (s *Store) cachedGroupsObserved(ctx context.Context) ([]core.ManagedGroup, uint64, bool) {
+	groups, gen, ok := s.reads.cachedGroups()
+	if ok {
+		s.emitReadCache(ctx, "groups", "hit")
+	} else {
+		s.emitReadCache(ctx, "groups", "miss")
+	}
+	return groups, gen, ok
 }
 
 // loadManagedGroupsByRawIDs fetches group hashes for raw chat-ID set members

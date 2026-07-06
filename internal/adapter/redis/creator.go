@@ -111,7 +111,7 @@ func parseSubscriptionEndGrace(raw string) core.SubscriptionEndGrace {
 // A fresh read-cache copy of the full creator list is authoritative for both
 // hits and misses: every creator hash is indexed in the creators set.
 func (s *Store) Creator(ctx context.Context, creatorID string) (core.Creator, bool, error) {
-	if creators, _, ok := s.reads.cachedCreators(); ok {
+	if creators, _, ok := s.cachedCreatorsObserved(ctx); ok {
 		for _, c := range creators {
 			if c.ID == creatorID {
 				return c, true, nil
@@ -129,6 +129,17 @@ func (s *Store) Creator(ctx context.Context, creatorID string) (core.Creator, bo
 	return s.parseCreatorHash(vals, creatorID), true, nil
 }
 
+// cachedCreatorsObserved consults the creator read cache and records the outcome.
+func (s *Store) cachedCreatorsObserved(ctx context.Context) ([]core.Creator, uint64, bool) {
+	creators, gen, ok := s.reads.cachedCreators()
+	if ok {
+		s.emitReadCache(ctx, "creators", "hit")
+	} else {
+		s.emitReadCache(ctx, "creators", "miss")
+	}
+	return creators, gen, ok
+}
+
 func (s *Store) loadCreatorsBySet(ctx context.Context, setKey string, filter func(core.Creator) bool) ([]core.Creator, error) {
 	ids, err := s.rdb.SMembers(ctx, setKey).Result()
 	if err != nil {
@@ -138,15 +149,16 @@ func (s *Store) loadCreatorsBySet(ctx context.Context, setKey string, filter fun
 		return nil, nil
 	}
 	slices.Sort(ids)
-	return s.LoadCreatorsByIDs(ctx, ids, filter)
+	return s.loadCreatorsByIDsUncached(ctx, ids, filter)
 }
 
-// LoadCreatorsByIDs fetches creators by ID in a single pipeline, applying an optional filter.
+// LoadCreatorsByIDs fetches creators by ID, served from the read cache when
+// fresh, otherwise in a single pipeline; an optional filter applies either way.
 func (s *Store) LoadCreatorsByIDs(ctx context.Context, ids []string, filter func(core.Creator) bool) ([]core.Creator, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
-	if creators, _, ok := s.reads.cachedCreators(); ok {
+	if creators, _, ok := s.cachedCreatorsObserved(ctx); ok {
 		byID := make(map[string]core.Creator, len(creators))
 		for _, c := range creators {
 			byID[c.ID] = c
@@ -163,6 +175,13 @@ func (s *Store) LoadCreatorsByIDs(ctx context.Context, ids []string, filter func
 			out = append(out, c)
 		}
 		return out, nil
+	}
+	return s.loadCreatorsByIDsUncached(ctx, ids, filter)
+}
+
+func (s *Store) loadCreatorsByIDsUncached(ctx context.Context, ids []string, filter func(core.Creator) bool) ([]core.Creator, error) {
+	if len(ids) == 0 {
+		return nil, nil
 	}
 	pipe := s.rdb.Pipeline()
 	cmds := make([]*redis.MapStringStringCmd, len(ids))
@@ -190,7 +209,7 @@ func (s *Store) LoadCreatorsByIDs(ctx context.Context, ids []string, filter func
 
 // ListCreators returns all registered creators.
 func (s *Store) ListCreators(ctx context.Context) ([]core.Creator, error) {
-	cached, gen, ok := s.reads.cachedCreators()
+	cached, gen, ok := s.cachedCreatorsObserved(ctx)
 	if ok {
 		return slices.Clone(cached), nil
 	}

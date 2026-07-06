@@ -579,6 +579,7 @@ func (t memberCleanupTask) Run(ctx context.Context) error {
 			continue
 		}
 		if !claimed {
+			t.counts.inc("locked")
 			continue
 		}
 		t.counts.inc("processed")
@@ -746,6 +747,7 @@ func (t subscriptionGraceTask) Run(ctx context.Context) error {
 			continue
 		}
 		if !claimed {
+			t.counts.inc("locked")
 			continue
 		}
 		if err := t.processJob(ctx, job); err != nil {

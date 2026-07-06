@@ -505,3 +505,41 @@ func TestMiddlewareNilDependencies(t *testing.T) {
 		t.Fatalf("Middleware(nil,nil,nil) status = %d, want %d", rec.Code, http.StatusNotFound)
 	}
 }
+
+func TestEmitProjectsEfficiencyEvents(t *testing.T) {
+	t.Parallel()
+
+	m := New()
+	m.Emit(t.Context(), events.Event{
+		Name:    events.NameRedisReadCache,
+		Outcome: "hit",
+		Fields:  map[string]string{"cache": "groups"},
+		Count:   1,
+	})
+	m.Emit(t.Context(), events.Event{
+		Name:   events.NameTwitchHelixRetry,
+		Fields: map[string]string{"reason": "rate_limited"},
+	})
+	m.Emit(t.Context(), events.Event{
+		Name:    events.NameDumpJournalReplay,
+		Outcome: "applied",
+		Fields:  map[string]string{"set": "subscribers"},
+		Count:   2,
+	})
+
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/metrics", nil)
+	rec := httptest.NewRecorder()
+	m.Handler().ServeHTTP(rec, req)
+
+	body := rec.Body.String()
+	needles := []string{
+		`imsub_redis_read_cache_total{cache="groups",outcome="hit"} 1`,
+		`imsub_twitch_helix_retries_total{reason="rate_limited"} 1`,
+		`imsub_dump_journal_replays_total{outcome="applied",set="subscribers"} 2`,
+	}
+	for _, needle := range needles {
+		if !strings.Contains(body, needle) {
+			t.Fatalf("metrics output missing projected efficiency event %q: %s", needle, body)
+		}
+	}
+}

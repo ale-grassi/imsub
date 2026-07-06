@@ -25,6 +25,7 @@ type Store struct {
 	rdb             *redis.Client
 	logger          *slog.Logger
 	commandObserver CommandObserver
+	eventSink       events.EventSink
 
 	// Backup dirty-tracking dedup. Marking a key dirty is idempotent until the
 	// tracking sets are rotated by a backup run, so the hook skips keys already
@@ -74,6 +75,28 @@ func (s *Store) SetCommandObserver(observer CommandObserver) {
 		return
 	}
 	s.commandObserver = observer
+}
+
+// SetEventSink configures optional store-level event telemetry (read-cache
+// lookups, dump-journal replays).
+func (s *Store) SetEventSink(sink events.EventSink) {
+	if s == nil {
+		return
+	}
+	s.eventSink = sink
+}
+
+// emitReadCache records one read-cache lookup outcome ("hit" or "miss").
+func (s *Store) emitReadCache(ctx context.Context, cache, outcome string) {
+	if s == nil || s.eventSink == nil {
+		return
+	}
+	s.eventSink.Emit(ctx, events.Event{
+		Name:    events.NameRedisReadCache,
+		Outcome: outcome,
+		Fields:  map[string]string{"cache": cache},
+		Count:   1,
+	})
 }
 
 func (s *Store) log() *slog.Logger {

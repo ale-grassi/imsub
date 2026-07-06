@@ -109,6 +109,8 @@ func Run() error {
 			observability.NewEventLogger(logger),
 		},
 	}
+	s.SetEventSink(eventSink)
+	twitchAPI.SetObserver(eventSink)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
