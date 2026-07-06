@@ -318,6 +318,11 @@ func (s *Store) rotateBackupTracking(ctx context.Context, createdAt time.Time) (
 	if err := renameIfExists(ctx, s.rdb, keyBackupDeleted(), attempt.deletedKey); err != nil {
 		return backupAttempt{}, fmt.Errorf("rotate deleted backup set: %w", err)
 	}
+	// Invalidate the dirty-mark dedup cache only after the live sets are
+	// rotated away: writes that skipped re-marking against the old generation
+	// have their marks in the rotated sets and are exported by this backup,
+	// while writes observing the new generation mark into the fresh sets.
+	s.rotateTrackingGeneration()
 	return attempt, nil
 }
 
@@ -378,6 +383,10 @@ func parseAttemptToken(token string) backupAttempt {
 func isBackupExportedKey(key string) bool {
 	return strings.HasPrefix(key, "imsub:") &&
 		!strings.HasPrefix(key, "imsub:backup:") &&
+		// Job locks are ephemeral TTL keys; restoring them from a backup would
+		// wrongly block job processing after a restore.
+		!strings.HasPrefix(key, "imsub:cleanup_job_lock:") &&
+		!strings.HasPrefix(key, "imsub:sub_end_grace_lock:") &&
 		!isTemporaryDumpKey(key)
 }
 

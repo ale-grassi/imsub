@@ -8,6 +8,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"imsub/internal/events"
@@ -24,6 +25,17 @@ type Store struct {
 	rdb             *redis.Client
 	logger          *slog.Logger
 	commandObserver CommandObserver
+
+	// Backup dirty-tracking dedup. Marking a key dirty is idempotent until the
+	// tracking sets are rotated by a backup run, so the hook skips keys already
+	// marked in the current generation instead of re-issuing SADD on every
+	// write. Assumes a single process owns backup rotation (single-instance
+	// deployment); another instance rotating the sets would not reset this
+	// cache.
+	trackMu       sync.Mutex
+	trackGen      uint64
+	dirtyMarked   map[string]uint64
+	deletedMarked map[string]uint64
 }
 
 // CommandObserver receives low-cardinality Redis command telemetry.
@@ -292,20 +304,7 @@ func (h backupTrackingHook) trackCommand(ctx context.Context, cmd redis.Cmder) {
 		return
 	}
 	dirty, deleted := backupTouchedKeys(cmd)
-	if len(dirty) == 0 && len(deleted) == 0 {
-		return
-	}
-	ctx = skipBackupTracking(ctx)
-	if len(dirty) > 0 {
-		if err := h.store.rdb.SAdd(ctx, keyBackupDirty(), stringSliceToAny(dirty)...).Err(); err != nil {
-			h.store.log().Warn("backup dirty tracking failed", "error", err)
-		}
-	}
-	if len(deleted) > 0 {
-		if err := h.store.rdb.SAdd(ctx, keyBackupDeleted(), stringSliceToAny(deleted)...).Err(); err != nil {
-			h.store.log().Warn("backup deleted tracking failed", "error", err)
-		}
-	}
+	h.store.recordBackupTracking(ctx, dirty, deleted)
 }
 
 func (h backupTrackingHook) trackCommands(ctx context.Context, cmds []redis.Cmder) {
@@ -326,19 +325,97 @@ func (h backupTrackingHook) trackCommands(ctx context.Context, cmds []redis.Cmde
 			deletedSet[key] = struct{}{}
 		}
 	}
-	if len(dirtySet) == 0 && len(deletedSet) == 0 {
+	h.store.recordBackupTracking(ctx, mapKeys(dirtySet), mapKeys(deletedSet))
+}
+
+// recordBackupTracking adds keys to the backup dirty/deleted sets, skipping
+// keys already marked since the last tracking rotation.
+func (s *Store) recordBackupTracking(ctx context.Context, dirty, deleted []string) {
+	gen, dirty, deleted := s.unmarkedTrackingKeys(dirty, deleted)
+	if len(dirty) == 0 && len(deleted) == 0 {
 		return
 	}
 	ctx = skipBackupTracking(ctx)
-	if len(dirtySet) > 0 {
-		if err := h.store.rdb.SAdd(ctx, keyBackupDirty(), stringSliceToAny(mapKeys(dirtySet))...).Err(); err != nil {
-			h.store.log().Warn("backup dirty tracking failed", "error", err)
+	if len(dirty) > 0 {
+		if err := s.rdb.SAdd(ctx, keyBackupDirty(), stringSliceToAny(dirty)...).Err(); err != nil {
+			s.log().Warn("backup dirty tracking failed", "error", err)
+			dirty = nil
 		}
 	}
-	if len(deletedSet) > 0 {
-		if err := h.store.rdb.SAdd(ctx, keyBackupDeleted(), stringSliceToAny(mapKeys(deletedSet))...).Err(); err != nil {
-			h.store.log().Warn("backup deleted tracking failed", "error", err)
+	if len(deleted) > 0 {
+		if err := s.rdb.SAdd(ctx, keyBackupDeleted(), stringSliceToAny(deleted)...).Err(); err != nil {
+			s.log().Warn("backup deleted tracking failed", "error", err)
+			deleted = nil
 		}
+	}
+	s.markTrackingKeys(gen, dirty, deleted)
+}
+
+// unmarkedTrackingKeys filters out keys already marked in the current tracking
+// generation and returns the generation observed for the surviving keys.
+func (s *Store) unmarkedTrackingKeys(dirty, deleted []string) (gen uint64, unmarkedDirty, unmarkedDeleted []string) {
+	s.trackMu.Lock()
+	defer s.trackMu.Unlock()
+	s.ensureTrackingStateLocked()
+	newDirty := dirty[:0]
+	for _, key := range dirty {
+		if s.dirtyMarked[key] != s.trackGen {
+			newDirty = append(newDirty, key)
+		}
+	}
+	newDeleted := deleted[:0]
+	for _, key := range deleted {
+		if s.deletedMarked[key] != s.trackGen {
+			newDeleted = append(newDeleted, key)
+		}
+	}
+	return s.trackGen, newDirty, newDeleted
+}
+
+// markTrackingKeys records keys as marked for generation gen. Marks are
+// dropped if the generation rotated mid-flight, so the next write re-adds the
+// key to the fresh tracking set (a harmless duplicate SADD at worst).
+func (s *Store) markTrackingKeys(gen uint64, dirty, deleted []string) {
+	if len(dirty) == 0 && len(deleted) == 0 {
+		return
+	}
+	s.trackMu.Lock()
+	defer s.trackMu.Unlock()
+	s.ensureTrackingStateLocked()
+	if s.trackGen != gen {
+		return
+	}
+	for _, key := range dirty {
+		s.dirtyMarked[key] = gen
+	}
+	for _, key := range deleted {
+		s.deletedMarked[key] = gen
+	}
+}
+
+// rotateTrackingGeneration invalidates the dirty-mark cache. Called after the
+// live tracking sets have been rotated away by a backup run, so subsequent
+// writes mark their keys into the fresh sets.
+func (s *Store) rotateTrackingGeneration() {
+	s.trackMu.Lock()
+	defer s.trackMu.Unlock()
+	s.ensureTrackingStateLocked()
+	s.trackGen++
+	s.dirtyMarked = make(map[string]uint64)
+	s.deletedMarked = make(map[string]uint64)
+}
+
+// ensureTrackingStateLocked lazily initializes dedup state. The generation
+// starts at 1 so a zero-valued map entry never matches the current generation.
+func (s *Store) ensureTrackingStateLocked() {
+	if s.trackGen == 0 {
+		s.trackGen = 1
+	}
+	if s.dirtyMarked == nil {
+		s.dirtyMarked = make(map[string]uint64)
+	}
+	if s.deletedMarked == nil {
+		s.deletedMarked = make(map[string]uint64)
 	}
 }
 
@@ -375,7 +452,12 @@ func backupTouchedKeys(cmd redis.Cmder) (dirty []string, deleted []string) {
 	case "rename", "renamenx":
 		deleted = appendKey(deleted, 1)
 		dirty = appendKey(dirty, 2)
-	case redisCommandSet, "setex", "psetex", "setnx", "hset", "hdel", "hmset", redisCommandSAdd, "srem", "zadd", "zrem", "expire", "pexpire", "expireat", "pexpireat", "persist", "restore", "restore-asking":
+	case redisCommandSet, "setex", "psetex", "setnx", "getset", "append", "setrange",
+		"incr", "incrby", "incrbyfloat", "decr", "decrby",
+		"hset", "hsetnx", "hdel", "hmset", "hincrby", "hincrbyfloat",
+		redisCommandSAdd, "srem", "spop",
+		"zadd", "zrem", "zincrby", "zremrangebyscore", "zremrangebyrank",
+		"expire", "pexpire", "expireat", "pexpireat", "persist", "restore", "restore-asking":
 		dirty = appendKey(dirty, 1)
 	}
 	return dirty, deleted

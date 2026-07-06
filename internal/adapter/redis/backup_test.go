@@ -216,11 +216,14 @@ func TestCreateIncrementalBackupSkipsTombstoneForRecreatedKey(t *testing.T) {
 	if err := s.rdb.Set(ctx, "imsub:recreated", "old", 0).Err(); err != nil {
 		t.Fatalf("seed key: %v", err)
 	}
-	if err := s.rdb.Del(skipBackupTracking(ctx), keyBackupDirty(), keyBackupDeleted()).Err(); err != nil {
-		t.Fatalf("clear tracking sets: %v", err)
+	var full bytes.Buffer
+	fullCreatedAt := time.Now().UTC()
+	_, fullToken, err := s.CreateBackup(ctx, &full, BackupKindFull, "backups/full/base.jsonl.gz", fullCreatedAt)
+	if err != nil {
+		t.Fatalf("CreateBackup(full) error = %v", err)
 	}
-	if err := s.rdb.Set(skipBackupTracking(ctx), keyBackupBaseFullKey(), "backups/full/base.jsonl.gz", 0).Err(); err != nil {
-		t.Fatalf("seed base full key: %v", err)
+	if err := s.FinishBackup(ctx, fullToken, true, BackupKindFull, "backups/full/base.jsonl.gz", fullCreatedAt); err != nil {
+		t.Fatalf("FinishBackup(full) error = %v", err)
 	}
 	if err := s.rdb.Del(ctx, "imsub:recreated").Err(); err != nil {
 		t.Fatalf("delete key: %v", err)
@@ -522,14 +525,13 @@ func TestRestoreBackupAppliesFullThenIncrementalWithDelete(t *testing.T) {
 	}
 
 	var full bytes.Buffer
-	if _, err := source.ExportBackup(ctx, &full); err != nil {
-		t.Fatalf("ExportBackup() error = %v", err)
+	fullCreatedAt := time.Now().UTC()
+	_, fullToken, err := source.CreateBackup(ctx, &full, BackupKindFull, "backups/full/base.jsonl.gz", fullCreatedAt)
+	if err != nil {
+		t.Fatalf("CreateBackup(full) error = %v", err)
 	}
-	if err := source.rdb.Del(skipBackupTracking(ctx), keyBackupDirty(), keyBackupDeleted()).Err(); err != nil {
-		t.Fatalf("clear tracking sets: %v", err)
-	}
-	if err := source.rdb.Set(skipBackupTracking(ctx), keyBackupBaseFullKey(), "backups/full/base.jsonl.gz", 0).Err(); err != nil {
-		t.Fatalf("seed base key: %v", err)
+	if err := source.FinishBackup(ctx, fullToken, true, BackupKindFull, "backups/full/base.jsonl.gz", fullCreatedAt); err != nil {
+		t.Fatalf("FinishBackup(full) error = %v", err)
 	}
 	if err := source.rdb.Set(ctx, "imsub:keep", "new", 0).Err(); err != nil {
 		t.Fatalf("update keep: %v", err)
