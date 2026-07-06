@@ -108,7 +108,17 @@ func parseSubscriptionEndGrace(raw string) core.SubscriptionEndGrace {
 }
 
 // Creator returns the creator with the given ID, or false if not found.
+// A fresh read-cache copy of the full creator list is authoritative for both
+// hits and misses: every creator hash is indexed in the creators set.
 func (s *Store) Creator(ctx context.Context, creatorID string) (core.Creator, bool, error) {
+	if creators, _, ok := s.reads.cachedCreators(); ok {
+		for _, c := range creators {
+			if c.ID == creatorID {
+				return c, true, nil
+			}
+		}
+		return core.Creator{}, false, nil
+	}
 	vals, err := s.rdb.HGetAll(ctx, keyCreator(creatorID)).Result()
 	if err != nil {
 		return core.Creator{}, false, fmt.Errorf("redis hgetall creator: %w", err)
@@ -136,6 +146,24 @@ func (s *Store) LoadCreatorsByIDs(ctx context.Context, ids []string, filter func
 	if len(ids) == 0 {
 		return nil, nil
 	}
+	if creators, _, ok := s.reads.cachedCreators(); ok {
+		byID := make(map[string]core.Creator, len(creators))
+		for _, c := range creators {
+			byID[c.ID] = c
+		}
+		out := make([]core.Creator, 0, len(ids))
+		for _, id := range ids {
+			c, found := byID[id]
+			if !found {
+				continue
+			}
+			if filter != nil && !filter(c) {
+				continue
+			}
+			out = append(out, c)
+		}
+		return out, nil
+	}
 	pipe := s.rdb.Pipeline()
 	cmds := make([]*redis.MapStringStringCmd, len(ids))
 	for i, id := range ids {
@@ -162,7 +190,16 @@ func (s *Store) LoadCreatorsByIDs(ctx context.Context, ids []string, filter func
 
 // ListCreators returns all registered creators.
 func (s *Store) ListCreators(ctx context.Context) ([]core.Creator, error) {
-	return s.loadCreatorsBySet(ctx, keyCreatorsSet(), nil)
+	cached, gen, ok := s.reads.cachedCreators()
+	if ok {
+		return slices.Clone(cached), nil
+	}
+	creators, err := s.loadCreatorsBySet(ctx, keyCreatorsSet(), nil)
+	if err != nil {
+		return nil, err
+	}
+	s.reads.storeCreators(gen, slices.Clone(creators))
+	return creators, nil
 }
 
 // ListActiveCreators returns creators that have at least one managed group.

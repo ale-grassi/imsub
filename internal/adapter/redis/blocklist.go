@@ -24,6 +24,7 @@ func (s *Store) AddCreatorBlockedUser(ctx context.Context, creatorID, twitchUser
 	if err := s.rdb.SAdd(ctx, keyCreatorBlockedUsers(creatorID), twitchUserID).Err(); err != nil {
 		return fmt.Errorf("redis sadd creator blocked user: %w", err)
 	}
+	s.dumps.record(keyCreatorBlockedUsers(creatorID), twitchUserID, true)
 	return nil
 }
 
@@ -32,6 +33,7 @@ func (s *Store) RemoveCreatorBlockedUser(ctx context.Context, creatorID, twitchU
 	if err := s.rdb.SRem(ctx, keyCreatorBlockedUsers(creatorID), twitchUserID).Err(); err != nil {
 		return fmt.Errorf("redis srem creator blocked user: %w", err)
 	}
+	s.dumps.record(keyCreatorBlockedUsers(creatorID), twitchUserID, false)
 	return nil
 }
 
@@ -44,9 +46,13 @@ func (s *Store) CreatorBlockedUserCount(ctx context.Context, creatorID string) (
 	return count, nil
 }
 
-// NewCreatorBlocklistDumpKey returns a unique temporary Redis key for a blocklist dump.
+// NewCreatorBlocklistDumpKey returns a unique temporary Redis key for a
+// blocklist dump and starts journaling live ban events so ones racing the
+// dump survive the finalize RENAME.
 func (s *Store) NewCreatorBlocklistDumpKey(creatorID string) string {
-	return fmt.Sprintf("%s:tmp:%d", keyCreatorBlockedUsers(creatorID), time.Now().UnixNano())
+	tmpKey := fmt.Sprintf("%s:tmp:%d", keyCreatorBlockedUsers(creatorID), time.Now().UnixNano())
+	s.dumps.begin(keyCreatorBlockedUsers(creatorID), tmpKey)
+	return tmpKey
 }
 
 // AddToCreatorBlocklistDump appends Twitch user IDs to a temporary blocklist dump set.
@@ -61,23 +67,27 @@ func (s *Store) AddToCreatorBlocklistDump(ctx context.Context, tmpKey string, us
 	return nil
 }
 
-// FinalizeCreatorBlocklistDump atomically replaces the creator's blocklist cache with the dump.
+// FinalizeCreatorBlocklistDump atomically replaces the creator's blocklist
+// cache with the dump, then replays ban events that arrived while it was built.
 func (s *Store) FinalizeCreatorBlocklistDump(ctx context.Context, creatorID, tmpKey string, hasData bool) error {
 	destKey := keyCreatorBlockedUsers(creatorID)
 	if !hasData {
 		if err := s.rdb.Del(ctx, destKey).Err(); err != nil {
 			return fmt.Errorf("redis del creator blocklist dest: %w", err)
 		}
+		s.replayDumpJournal(ctx, tmpKey)
 		return nil
 	}
 	if err := s.rdb.Rename(ctx, tmpKey, destKey).Err(); err != nil {
 		return fmt.Errorf("redis rename creator blocklist tmp to dest: %w", err)
 	}
+	s.replayDumpJournal(ctx, tmpKey)
 	return nil
 }
 
 // CleanupCreatorBlocklistDump removes a temporary creator blocklist dump key.
 func (s *Store) CleanupCreatorBlocklistDump(ctx context.Context, tmpKey string) {
+	s.dumps.discard(tmpKey)
 	if err := s.rdb.Del(skipBackupTracking(ctx), tmpKey).Err(); err != nil {
 		s.log().Warn("cleanup creator blocklist dump failed", "tmp_key", tmpKey, "error", err)
 	}

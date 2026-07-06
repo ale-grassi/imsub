@@ -36,6 +36,13 @@ type Store struct {
 	trackGen      uint64
 	dirtyMarked   map[string]uint64
 	deletedMarked map[string]uint64
+
+	// In-process read cache for managed groups and creators; see readcache.go.
+	reads readCache
+
+	// Journal of live set mutations racing an in-flight subscriber or
+	// blocklist dump; see dump_journal.go.
+	dumps dumpJournal
 }
 
 // CommandObserver receives low-cardinality Redis command telemetry.
@@ -282,7 +289,7 @@ func (h backupTrackingHook) DialHook(next redis.DialHook) redis.DialHook {
 func (h backupTrackingHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 	return func(ctx context.Context, cmd redis.Cmder) error {
 		err := next(ctx, cmd)
-		if err == nil && !backupTrackingSkipped(ctx) {
+		if err == nil {
 			h.trackCommand(ctx, cmd)
 		}
 		return err
@@ -292,9 +299,7 @@ func (h backupTrackingHook) ProcessHook(next redis.ProcessHook) redis.ProcessHoo
 func (h backupTrackingHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
 	return func(ctx context.Context, cmds []redis.Cmder) error {
 		err := next(ctx, cmds)
-		if !backupTrackingSkipped(ctx) {
-			h.trackCommands(ctx, cmds)
-		}
+		h.trackCommands(ctx, cmds)
 		return err
 	}
 }
@@ -304,7 +309,13 @@ func (h backupTrackingHook) trackCommand(ctx context.Context, cmd redis.Cmder) {
 		return
 	}
 	dirty, deleted := backupTouchedKeys(cmd)
-	h.store.recordBackupTracking(ctx, dirty, deleted)
+	// Read-cache invalidation applies to every write, even ones excluded from
+	// backup tracking (e.g. RESTORE while loading a backup).
+	h.store.invalidateReadCacheKeys(dirty)
+	h.store.invalidateReadCacheKeys(deleted)
+	if !backupTrackingSkipped(ctx) {
+		h.store.recordBackupTracking(ctx, dirty, deleted)
+	}
 }
 
 func (h backupTrackingHook) trackCommands(ctx context.Context, cmds []redis.Cmder) {
@@ -325,7 +336,13 @@ func (h backupTrackingHook) trackCommands(ctx context.Context, cmds []redis.Cmde
 			deletedSet[key] = struct{}{}
 		}
 	}
-	h.store.recordBackupTracking(ctx, mapKeys(dirtySet), mapKeys(deletedSet))
+	dirty := mapKeys(dirtySet)
+	deleted := mapKeys(deletedSet)
+	h.store.invalidateReadCacheKeys(dirty)
+	h.store.invalidateReadCacheKeys(deleted)
+	if !backupTrackingSkipped(ctx) {
+		h.store.recordBackupTracking(ctx, dirty, deleted)
+	}
 }
 
 // recordBackupTracking adds keys to the backup dirty/deleted sets, skipping

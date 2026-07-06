@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strconv"
 	"time"
 
@@ -47,7 +48,17 @@ func (s *Store) parseManagedGroup(vals map[string]string, chatID int64) core.Man
 }
 
 // ManagedGroupByChatID returns the managed group for chatID, if present.
+// A fresh read-cache copy of the full group list is authoritative for both
+// hits and misses: every group hash is indexed in the managed-groups set.
 func (s *Store) ManagedGroupByChatID(ctx context.Context, chatID int64) (core.ManagedGroup, bool, error) {
+	if groups, _, ok := s.reads.cachedGroups(); ok {
+		for _, group := range groups {
+			if group.ChatID == chatID {
+				return group, true, nil
+			}
+		}
+		return core.ManagedGroup{}, false, nil
+	}
 	vals, err := s.rdb.HGetAll(ctx, keyManagedGroup(chatID)).Result()
 	if err != nil {
 		return core.ManagedGroup{}, false, fmt.Errorf("redis hgetall managed group: %w", err)
@@ -60,6 +71,18 @@ func (s *Store) ManagedGroupByChatID(ctx context.Context, chatID int64) (core.Ma
 
 // ListManagedGroupsByCreator returns all managed groups linked to creatorID.
 func (s *Store) ListManagedGroupsByCreator(ctx context.Context, creatorID string) ([]core.ManagedGroup, error) {
+	if groups, _, ok := s.reads.cachedGroups(); ok {
+		out := make([]core.ManagedGroup, 0, len(groups))
+		for _, group := range groups {
+			if group.CreatorID == creatorID {
+				out = append(out, group)
+			}
+		}
+		if len(out) == 0 {
+			return nil, nil
+		}
+		return out, nil
+	}
 	ids, err := s.rdb.SMembers(ctx, keyManagedGroupsByCreator(creatorID)).Result()
 	if err != nil {
 		return nil, fmt.Errorf("redis smembers managed groups by creator: %w", err)
@@ -69,11 +92,20 @@ func (s *Store) ListManagedGroupsByCreator(ctx context.Context, creatorID string
 
 // ListManagedGroups returns all managed groups.
 func (s *Store) ListManagedGroups(ctx context.Context) ([]core.ManagedGroup, error) {
+	cached, gen, ok := s.reads.cachedGroups()
+	if ok {
+		return slices.Clone(cached), nil
+	}
 	ids, err := s.rdb.SMembers(ctx, keyManagedGroupsSet()).Result()
 	if err != nil {
 		return nil, fmt.Errorf("redis smembers managed groups: %w", err)
 	}
-	return s.loadManagedGroupsByRawIDs(ctx, ids, "ListManagedGroups")
+	groups, err := s.loadManagedGroupsByRawIDs(ctx, ids, "ListManagedGroups")
+	if err != nil {
+		return nil, err
+	}
+	s.reads.storeGroups(gen, slices.Clone(groups))
+	return groups, nil
 }
 
 // loadManagedGroupsByRawIDs fetches group hashes for raw chat-ID set members
