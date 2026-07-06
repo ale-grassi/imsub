@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"imsub/internal/core"
+
+	"github.com/redis/go-redis/v9"
 )
 
 // UpsertManagedMemberTag records a Telegram member tag currently owned by ImSub.
@@ -75,14 +77,31 @@ func (s *Store) ListManagedMemberTags(ctx context.Context, chatID int64) ([]core
 		return nil, nil
 	}
 
-	out := make([]core.ManagedMemberTag, 0, len(rawIDs))
+	telegramUserIDs := make([]int64, 0, len(rawIDs))
 	for _, rawID := range rawIDs {
 		telegramUserID, parseErr := strconv.ParseInt(rawID, 10, 64)
 		if parseErr != nil {
 			s.log().Warn("ListManagedMemberTags invalid telegram user id, skipping", "chat_id", chatID, "telegram_user_id_raw", rawID, "error", parseErr)
 			continue
 		}
-		vals, getErr := s.rdb.HGetAll(ctx, keyManagedMemberTag(chatID, telegramUserID)).Result()
+		telegramUserIDs = append(telegramUserIDs, telegramUserID)
+	}
+	if len(telegramUserIDs) == 0 {
+		return nil, nil
+	}
+
+	pipe := s.rdb.Pipeline()
+	cmds := make([]*redis.MapStringStringCmd, len(telegramUserIDs))
+	for i, telegramUserID := range telegramUserIDs {
+		cmds[i] = pipe.HGetAll(ctx, keyManagedMemberTag(chatID, telegramUserID))
+	}
+	if _, err := pipe.Exec(ctx); err != nil {
+		return nil, fmt.Errorf("redis exec managed member tags: %w", err)
+	}
+
+	out := make([]core.ManagedMemberTag, 0, len(telegramUserIDs))
+	for i, telegramUserID := range telegramUserIDs {
+		vals, getErr := cmds[i].Result()
 		if getErr != nil {
 			return nil, fmt.Errorf("redis hgetall managed member tag: %w", getErr)
 		}

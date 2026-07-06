@@ -297,8 +297,8 @@ func TestDumpCurrentSubscribersRefreshOnUnauthorized(t *testing.T) {
 	if !finalized || !finalHasData {
 		t.Errorf("DumpCurrentSubscribers(creator) finalized=(%v, hasData=%v), want finalized=true and hasData=true", finalized, finalHasData)
 	}
-	if cleanupKey != "tmp:c1" {
-		t.Errorf("DumpCurrentSubscribers(creator) cleanup key = %q, want %q", cleanupKey, "tmp:c1")
+	if cleanupKey != "" {
+		t.Errorf("DumpCurrentSubscribers(creator) cleanup key = %q, want no cleanup after successful finalize", cleanupKey)
 	}
 	if !updatedTokens {
 		t.Errorf("DumpCurrentSubscribers(creator) updatedTokens = %t, want %t", updatedTokens, true)

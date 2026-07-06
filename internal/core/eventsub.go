@@ -272,7 +272,14 @@ func (e *EventSubService) DumpCurrentSubscribers(ctx context.Context, creator Cr
 	var cursor string
 	tmpKey := e.store.NewSubscriberDumpKey(creator.ID)
 	cleanupCtx := context.WithoutCancel(ctx)
-	defer e.store.CleanupSubscriberDump(cleanupCtx, tmpKey)
+	finalized := false
+	defer func() {
+		// After a successful finalize the tmp key is renamed away (or was
+		// never written), so the cleanup DEL would be a wasted round trip.
+		if !finalized {
+			e.store.CleanupSubscriberDump(cleanupCtx, tmpKey)
+		}
+	}()
 	refreshed := false
 	wroteAny := false
 	dumpIDs := make([]string, 0, dumpIDChunkSize)
@@ -319,6 +326,7 @@ func (e *EventSubService) DumpCurrentSubscribers(ctx context.Context, creator Cr
 	if err := e.store.FinalizeSubscriberDump(ctx, creator.ID, tmpKey, wroteAny); err != nil {
 		return total, fmt.Errorf("finalize subscriber dump: %w", err)
 	}
+	finalized = true
 	now := time.Now().UTC()
 	if err := e.store.UpdateCreatorLastSync(ctx, creator.ID, now); err != nil {
 		return total, fmt.Errorf("update creator last sync: %w", err)

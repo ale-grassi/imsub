@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"imsub/internal/core"
+
+	"github.com/redis/go-redis/v9"
 )
 
 // UpsertUntrackedGroupMember records telegramUserID as observed but untracked in chatID.
@@ -16,18 +18,15 @@ func (s *Store) UpsertUntrackedGroupMember(ctx context.Context, chatID, telegram
 	}
 	tgStr := strconv.FormatInt(telegramUserID, 10)
 	metaKey := keyTrackedGroupMemberMeta(chatID, telegramUserID)
-	firstSeen := at.UTC().Format(time.RFC3339)
-	existingFirstSeen, _ := s.rdb.HGet(ctx, metaKey, "first_seen_at").Result()
-	if existingFirstSeen != "" {
-		firstSeen = existingFirstSeen
-	}
 
 	pipe := s.rdb.TxPipeline()
 	pipe.SAdd(ctx, keyUntrackedGroupMembers(chatID), tgStr)
+	// HSETNX keeps the original first_seen_at without a read round trip and
+	// without a read-modify-write race between concurrent upserts.
+	pipe.HSetNX(ctx, metaKey, "first_seen_at", at.UTC().Format(time.RFC3339))
 	pipe.HSet(ctx, metaKey, map[string]string{
 		"state":         "untracked",
 		"source":        source,
-		"first_seen_at": firstSeen,
 		"last_seen_at":  at.UTC().Format(time.RFC3339),
 		"last_status":   status,
 		"telegram_user": tgStr,
@@ -69,15 +68,31 @@ func (s *Store) ListUntrackedGroupMembers(ctx context.Context, chatID int64) ([]
 		return nil, nil
 	}
 
-	out := make([]core.UntrackedGroupMember, 0, len(rawIDs))
+	telegramUserIDs := make([]int64, 0, len(rawIDs))
 	for _, rawID := range rawIDs {
 		telegramUserID, parseErr := strconv.ParseInt(rawID, 10, 64)
 		if parseErr != nil {
 			s.log().Warn("ListUntrackedGroupMembers invalid telegram user id, skipping", "chat_id", chatID, "telegram_user_id_raw", rawID, "error", parseErr)
 			continue
 		}
+		telegramUserIDs = append(telegramUserIDs, telegramUserID)
+	}
+	if len(telegramUserIDs) == 0 {
+		return nil, nil
+	}
 
-		vals, getErr := s.rdb.HGetAll(ctx, keyTrackedGroupMemberMeta(chatID, telegramUserID)).Result()
+	pipe := s.rdb.Pipeline()
+	cmds := make([]*redis.MapStringStringCmd, len(telegramUserIDs))
+	for i, telegramUserID := range telegramUserIDs {
+		cmds[i] = pipe.HGetAll(ctx, keyTrackedGroupMemberMeta(chatID, telegramUserID))
+	}
+	if _, err := pipe.Exec(ctx); err != nil {
+		return nil, fmt.Errorf("redis exec untracked group member meta: %w", err)
+	}
+
+	out := make([]core.UntrackedGroupMember, 0, len(telegramUserIDs))
+	for i, telegramUserID := range telegramUserIDs {
+		vals, getErr := cmds[i].Result()
 		if getErr != nil {
 			return nil, fmt.Errorf("redis hgetall untracked group member meta: %w", getErr)
 		}

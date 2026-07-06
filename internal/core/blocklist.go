@@ -110,7 +110,14 @@ func (s *CreatorBlocklistService) SyncCreatorBlocklist(ctx context.Context, crea
 	var cursor string
 	tmpKey := s.store.NewCreatorBlocklistDumpKey(creator.ID)
 	cleanupCtx := context.WithoutCancel(ctx)
-	defer s.store.CleanupCreatorBlocklistDump(cleanupCtx, tmpKey)
+	finalized := false
+	defer func() {
+		// After a successful finalize the tmp key is renamed away (or was
+		// never written), so the cleanup DEL would be a wasted round trip.
+		if !finalized {
+			s.store.CleanupCreatorBlocklistDump(cleanupCtx, tmpKey)
+		}
+	}()
 	refreshed := false
 	wroteAny := false
 	dumpIDs := make([]string, 0, dumpIDChunkSize)
@@ -161,6 +168,7 @@ func (s *CreatorBlocklistService) SyncCreatorBlocklist(ctx context.Context, crea
 		s.emitBlocklistSync(ctx, creator.ID, "failed", total)
 		return total, fmt.Errorf("finalize creator blocklist dump: %w", err)
 	}
+	finalized = true
 	if err := s.enforceCreatorBlocklist(ctx, creator); err != nil {
 		s.emitBlocklistSync(ctx, creator.ID, "failed", total)
 		return total, err

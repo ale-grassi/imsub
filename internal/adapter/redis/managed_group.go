@@ -8,6 +8,8 @@ import (
 
 	"imsub/internal/core"
 	"imsub/internal/platform/i18n"
+
+	"github.com/redis/go-redis/v9"
 )
 
 func parseGroupTime(raw string) time.Time {
@@ -62,27 +64,7 @@ func (s *Store) ListManagedGroupsByCreator(ctx context.Context, creatorID string
 	if err != nil {
 		return nil, fmt.Errorf("redis smembers managed groups by creator: %w", err)
 	}
-	if len(ids) == 0 {
-		return nil, nil
-	}
-
-	out := make([]core.ManagedGroup, 0, len(ids))
-	for _, raw := range ids {
-		chatID, parseErr := strconv.ParseInt(raw, 10, 64)
-		if parseErr != nil {
-			s.log().Warn("ListManagedGroupsByCreator invalid chat id, skipping", "creator_id", creatorID, "chat_id_raw", raw, "error", parseErr)
-			continue
-		}
-		group, ok, getErr := s.ManagedGroupByChatID(ctx, chatID)
-		if getErr != nil {
-			return nil, getErr
-		}
-		if !ok {
-			continue
-		}
-		out = append(out, group)
-	}
-	return out, nil
+	return s.loadManagedGroupsByRawIDs(ctx, ids, "ListManagedGroupsByCreator")
 }
 
 // ListManagedGroups returns all managed groups.
@@ -91,23 +73,44 @@ func (s *Store) ListManagedGroups(ctx context.Context) ([]core.ManagedGroup, err
 	if err != nil {
 		return nil, fmt.Errorf("redis smembers managed groups: %w", err)
 	}
-	if len(ids) == 0 {
-		return nil, nil
-	}
-	out := make([]core.ManagedGroup, 0, len(ids))
-	for _, raw := range ids {
+	return s.loadManagedGroupsByRawIDs(ctx, ids, "ListManagedGroups")
+}
+
+// loadManagedGroupsByRawIDs fetches group hashes for raw chat-ID set members
+// in a single pipeline, skipping malformed IDs and missing groups.
+func (s *Store) loadManagedGroupsByRawIDs(ctx context.Context, rawIDs []string, logContext string) ([]core.ManagedGroup, error) {
+	chatIDs := make([]int64, 0, len(rawIDs))
+	for _, raw := range rawIDs {
 		chatID, parseErr := strconv.ParseInt(raw, 10, 64)
 		if parseErr != nil {
-			s.log().Warn("ListManagedGroups invalid chat id, skipping", "chat_id_raw", raw, "error", parseErr)
+			s.log().Warn(logContext+" invalid chat id, skipping", "chat_id_raw", raw, "error", parseErr)
 			continue
 		}
-		group, ok, getErr := s.ManagedGroupByChatID(ctx, chatID)
-		if getErr != nil {
-			return nil, getErr
+		chatIDs = append(chatIDs, chatID)
+	}
+	if len(chatIDs) == 0 {
+		return nil, nil
+	}
+
+	pipe := s.rdb.Pipeline()
+	cmds := make([]*redis.MapStringStringCmd, len(chatIDs))
+	for i, chatID := range chatIDs {
+		cmds[i] = pipe.HGetAll(ctx, keyManagedGroup(chatID))
+	}
+	if _, err := pipe.Exec(ctx); err != nil {
+		return nil, fmt.Errorf("redis exec load managed groups: %w", err)
+	}
+
+	out := make([]core.ManagedGroup, 0, len(chatIDs))
+	for i, chatID := range chatIDs {
+		vals, err := cmds[i].Result()
+		if err != nil {
+			return nil, fmt.Errorf("redis hgetall managed group: %w", err)
 		}
-		if ok {
-			out = append(out, group)
+		if len(vals) == 0 {
+			continue
 		}
+		out = append(out, s.parseManagedGroup(vals, chatID))
 	}
 	return out, nil
 }
