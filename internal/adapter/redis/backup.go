@@ -387,6 +387,10 @@ func isBackupExportedKey(key string) bool {
 		// wrongly block job processing after a restore.
 		!strings.HasPrefix(key, "imsub:cleanup_job_lock:") &&
 		!strings.HasPrefix(key, "imsub:sub_end_grace_lock:") &&
+		// OAuth states are short-lived login secrets; exporting them to
+		// object storage widens their exposure, and restoring one would make
+		// a stale login flow briefly valid again.
+		!strings.HasPrefix(key, "imsub:oauth:") &&
 		!isTemporaryDumpKey(key)
 }
 

@@ -2,6 +2,9 @@ package redis
 
 import (
 	"testing"
+	"time"
+
+	"imsub/internal/core"
 )
 
 func TestBackupDirtyTrackingDedupsUntilRotation(t *testing.T) {
@@ -67,6 +70,28 @@ func TestBackupDeletedTrackingDedupsUntilRotation(t *testing.T) {
 	}
 	if ok, err := s.rdb.SIsMember(skipBackupTracking(ctx), keyBackupDeleted(), "imsub:gone").Result(); err != nil || !ok {
 		t.Fatalf("deleted member after rotation = (%t, %v), want true nil", ok, err)
+	}
+}
+
+func TestOAuthStateKeysExcludedFromBackupTracking(t *testing.T) {
+	t.Parallel()
+
+	if isBackupExportedKey(keyOAuthState("abc123")) {
+		t.Fatalf("isBackupExportedKey(%q) = true, want false", keyOAuthState("abc123"))
+	}
+
+	s := newTestStore(t)
+	ctx := t.Context()
+	if err := s.SaveOAuthState(ctx, "abc123", core.OAuthStatePayload{TelegramUserID: 7}, time.Minute); err != nil {
+		t.Fatalf("SaveOAuthState failed: %v", err)
+	}
+	if ok, err := s.rdb.SIsMember(skipBackupTracking(ctx), keyBackupDirty(), keyOAuthState("abc123")).Result(); err != nil || ok {
+		t.Fatalf("oauth state in dirty set = (%t, %v), want absent", ok, err)
+	}
+	// The per-user privacy index of state keys stays exported; only the state
+	// payloads themselves are excluded.
+	if ok, err := s.rdb.SIsMember(skipBackupTracking(ctx), keyBackupDirty(), keyPrivacyOAuthStates(7)).Result(); err != nil || !ok {
+		t.Fatalf("privacy oauth index in dirty set = (%t, %v), want present", ok, err)
 	}
 }
 
