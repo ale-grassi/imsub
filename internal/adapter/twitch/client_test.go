@@ -393,3 +393,96 @@ func TestCreateEventSubUnauthorizedRefreshesAndRetries(t *testing.T) {
 		t.Fatalf("create endpoint calls = %d, want 2", createCalls)
 	}
 }
+
+func TestListSubscriberPageRetriesOnRateLimit(t *testing.T) {
+	t.Parallel()
+
+	base := time.Unix(1_700_000_000, 0)
+	var calls atomic.Int32
+	client := NewClient(testConfig(), &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if calls.Add(1) == 1 {
+				resp := response(http.StatusTooManyRequests, "slow down")
+				resp.Header.Set("Ratelimit-Reset", "1700000002")
+				return resp, nil
+			}
+			return response(http.StatusOK, `{"data":[{"user_id":"u1"}],"pagination":{}}`), nil
+		}),
+	})
+	client.now = func() time.Time { return base }
+	var slept []time.Duration
+	client.sleep = func(_ context.Context, d time.Duration) error {
+		slept = append(slept, d)
+		return nil
+	}
+
+	userIDs, _, err := client.ListSubscriberPage(t.Context(), "access", "broadcaster", "")
+	if err != nil {
+		t.Fatalf("ListSubscriberPage returned error: %v", err)
+	}
+	if len(userIDs) != 1 || userIDs[0] != "u1" {
+		t.Fatalf("userIDs = %#v, want [u1]", userIDs)
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("transport calls = %d, want 2", calls.Load())
+	}
+	if len(slept) != 1 || slept[0] != 2*time.Second {
+		t.Fatalf("sleeps = %v, want one sleep of 2s from Ratelimit-Reset", slept)
+	}
+}
+
+func TestListSubscriberPageGivesUpAfterMaxRetries(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+	client := NewClient(testConfig(), &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			calls.Add(1)
+			return response(http.StatusTooManyRequests, "slow down"), nil
+		}),
+	})
+	client.sleep = func(context.Context, time.Duration) error { return nil }
+
+	_, _, err := client.ListSubscriberPage(t.Context(), "access", "broadcaster", "")
+	if err == nil {
+		t.Fatal("ListSubscriberPage error = nil, want rate-limit failure")
+	}
+	if !errors.Is(err, errSubList) {
+		t.Fatalf("error = %v, want wrapped errSubList", err)
+	}
+	if calls.Load() != helixMaxAttempts {
+		t.Fatalf("transport calls = %d, want %d", calls.Load(), helixMaxAttempts)
+	}
+}
+
+func TestListEventSubsRetriesOnServerError(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+	client := NewClient(testConfig(), &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if strings.Contains(req.URL.Path, "/oauth2/token") {
+				return response(http.StatusOK, `{"access_token":"app-token","expires_in":3600}`), nil
+			}
+			if calls.Add(1) == 1 {
+				return response(http.StatusInternalServerError, "boom"), nil
+			}
+			return response(http.StatusOK, `{"data":[],"pagination":{}}`), nil
+		}),
+	})
+	var slept []time.Duration
+	client.sleep = func(_ context.Context, d time.Duration) error {
+		slept = append(slept, d)
+		return nil
+	}
+
+	if _, err := client.ListEventSubs(t.Context(), core.ListEventSubsOpts{}); err != nil {
+		t.Fatalf("ListEventSubs returned error: %v", err)
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("helix calls = %d, want 2", calls.Load())
+	}
+	if len(slept) != 1 || slept[0] != helixRetryBaseDelay {
+		t.Fatalf("sleeps = %v, want one base-delay back-off", slept)
+	}
+}

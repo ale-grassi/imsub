@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -36,6 +37,16 @@ var (
 
 const appTokenRefreshSkew = 30 * time.Second
 
+const (
+	// Bounds on Helix request attempts: one initial try plus retries on 429
+	// and transient 5xx responses. Every Helix call in this package tolerates
+	// a duplicate send (create treats 409 as success, delete treats 404 as
+	// success, the rest are reads).
+	helixMaxAttempts    = 3
+	helixRetryBaseDelay = time.Second
+	helixRetryMaxDelay  = 30 * time.Second
+)
+
 var _ core.TwitchAPI = (*Client)(nil)
 
 // Client is the production Twitch API client that makes real HTTP calls.
@@ -43,6 +54,7 @@ type Client struct {
 	cfg    config.Config
 	client *http.Client
 	now    func() time.Time
+	sleep  func(ctx context.Context, d time.Duration) error
 
 	appTokenMu      sync.Mutex
 	appToken        string
@@ -56,7 +68,62 @@ func NewClient(cfg config.Config, client *http.Client) *Client {
 		cfg:    cfg,
 		client: client,
 		now:    time.Now,
+		sleep:  sleepContext,
 	}
+}
+
+func sleepContext(ctx context.Context, d time.Duration) error {
+	if d <= 0 {
+		return nil
+	}
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("context done: %w", ctx.Err())
+	case <-timer.C:
+		return nil
+	}
+}
+
+// doHelixRequest sends the built request, retrying a bounded number of times
+// on rate limiting (429, honoring Ratelimit-Reset) and transient 5xx
+// responses. The final response is returned unretried for the caller's normal
+// status handling.
+func (c *Client) doHelixRequest(ctx context.Context, build func() (*http.Request, error)) (*http.Response, error) {
+	for attempt := 1; ; attempt++ {
+		req, err := build()
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.client.Do(req) // #nosec G704 -- request builders only target fixed Twitch API endpoints
+		if err != nil {
+			return nil, fmt.Errorf("do helix request: %w", err)
+		}
+		if attempt >= helixMaxAttempts || !isRetryableHelixStatus(resp.StatusCode) {
+			return resp, nil
+		}
+		delay := helixRetryDelay(resp.Header, c.now(), attempt)
+		_ = resp.Body.Close()
+		if err := c.sleep(ctx, delay); err != nil {
+			return nil, fmt.Errorf("wait for twitch retry: %w", err)
+		}
+	}
+}
+
+func isRetryableHelixStatus(status int) bool {
+	return status == http.StatusTooManyRequests || status >= http.StatusInternalServerError
+}
+
+// helixRetryDelay derives the wait before a retry from the Ratelimit-Reset
+// header (unix seconds) when present, otherwise linear back-off per attempt.
+func helixRetryDelay(headers http.Header, now time.Time, attempt int) time.Duration {
+	if reset := headers.Get("Ratelimit-Reset"); reset != "" {
+		if unix, err := strconv.ParseInt(reset, 10, 64); err == nil {
+			return min(max(time.Unix(unix, 0).Sub(now), 0), helixRetryMaxDelay)
+		}
+	}
+	return helixRetryBaseDelay * time.Duration(attempt)
 }
 
 func responseBodyString(resp *http.Response) (string, error) {
@@ -188,11 +255,7 @@ func (c *Client) doAppAuthenticatedRequest(ctx context.Context, build func(token
 		return nil, fmt.Errorf("get app token: %w", err)
 	}
 
-	req, err := build(token)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := c.client.Do(req) // #nosec G704 -- request builder only targets fixed Twitch API endpoints
+	resp, err := c.doHelixRequest(ctx, func() (*http.Request, error) { return build(token) })
 	if err != nil {
 		return nil, fmt.Errorf("do app-authenticated request: %w", err)
 	}
@@ -207,11 +270,7 @@ func (c *Client) doAppAuthenticatedRequest(ctx context.Context, build func(token
 		return nil, fmt.Errorf("refresh app token after unauthorized: %w", err)
 	}
 
-	req, err = build(token)
-	if err != nil {
-		return nil, err
-	}
-	resp, err = c.client.Do(req) // #nosec G704 -- request builder only targets fixed Twitch API endpoints
+	resp, err = c.doHelixRequest(ctx, func() (*http.Request, error) { return build(token) })
 	if err != nil {
 		return nil, fmt.Errorf("retry app-authenticated request: %w", err)
 	}
@@ -485,14 +544,15 @@ func (c *Client) ListSubscriberPage(ctx context.Context, accessToken, broadcaste
 	if cursor != "" {
 		endpoint += "&after=" + url.QueryEscape(cursor)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return nil, "", fmt.Errorf("create subscriptions request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("Client-Id", c.cfg.TwitchClientID)
-
-	resp, err := c.client.Do(req) // #nosec G704 -- req URL is a fixed Twitch endpoint built in this package
+	resp, err := c.doHelixRequest(ctx, func() (*http.Request, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+		if err != nil {
+			return nil, fmt.Errorf("create subscriptions request: %w", err)
+		}
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+		req.Header.Set("Client-Id", c.cfg.TwitchClientID)
+		return req, nil
+	})
 	if err != nil {
 		return nil, "", fmt.Errorf("do subscriptions request: %w", err)
 	}
@@ -526,14 +586,15 @@ func (c *Client) ListBannedUserPage(ctx context.Context, accessToken, broadcaste
 	if cursor != "" {
 		endpoint += "&after=" + url.QueryEscape(cursor)
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
-	if err != nil {
-		return nil, "", fmt.Errorf("create banned users request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("Client-Id", c.cfg.TwitchClientID)
-
-	resp, err := c.client.Do(req) // #nosec G704 -- req URL is a fixed Twitch endpoint built in this package
+	resp, err := c.doHelixRequest(ctx, func() (*http.Request, error) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+		if err != nil {
+			return nil, fmt.Errorf("create banned users request: %w", err)
+		}
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+		req.Header.Set("Client-Id", c.cfg.TwitchClientID)
+		return req, nil
+	})
 	if err != nil {
 		return nil, "", fmt.Errorf("do banned users request: %w", err)
 	}
