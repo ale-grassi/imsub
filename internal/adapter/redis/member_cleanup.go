@@ -82,14 +82,29 @@ func (s *Store) MemberCleanupJob(ctx context.Context, jobID string) (core.Member
 
 // ClaimMemberCleanupJob acquires a short-lived processing lock for a job.
 func (s *Store) ClaimMemberCleanupJob(ctx context.Context, jobID string, ttl time.Duration) (bool, error) {
-	res, err := s.rdb.SetArgs(ctx, keyMemberCleanupJobLock(jobID), "1", redis.SetArgs{
+	err := s.rdb.SetArgs(ctx, keyMemberCleanupJobLock(jobID), "1", redis.SetArgs{
 		TTL:  ttl,
 		Mode: "NX",
-	}).Result()
+	}).Err()
+	// SET NX replies null when the lock is already held; go-redis surfaces
+	// that as redis.Nil, which is contention rather than an error.
+	if errors.Is(err, redis.Nil) {
+		return false, nil
+	}
 	if err != nil {
 		return false, fmt.Errorf("redis setnx member cleanup job lock: %w", err)
 	}
-	return res == "OK", nil
+	return true, nil
+}
+
+// ReleaseMemberCleanupJob drops the processing lock so the next scheduler tick
+// can continue draining a job's remaining targets without waiting for the
+// lock TTL to expire.
+func (s *Store) ReleaseMemberCleanupJob(ctx context.Context, jobID string) error {
+	if err := s.rdb.Del(ctx, keyMemberCleanupJobLock(jobID)).Err(); err != nil {
+		return fmt.Errorf("redis del member cleanup job lock: %w", err)
+	}
+	return nil
 }
 
 // SaveMemberCleanupJob persists cleanup-job progress.

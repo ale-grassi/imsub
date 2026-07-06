@@ -43,7 +43,8 @@ func newGracePolicyFakeStore() *fakeStore {
 }
 
 type fakeMemberCleanupStore struct {
-	saveJob func(ctx context.Context, job core.MemberCleanupJob) error
+	saveJob    func(ctx context.Context, job core.MemberCleanupJob) error
+	releasedFn func(ctx context.Context, jobID string) error
 }
 
 type fakeSubscriptionGraceStore struct {
@@ -174,6 +175,13 @@ func (f *fakeMemberCleanupStore) ListPendingMemberCleanupJobs(context.Context) (
 
 func (f *fakeMemberCleanupStore) ClaimMemberCleanupJob(context.Context, string, time.Duration) (bool, error) {
 	return false, nil
+}
+
+func (f *fakeMemberCleanupStore) ReleaseMemberCleanupJob(ctx context.Context, jobID string) error {
+	if f.releasedFn != nil {
+		return f.releasedFn(ctx, jobID)
+	}
+	return nil
 }
 
 func (f *fakeMemberCleanupStore) SaveMemberCleanupJob(ctx context.Context, job core.MemberCleanupJob) error {

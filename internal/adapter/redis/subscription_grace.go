@@ -97,12 +97,17 @@ func (s *Store) ListDueSubscriptionEndGrace(ctx context.Context, now time.Time, 
 // ClaimSubscriptionEndGrace acquires a short-lived processing lock for a due
 // delayed sub-end job.
 func (s *Store) ClaimSubscriptionEndGrace(ctx context.Context, jobID string, ttl time.Duration) (bool, error) {
-	ok, err := s.rdb.SetArgs(ctx, keySubscriptionEndGraceLock(jobID), "1", redis.SetArgs{
+	err := s.rdb.SetArgs(ctx, keySubscriptionEndGraceLock(jobID), "1", redis.SetArgs{
 		Mode: "NX",
 		TTL:  ttl,
-	}).Result()
+	}).Err()
+	// SET NX replies null when the lock is already held; go-redis surfaces
+	// that as redis.Nil, which is contention rather than an error.
+	if errors.Is(err, redis.Nil) {
+		return false, nil
+	}
 	if err != nil {
 		return false, fmt.Errorf("redis set nx subscription-end grace lock: %w", err)
 	}
-	return ok == "OK", nil
+	return true, nil
 }

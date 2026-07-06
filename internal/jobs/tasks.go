@@ -40,6 +40,7 @@ type groupKicker interface {
 type memberCleanupStore interface {
 	ListPendingMemberCleanupJobs(ctx context.Context) ([]core.MemberCleanupJob, error)
 	ClaimMemberCleanupJob(ctx context.Context, jobID string, ttl time.Duration) (bool, error)
+	ReleaseMemberCleanupJob(ctx context.Context, jobID string) error
 	SaveMemberCleanupJob(ctx context.Context, job core.MemberCleanupJob) error
 }
 
@@ -589,13 +590,16 @@ func (t memberCleanupTask) Run(ctx context.Context) error {
 		}
 		t.counts.add("succeeded", result.SucceededCount)
 		t.counts.add("failed", result.FailedCount)
-		if !done {
-			continue
-		}
-		if t.notifier != nil {
+		if done && t.notifier != nil {
 			if err := t.notifier.NotifyMemberCleanupComplete(ctx, result); err != nil {
 				t.logger.Warn("member cleanup completion notification failed", "job_id", job.ID, "owner_telegram_id", result.OwnerTelegramID, "error", err)
 			}
+		}
+		// Release the lock after a successful pass so an unfinished job can
+		// continue on the next tick instead of stalling for the lock TTL. On
+		// processing errors the lock is kept as a natural retry back-off.
+		if err := t.store.ReleaseMemberCleanupJob(ctx, job.ID); err != nil {
+			t.logger.Warn("member cleanup lock release failed", "job_id", job.ID, "error", err)
 		}
 	}
 	if len(partialErrs) > 0 {
