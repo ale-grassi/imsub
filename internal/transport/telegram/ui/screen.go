@@ -99,6 +99,12 @@ const (
 	ActionKindCopy     ActionKind = "copy"
 )
 
+// Button styles forwarded to Telegram inline-keyboard buttons via WithStyle.
+const (
+	StyleSuccess = "success"
+	StyleDanger  = "danger"
+)
+
 // ActionItem is one inline keyboard button in an ActionGroup.
 type ActionItem struct {
 	Kind        ActionKind

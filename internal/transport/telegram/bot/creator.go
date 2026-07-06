@@ -1017,12 +1017,12 @@ func buildCreatorStatusView(lang, reconnectURL, botUsername string, creator core
 	if len(groups) > 0 {
 		grace := creatorIconActionItem(i18n.Translate(lang, "btn_grace_period"), creatorGraceOpenCallback(), "5258318620722733379")
 		if creator.SubscriptionEndGrace.Enabled() {
-			grace.Style = "success"
+			grace.Style = ui.StyleSuccess
 		}
 		menuItems = append(menuItems, grace)
 		blocklist := creatorIconActionItem(i18n.Translate(lang, "btn_blocklist_sync"), creatorBlocklistToggleCallback(), "5275969776668134187")
 		if creator.BlocklistSyncEnabled {
-			blocklist.Style = "success"
+			blocklist.Style = ui.StyleSuccess
 		}
 		menuItems = append(menuItems, blocklist)
 	}
@@ -1307,7 +1307,7 @@ func creatorIconActionItem(label, callback, icon string) ui.ActionItem {
 
 func creatorDangerActionItem(label, callback, icon string) ui.ActionItem {
 	item := creatorIconActionItem(label, callback, icon)
-	item.Style = "danger"
+	item.Style = ui.StyleDanger
 	return item
 }
 
@@ -1318,7 +1318,7 @@ func creatorGroupedActionItem(label, callback string) ui.ActionItem {
 func creatorGroupMemberTagActionItem(lang string, group core.ManagedGroup) ui.ActionItem {
 	item := creatorIconActionItem(groupMemberTagButtonText(lang, group.MemberTagSyncEnabled), creatorGroupMemberTagsOpenCallback(group.ChatID), "5296348778012361146")
 	if group.MemberTagSyncEnabled {
-		item.Style = "success"
+		item.Style = ui.StyleSuccess
 	}
 	return item
 }

@@ -107,14 +107,13 @@ func TestRedisIncrementalBackupRestoreWithRealRedis(t *testing.T) {
 	}
 
 	var full bytes.Buffer
-	if _, err := store.ExportBackup(ctx, &full); err != nil {
-		t.Fatalf("ExportBackup() error = %v", err)
+	fullCreatedAt := time.Now().UTC()
+	_, fullToken, err := store.CreateBackup(ctx, &full, redis.BackupKindFull, "backups/full/base.jsonl.gz", fullCreatedAt)
+	if err != nil {
+		t.Fatalf("CreateBackup(full) error = %v", err)
 	}
-	if err := client.Del(ctx, "imsub:backup:dirty", "imsub:backup:deleted").Err(); err != nil {
-		t.Fatalf("clear backup tracking after full export: %v", err)
-	}
-	if err := client.Set(ctx, "imsub:backup:base_full_key", "backups/full/base.jsonl.gz", 0).Err(); err != nil {
-		t.Fatalf("seed base full key: %v", err)
+	if err := store.FinishBackup(ctx, fullToken, true, redis.BackupKindFull, "backups/full/base.jsonl.gz", fullCreatedAt); err != nil {
+		t.Fatalf("FinishBackup(full) error = %v", err)
 	}
 
 	if err := store.AddCreatorSubscriber(ctx, "creator-1", "sub-2"); err != nil {
